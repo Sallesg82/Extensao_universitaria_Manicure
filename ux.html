@@ -1,0 +1,1486 @@
+ crm · HTML
+Copiar
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1400">
+<title>BeautyFlow CRM</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+ 
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: #0a1628;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+  }
+ 
+  .screen {
+    width: 1280px;
+    height: 780px;
+    background: #f4f7fc;
+    border-radius: 16px;
+    overflow: hidden;
+    display: flex;
+    border: 1px solid #d8e4f0;
+  }
+ 
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: 220px;
+    background: #0f2340;
+    display: flex;
+    flex-direction: column;
+    padding: 28px 0;
+    flex-shrink: 0;
+  }
+  .logo { padding: 0 24px 32px; border-bottom: 1px solid rgba(255,255,255,0.08); }
+  .logo-name { font-family: 'DM Serif Display', serif; font-size: 20px; color: #b8d4f0; letter-spacing: 0.3px; }
+  .logo-sub  { font-size: 10px; color: rgba(184,212,240,0.45); letter-spacing: 2px; text-transform: uppercase; margin-top: 2px; }
+ 
+  .nav { padding: 20px 0; flex: 1; }
+  .nav-section { font-size: 9px; color: rgba(255,255,255,0.25); letter-spacing: 2px; text-transform: uppercase; padding: 0 24px; margin: 16px 0 6px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 24px; font-size: 13px; color: rgba(184,212,240,0.55);
+    cursor: pointer; border-left: 2px solid transparent; transition: all 0.15s;
+  }
+  .nav-item:hover { color: #b8d4f0; background: rgba(184,212,240,0.05); }
+  .nav-item.active { color: #b8d4f0; background: rgba(184,212,240,0.08); border-left-color: #4a90d9; }
+  .nav-icon { width: 16px; height: 16px; opacity: 0.7; }
+  .nav-item.active .nav-icon { opacity: 1; }
+ 
+  .sidebar-footer { padding: 20px 24px; border-top: 1px solid rgba(255,255,255,0.08); }
+  .user-card { display: flex; align-items: center; gap: 10px; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: #1a4a7a; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 500; color: #b8d4f0; flex-shrink: 0; }
+  .user-name { font-size: 12px; color: #b8d4f0; font-weight: 500; }
+  .user-role { font-size: 10px; color: rgba(184,212,240,0.4); }
+ 
+  /* ── MAIN ── */
+  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .topbar { background: #fff; border-bottom: 1px solid #d8e4f0; padding: 16px 28px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .topbar-title { font-family: 'DM Serif Display', serif; font-size: 22px; color: #0f2340; }
+  .topbar-sub { font-size: 12px; color: #8aaccb; margin-top: 1px; }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .btn-primary { background: #1a5fab; color: #e8f2fc; border: none; padding: 8px 18px; border-radius: 8px; font-size: 12px; font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer; letter-spacing: 0.3px; transition: background 0.15s; }
+  .btn-primary:hover { background: #1450a0; }
+  .btn-outline { background: #fff; color: #1a5fab; border: 1px solid #b8d4f0; padding: 7px 14px; border-radius: 8px; font-size: 12px; font-family: 'DM Sans', sans-serif; font-weight: 500; cursor: pointer; transition: all 0.15s; }
+  .btn-outline:hover { background: #f0f6fd; }
+ 
+  .badge-notif { width: 32px; height: 32px; border: 1px solid #d8e4f0; border-radius: 8px; background: #fff; display: flex; align-items: center; justify-content: center; position: relative; cursor: pointer; }
+  .notif-dot { width: 7px; height: 7px; background: #4a90d9; border-radius: 50%; position: absolute; top: 5px; right: 5px; border: 1.5px solid #fff; }
+ 
+  .content { flex: 1; padding: 24px 28px; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; }
+ 
+  /* PAGE VISIBILITY */
+  .page { display: none; flex-direction: column; gap: 20px; flex: 1; }
+  .page.active { display: flex; }
+ 
+  /* ── SHARED COMPONENTS ── */
+  .panel { background: #fff; border: 1px solid #d8e4f0; border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+  .panel-header { padding: 14px 18px; border-bottom: 1px solid #d8e4f0; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .panel-title { font-size: 13px; font-weight: 500; color: #0f2340; }
+  .panel-badge { background: #e8f2fc; color: #1a5fab; font-size: 11px; padding: 2px 10px; border-radius: 20px; font-weight: 500; }
+  .panel-badge.green { background: #edf7f1; color: #3d7a56; }
+  .panel-badge.amber { background: #fdf5e8; color: #8c6120; }
+ 
+  /* Metric cards */
+  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .metric-card { background: #fff; border: 1px solid #d8e4f0; border-radius: 12px; padding: 16px 18px; position: relative; overflow: hidden; }
+  .metric-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+  .metric-card.c1::before { background: #4a90d9; }
+  .metric-card.c2::before { background: #2563a8; }
+  .metric-card.c3::before { background: #3a7abf; }
+  .metric-card.c4::before { background: #1a5fab; }
+  .metric-card.cg::before { background: #4e8f6a; }
+  .metric-card.cr::before { background: #c05050; }
+  .metric-label { font-size: 11px; color: #7aaacb; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 6px; }
+  .metric-value { font-family: 'DM Serif Display', serif; font-size: 26px; color: #0f2340; line-height: 1; }
+  .metric-change { font-size: 11px; margin-top: 4px; display: flex; align-items: center; gap: 3px; }
+  .metric-change.up { color: #4e8f6a; }
+  .metric-change.down { color: #c05050; }
+  .metric-change.neutral { color: #b09090; }
+ 
+  /* Status badges */
+  .appt-status { font-size: 10px; padding: 3px 8px; border-radius: 6px; font-weight: 500; white-space: nowrap; }
+  .status-confirmed { background: #e8f2fc; color: #1a5fab; }
+  .status-pending   { background: #fdf5e8; color: #8c6120; }
+  .status-done      { background: #edf7f1; color: #3d7a56; }
+  .status-cancelled { background: #fef0f0; color: #c05050; }
+ 
+  /* ════════════════════════════
+     PAGE 1 — DASHBOARD
+  ════════════════════════════ */
+  .bottom-grid { display: grid; grid-template-columns: 1fr 340px; gap: 14px; flex: 1; overflow: hidden; }
+  .appt-list { flex: 1; overflow: hidden; }
+  .appt-item { display: flex; align-items: center; padding: 11px 18px; border-bottom: 1px solid #f0f5fb; gap: 14px; }
+  .appt-time { font-size: 12px; color: #7aaacb; width: 44px; flex-shrink: 0; text-align: right; }
+  .appt-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .appt-info { flex: 1; }
+  .appt-name { font-size: 13px; font-weight: 500; color: #0f2340; }
+  .appt-service { font-size: 11px; color: #7aaacb; margin-top: 1px; }
+  .appt-price { font-size: 13px; font-weight: 500; color: #0f2340; }
+ 
+  .finance-total { padding: 16px 18px; border-bottom: 1px solid #d8e4f0; }
+  .finance-label { font-size: 11px; color: #7aaacb; text-transform: uppercase; letter-spacing: 0.5px; }
+  .finance-number { font-family: 'DM Serif Display', serif; font-size: 28px; color: #0f2340; margin-top: 2px; }
+  .finance-sub { font-size: 11px; color: #4e8f6a; margin-top: 2px; }
+ 
+  .bar-chart { padding: 14px 18px; border-bottom: 1px solid #d8e4f0; }
+  .bar-chart-title { font-size: 11px; color: #7aaacb; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+  .bars { display: flex; align-items: flex-end; gap: 5px; height: 64px; }
+  .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+  .bar-fill { width: 100%; border-radius: 4px 4px 0 0; background: #b8d4f0; }
+  .bar-fill.highlight { background: #4a90d9; }
+  .bar-day { font-size: 9px; color: #8aaccb; text-transform: uppercase; letter-spacing: 0.5px; }
+ 
+  .services-list { padding: 12px 18px; display: flex; flex-direction: column; gap: 8px; }
+  .service-row { display: flex; align-items: center; gap: 10px; }
+  .service-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .service-name { flex: 1; font-size: 12px; color: #2a5080; }
+  .service-bar-bg { width: 80px; height: 5px; background: #daeaf8; border-radius: 3px; overflow: hidden; }
+  .service-bar-fill { height: 100%; border-radius: 3px; }
+  .service-pct { font-size: 11px; color: #7aaacb; width: 30px; text-align: right; }
+ 
+  .alert-box { margin: 0 18px 14px; background: #fdf5e8; border: 1px solid #f5d9a8; border-radius: 8px; padding: 10px 12px; display: flex; gap: 8px; align-items: flex-start; }
+  .alert-icon { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
+  .alert-text { font-size: 11px; color: #7a5a1a; line-height: 1.4; }
+  .pix-btn { display: inline-block; margin-top: 5px; background: #1a5fab; color: #fff; font-size: 10px; padding: 3px 9px; border-radius: 5px; font-weight: 500; cursor: pointer; }
+ 
+  /* ════════════════════════════
+     PAGE 2 — AGENDA
+  ════════════════════════════ */
+  .agenda-toolbar { display: flex; align-items: center; justify-content: space-between; }
+  .agenda-nav { display: flex; align-items: center; gap: 10px; }
+  .agenda-nav-btn { width: 28px; height: 28px; border: 1px solid #d8e4f0; border-radius: 7px; background: #fff; display: flex; align-items: center; justify-content: center; cursor: pointer; color: #4a90d9; }
+  .agenda-period { font-size: 14px; font-weight: 500; color: #0f2340; }
+  .view-tabs { display: flex; gap: 4px; background: #e8f2fc; border-radius: 8px; padding: 3px; }
+  .view-tab { padding: 5px 12px; font-size: 12px; border-radius: 6px; cursor: pointer; color: #5a88b8; font-weight: 500; transition: all 0.15s; }
+  .view-tab.active { background: #fff; color: #0f2340; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+ 
+  .week-grid { flex: 1; display: flex; overflow: hidden; border: 1px solid #d8e4f0; border-radius: 12px; background: #fff; }
+  .time-col { width: 56px; border-right: 1px solid #edf3fb; flex-shrink: 0; }
+  .time-col-header { height: 44px; border-bottom: 1px solid #edf3fb; }
+  .time-slot-label { height: 52px; display: flex; align-items: flex-start; justify-content: flex-end; padding: 6px 10px 0 0; font-size: 10px; color: #a8c4de; }
+ 
+  .days-grid { flex: 1; display: grid; grid-template-columns: repeat(7, 1fr); }
+  .day-col { border-right: 1px solid #edf3fb; position: relative; }
+  .day-col:last-child { border-right: none; }
+  .day-header { height: 44px; border-bottom: 1px solid #edf3fb; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; position: sticky; top: 0; background: #fff; }
+  .day-name { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #8aaccb; }
+  .day-num { font-size: 16px; font-weight: 500; color: #0f2340; line-height: 1; }
+  .day-num.today { background: #1a5fab; color: #fff; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+ 
+  .day-slots { position: relative; }
+  .hour-line { height: 52px; border-bottom: 1px solid #f0f5fb; }
+ 
+  .cal-event {
+    position: absolute; left: 4px; right: 4px;
+    border-radius: 6px; padding: 5px 7px; font-size: 11px;
+    cursor: pointer; overflow: hidden; z-index: 2;
+    border-left: 3px solid;
+  }
+  .cal-event .ev-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cal-event .ev-svc { font-size: 10px; opacity: 0.75; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cal-event.done { background: #edf7f1; color: #2d6647; border-left-color: #4e8f6a; }
+  .cal-event.confirmed { background: #e8f2fc; color: #1a4a82; border-left-color: #4a90d9; }
+  .cal-event.pending { background: #fdf5e8; color: #7a5010; border-left-color: #c9894a; }
+ 
+  /* ════════════════════════════
+     PAGE 3 — CLIENTES
+  ════════════════════════════ */
+  .clients-layout { display: grid; grid-template-columns: 1fr 320px; gap: 14px; flex: 1; overflow: hidden; }
+ 
+  .search-bar { display: flex; align-items: center; gap: 10px; }
+  .search-input-wrap { flex: 1; position: relative; }
+  .search-input { width: 100%; padding: 8px 12px 8px 36px; border: 1px solid #d8e4f0; border-radius: 8px; font-size: 13px; font-family: 'DM Sans', sans-serif; color: #0f2340; background: #fff; outline: none; }
+  .search-input:focus { border-color: #4a90d9; }
+  .search-icon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: #8aaccb; }
+ 
+  .filter-tabs { display: flex; gap: 6px; }
+  .filter-tab { padding: 6px 14px; font-size: 12px; border-radius: 20px; cursor: pointer; font-weight: 500; background: #fff; border: 1px solid #d8e4f0; color: #7aaacb; transition: all 0.15s; }
+  .filter-tab.active { background: #1a5fab; color: #fff; border-color: #1a5fab; }
+ 
+  .clients-table { flex: 1; overflow: hidden; }
+  .table-head { display: grid; grid-template-columns: 2.2fr 1.2fr 1fr 1fr 0.8fr; padding: 10px 18px; border-bottom: 1px solid #d8e4f0; }
+  .th { font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: #8aaccb; font-weight: 500; }
+  .client-row { display: grid; grid-template-columns: 2.2fr 1.2fr 1fr 1fr 0.8fr; padding: 12px 18px; border-bottom: 1px solid #f0f5fb; align-items: center; cursor: pointer; transition: background 0.1s; }
+  .client-row:hover { background: #f8fbff; }
+  .client-row.selected { background: #edf5fd; }
+  .client-info-cell { display: flex; align-items: center; gap: 10px; }
+  .client-av { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600; flex-shrink: 0; }
+  .client-name-cell { font-size: 13px; font-weight: 500; color: #0f2340; }
+  .client-phone { font-size: 11px; color: #8aaccb; margin-top: 1px; }
+  .td { font-size: 12px; color: #3a6080; }
+  .td.money { font-weight: 500; color: #0f2340; }
+ 
+  .client-detail { overflow-y: auto; }
+  .client-detail-header { padding: 20px 18px; border-bottom: 1px solid #d8e4f0; text-align: center; }
+  .client-detail-av { width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 600; margin: 0 auto 10px; }
+  .client-detail-name { font-family: 'DM Serif Display', serif; font-size: 18px; color: #0f2340; }
+  .client-detail-sub { font-size: 12px; color: #8aaccb; margin-top: 3px; }
+  .client-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 14px 18px; border-bottom: 1px solid #d8e4f0; }
+  .client-stat { background: #f4f7fc; border-radius: 8px; padding: 10px 12px; }
+  .client-stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; color: #8aaccb; }
+  .client-stat-value { font-family: 'DM Serif Display', serif; font-size: 18px; color: #0f2340; margin-top: 2px; }
+ 
+  .history-list { padding: 12px 18px; display: flex; flex-direction: column; gap: 8px; }
+  .history-item { background: #f8fbff; border: 1px solid #e8f0f9; border-radius: 8px; padding: 10px 12px; }
+  .history-date { font-size: 10px; color: #8aaccb; }
+  .history-svc { font-size: 12px; font-weight: 500; color: #0f2340; margin-top: 2px; }
+  .history-price { font-size: 12px; color: #4e8f6a; font-weight: 500; margin-top: 1px; }
+ 
+  /* ════════════════════════════
+     PAGE 4 — FINANCEIRO
+  ════════════════════════════ */
+  .finance-grid { display: grid; grid-template-columns: 1fr 300px; gap: 14px; flex: 1; overflow: hidden; }
+  .finance-left { display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
+  .finance-right { display: flex; flex-direction: column; gap: 14px; overflow: hidden; }
+ 
+  .big-chart { flex: 1; overflow: hidden; }
+  .chart-area { padding: 16px 18px; flex: 1; display: flex; flex-direction: column; }
+  .chart-legend { display: flex; gap: 16px; margin-bottom: 14px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #5a80a0; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
+ 
+  .month-bars { flex: 1; display: flex; align-items: flex-end; gap: 6px; min-height: 120px; }
+  .month-bar-group { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+  .month-bar-pair { display: flex; gap: 3px; align-items: flex-end; width: 100%; }
+  .month-bar { border-radius: 4px 4px 0 0; flex: 1; min-width: 8px; transition: opacity 0.15s; }
+  .month-bar:hover { opacity: 0.8; }
+  .month-bar.rev { background: #4a90d9; }
+  .month-bar.exp { background: #b8d4f0; }
+  .month-label { font-size: 9px; color: #8aaccb; text-transform: uppercase; }
+ 
+  .transactions-table { overflow: hidden; }
+  .tx-row { display: flex; align-items: center; padding: 11px 18px; border-bottom: 1px solid #f0f5fb; gap: 12px; }
+  .tx-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .tx-icon.in { background: #edf7f1; }
+  .tx-icon.out { background: #fef0f0; }
+  .tx-desc { flex: 1; }
+  .tx-name { font-size: 13px; font-weight: 500; color: #0f2340; }
+  .tx-date { font-size: 11px; color: #8aaccb; margin-top: 1px; }
+  .tx-amount { font-size: 13px; font-weight: 600; }
+  .tx-amount.in { color: #4e8f6a; }
+  .tx-amount.out { color: #c05050; }
+ 
+  .expense-breakdown { padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; }
+  .exp-row { display: flex; align-items: center; gap: 10px; }
+  .exp-name { flex: 1; font-size: 12px; color: #2a5080; }
+  .exp-bar-bg { flex: 1.5; height: 6px; background: #daeaf8; border-radius: 3px; overflow: hidden; }
+  .exp-bar-fill { height: 100%; border-radius: 3px; }
+  .exp-val { font-size: 12px; color: #0f2340; font-weight: 500; width: 55px; text-align: right; }
+ 
+  /* Donut chart SVG */
+  .donut-wrap { padding: 14px 18px; display: flex; align-items: center; gap: 14px; }
+  .donut-legend { display: flex; flex-direction: column; gap: 6px; }
+  .donut-legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: #3a6080; }
+  .donut-legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+ 
+  /* ════════════════════════════
+     PAGE 5 — RELATÓRIOS
+  ════════════════════════════ */
+  .reports-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; flex: 1; overflow: hidden; }
+  .report-full { grid-column: 1 / -1; }
+ 
+  .period-selector { display: flex; gap: 6px; align-items: center; }
+  .period-btn { padding: 5px 14px; font-size: 12px; border-radius: 20px; cursor: pointer; font-weight: 500; background: #fff; border: 1px solid #d8e4f0; color: #7aaacb; transition: all 0.15s; }
+  .period-btn.active { background: #1a5fab; color: #fff; border-color: #1a5fab; }
+ 
+  .top-clients { overflow: hidden; }
+  .top-client-row { display: flex; align-items: center; padding: 10px 18px; border-bottom: 1px solid #f0f5fb; gap: 10px; }
+  .rank-badge { width: 22px; height: 22px; border-radius: 50%; background: #e8f2fc; color: #1a5fab; font-size: 10px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .rank-badge.gold { background: #fdf3dc; color: #8c6120; }
+  .rank-badge.silver { background: #f0f4f8; color: #4a6888; }
+ 
+  .heatmap-grid { padding: 12px 18px; }
+  .heatmap-hours { display: flex; gap: 4px; margin-bottom: 4px; }
+  .heatmap-hour-label { font-size: 9px; color: #8aaccb; width: 30px; text-align: center; flex-shrink: 0; }
+  .heatmap-row { display: flex; align-items: center; gap: 4px; margin-bottom: 3px; }
+  .heatmap-day-label { font-size: 9px; color: #8aaccb; width: 24px; flex-shrink: 0; }
+  .hm-cell { width: 30px; height: 22px; border-radius: 4px; flex-shrink: 0; }
+ 
+  .trend-line { padding: 14px 18px; }
+  svg.sparkline { overflow: visible; }
+ 
+  /* ════════════════════════════
+     PAGE 6 — CONFIGURAÇÕES
+  ════════════════════════════ */
+  .settings-grid { display: grid; grid-template-columns: 220px 1fr; gap: 14px; flex: 1; overflow: hidden; }
+  .settings-nav { display: flex; flex-direction: column; gap: 4px; overflow-y: auto; }
+  .settings-nav-item { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 8px; font-size: 13px; color: #5a88b8; cursor: pointer; transition: all 0.15s; font-weight: 500; }
+  .settings-nav-item:hover { background: #edf5fd; color: #0f2340; }
+  .settings-nav-item.active { background: #e8f2fc; color: #1a5fab; }
+  .settings-nav-icon { width: 16px; height: 16px; flex-shrink: 0; }
+ 
+  .settings-content { overflow-y: auto; display: flex; flex-direction: column; gap: 16px; }
+  .settings-section { background: #fff; border: 1px solid #d8e4f0; border-radius: 12px; overflow: hidden; }
+  .settings-section-header { padding: 14px 20px; border-bottom: 1px solid #d8e4f0; }
+  .settings-section-title { font-size: 14px; font-weight: 600; color: #0f2340; }
+  .settings-section-sub { font-size: 11px; color: #8aaccb; margin-top: 2px; }
+  .settings-body { padding: 18px 20px; display: flex; flex-direction: column; gap: 14px; }
+ 
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-field { display: flex; flex-direction: column; gap: 5px; }
+  .form-field.full { grid-column: 1 / -1; }
+  .form-label { font-size: 11px; font-weight: 500; color: #4a6888; text-transform: uppercase; letter-spacing: 0.5px; }
+  .form-input { padding: 8px 12px; border: 1px solid #d8e4f0; border-radius: 8px; font-size: 13px; font-family: 'DM Sans', sans-serif; color: #0f2340; outline: none; background: #f8fbff; }
+  .form-input:focus { border-color: #4a90d9; background: #fff; }
+ 
+  .hours-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+  .hour-day { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+  .hour-day-name { font-size: 10px; font-weight: 500; color: #8aaccb; text-transform: uppercase; letter-spacing: 0.5px; }
+  .hour-toggle { width: 36px; height: 20px; border-radius: 10px; cursor: pointer; position: relative; transition: background 0.2s; }
+  .hour-toggle.on { background: #1a5fab; }
+  .hour-toggle.off { background: #d8e4f0; }
+  .hour-toggle::after { content: ''; position: absolute; width: 14px; height: 14px; border-radius: 50%; background: #fff; top: 3px; transition: left 0.2s; }
+  .hour-toggle.on::after { left: 19px; }
+  .hour-toggle.off::after { left: 3px; }
+  .hour-times { font-size: 10px; color: #7aaacb; text-align: center; }
+ 
+  .service-item { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f0f5fb; }
+  .service-item:last-child { border-bottom: none; }
+  .service-color-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .service-item-info { flex: 1; }
+  .service-item-name { font-size: 13px; font-weight: 500; color: #0f2340; }
+  .service-item-dur { font-size: 11px; color: #8aaccb; margin-top: 1px; }
+  .service-item-price { font-size: 14px; font-weight: 600; color: #1a5fab; margin-right: 8px; }
+  .service-item-edit { padding: 5px 12px; font-size: 11px; border: 1px solid #d8e4f0; border-radius: 6px; background: #fff; color: #5a88b8; cursor: pointer; }
+ 
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid #f0f5fb; }
+  .toggle-row:last-child { border-bottom: none; }
+  .toggle-info .toggle-title { font-size: 13px; font-weight: 500; color: #0f2340; }
+  .toggle-info .toggle-desc { font-size: 11px; color: #8aaccb; margin-top: 2px; }
+ 
+  .save-bar { display: flex; justify-content: flex-end; gap: 10px; }
+</style>
+</head>
+<body>
+<div class="screen">
+ 
+  <!-- ═══════════════ SIDEBAR ═══════════════ -->
+  <div class="sidebar">
+    <div class="logo">
+      <div class="logo-name">BeautyFlow</div>
+      <div class="logo-sub">CRM &amp; Gestão</div>
+    </div>
+ 
+    <nav class="nav">
+      <div class="nav-section">Principal</div>
+ 
+      <div class="nav-item active" onclick="showPage('dashboard', this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+          <rect x="1" y="1" width="6" height="6" rx="1.5" fill="currentColor"/>
+          <rect x="9" y="1" width="6" height="6" rx="1.5" fill="currentColor"/>
+          <rect x="1" y="9" width="6" height="6" rx="1.5" fill="currentColor"/>
+          <rect x="9" y="9" width="6" height="6" rx="1.5" fill="currentColor"/>
+        </svg>
+        Dashboard
+      </div>
+ 
+      <div class="nav-item" onclick="showPage('agenda', this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+          <rect x="2" y="3" width="12" height="11" rx="1.5" stroke="currentColor" stroke-width="1.2"/>
+          <path d="M5 2v2M11 2v2M2 7h12" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+        Agenda
+      </div>
+ 
+      <div class="nav-item" onclick="showPage('clientes', this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="6" r="3.5" stroke="currentColor" stroke-width="1.2"/>
+          <path d="M2 13c0-2.5 2.7-4 6-4s6 1.5 6 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+        Clientes
+      </div>
+ 
+      <div class="nav-section">Financeiro</div>
+ 
+      <div class="nav-item" onclick="showPage('financeiro', this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+          <path d="M3 11L6 8l3 2 4-5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="1" y="1" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.2"/>
+        </svg>
+        Financeiro
+      </div>
+ 
+      <div class="nav-item" onclick="showPage('relatorios', this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+          <path d="M2 12h12M4 12V8M7 12V5M10 12V7M13 12V3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+        Relatórios
+      </div>
+ 
+      <div class="nav-section">Sistema</div>
+ 
+      <div class="nav-item" onclick="showPage('configuracoes', this)">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+          <circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.2"/>
+          <path d="M8 1v2M8 13v2M1 8h2M13 8h2M3.2 3.2l1.4 1.4M11.4 11.4l1.4 1.4M11.4 3.2l-1.4 1.4M3.2 11.4l1.4 1.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+        Configurações
+      </div>
+    </nav>
+ 
+    <div class="sidebar-footer">
+      <div class="user-card">
+        <div class="avatar">MF</div>
+        <div>
+          <div class="user-name">Mirian F.</div>
+          <div class="user-role">Administradora</div>
+        </div>
+      </div>
+    </div>
+  </div>
+ 
+  <!-- ═══════════════ MAIN ═══════════════ -->
+  <div class="main">
+ 
+    <!-- TOPBAR -->
+    <div class="topbar">
+      <div>
+        <div class="topbar-title" id="page-title">Painel Geral</div>
+        <div class="topbar-sub" id="page-sub">Quinta-feira, 1 de maio de 2026</div>
+      </div>
+      <div class="topbar-right">
+        <div class="badge-notif">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+            <path d="M8 1a5 5 0 0 1 5 5c0 3 1 4 1 4H2s1-1 1-4a5 5 0 0 1 5-5zM6.5 13.5a1.5 1.5 0 0 0 3 0" stroke="#4a90d9" stroke-width="1.2" stroke-linecap="round"/>
+          </svg>
+          <div class="notif-dot"></div>
+        </div>
+        <button class="btn-primary" id="topbar-btn" onclick="handleTopbarBtn()">+ Novo Agendamento</button>
+      </div>
+    </div>
+ 
+    <!-- CONTENT -->
+    <div class="content">
+ 
+      <!-- ══════════════════════════════════
+           PAGE: DASHBOARD
+      ══════════════════════════════════ -->
+      <div class="page active" id="page-dashboard">
+ 
+        <div class="metrics">
+          <div class="metric-card c1">
+            <div class="metric-label">Receita Hoje</div>
+            <div class="metric-value">R$ 410</div>
+            <div class="metric-change up">
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 2v8M2 5l4-3 4 3" stroke="#4e8f6a" stroke-width="1.3" stroke-linecap="round"/></svg>
+              +18% vs ontem
+            </div>
+          </div>
+          <div class="metric-card c2">
+            <div class="metric-label">Atendimentos</div>
+            <div class="metric-value">7</div>
+            <div class="metric-change neutral">3 pendentes hoje</div>
+          </div>
+          <div class="metric-card c3">
+            <div class="metric-label">Clientes Ativos</div>
+            <div class="metric-value">84</div>
+            <div class="metric-change up">
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 2v8M2 5l4-3 4 3" stroke="#4e8f6a" stroke-width="1.3" stroke-linecap="round"/></svg>
+              +5 este mês
+            </div>
+          </div>
+          <div class="metric-card c4">
+            <div class="metric-label">Ticket Médio</div>
+            <div class="metric-value">R$ 58</div>
+            <div class="metric-change up">
+              <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 2v8M2 5l4-3 4 3" stroke="#4e8f6a" stroke-width="1.3" stroke-linecap="round"/></svg>
+              +R$ 6 vs semana passada
+            </div>
+          </div>
+        </div>
+ 
+        <div class="bottom-grid">
+          <div class="panel">
+            <div class="panel-header">
+              <div class="panel-title">Agendamentos de Hoje</div>
+              <span class="panel-badge">7 agendados</span>
+            </div>
+            <div class="appt-list">
+              <div class="appt-item"><div class="appt-time">08:30</div><div class="appt-dot" style="background:#4e8f6a"></div><div class="appt-info"><div class="appt-name">Ana Paula Silva</div><div class="appt-service">Manicure + Pedicure</div></div><div class="appt-price">R$ 70</div><span class="appt-status status-done">Concluído</span></div>
+              <div class="appt-item"><div class="appt-time">09:45</div><div class="appt-dot" style="background:#4e8f6a"></div><div class="appt-info"><div class="appt-name">Carla Mendes</div><div class="appt-service">Design de Sobrancelha</div></div><div class="appt-price">R$ 45</div><span class="appt-status status-done">Concluído</span></div>
+              <div class="appt-item"><div class="appt-time">11:00</div><div class="appt-dot" style="background:#4a90d9"></div><div class="appt-info"><div class="appt-name">Fernanda Costa</div><div class="appt-service">Unhas em Gel</div></div><div class="appt-price">R$ 90</div><span class="appt-status status-confirmed">Confirmado</span></div>
+              <div class="appt-item"><div class="appt-time">13:30</div><div class="appt-dot" style="background:#c9894a"></div><div class="appt-info"><div class="appt-name">Juliana Rocha</div><div class="appt-service">Sobrancelha + Manicure</div></div><div class="appt-price">R$ 80</div><span class="appt-status status-pending">Pendente</span></div>
+              <div class="appt-item"><div class="appt-time">15:00</div><div class="appt-dot" style="background:#c9894a"></div><div class="appt-info"><div class="appt-name">Mariana Torres</div><div class="appt-service">Blindagem de Unhas</div></div><div class="appt-price">R$ 65</div><span class="appt-status status-pending">Pendente</span></div>
+              <div class="appt-item"><div class="appt-time">16:15</div><div class="appt-dot" style="background:#c9894a"></div><div class="appt-info"><div class="appt-name">Patricia Lima</div><div class="appt-service">Manicure Simples</div></div><div class="appt-price">R$ 35</div><span class="appt-status status-pending">Pendente</span></div>
+              <div class="appt-item"><div class="appt-time">17:30</div><div class="appt-dot" style="background:#2563a8"></div><div class="appt-info"><div class="appt-name">Rafaela Nunes</div><div class="appt-service">Alongamento de Unhas</div></div><div class="appt-price">R$ 120</div><span class="appt-status status-confirmed">Confirmado</span></div>
+            </div>
+          </div>
+ 
+          <div style="display:flex;flex-direction:column;gap:14px;overflow:hidden;">
+            <div class="panel finance-panel" style="flex:0 0 auto;">
+              <div class="panel-header">
+                <div class="panel-title">Fluxo de Caixa</div>
+                <span style="font-size:11px;color:#b09090;">Abril 2026</span>
+              </div>
+              <div class="finance-total">
+                <div class="finance-label">Lucro do Mês</div>
+                <div class="finance-number">R$ 4.820</div>
+                <div class="finance-sub">↑ 12% acima da meta</div>
+              </div>
+              <div class="bar-chart">
+                <div class="bar-chart-title">Receita Semanal</div>
+                <div class="bars">
+                  <div class="bar-wrap"><div class="bar-fill" style="height:38px"></div><div class="bar-day">S1</div></div>
+                  <div class="bar-wrap"><div class="bar-fill" style="height:52px"></div><div class="bar-day">S2</div></div>
+                  <div class="bar-wrap"><div class="bar-fill" style="height:44px"></div><div class="bar-day">S3</div></div>
+                  <div class="bar-wrap"><div class="bar-fill highlight" style="height:60px"></div><div class="bar-day">S4</div></div>
+                </div>
+              </div>
+              <div class="services-list">
+                <div style="font-size:11px;color:#b09090;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;">Serviços</div>
+                <div class="service-row"><div class="service-dot" style="background:#4a90d9"></div><div class="service-name">Manicure</div><div class="service-bar-bg"><div class="service-bar-fill" style="width:70%;background:#4a90d9"></div></div><div class="service-pct">70%</div></div>
+                <div class="service-row"><div class="service-dot" style="background:#2563a8"></div><div class="service-name">Sobrancelha</div><div class="service-bar-bg"><div class="service-bar-fill" style="width:20%;background:#2563a8"></div></div><div class="service-pct">20%</div></div>
+                <div class="service-row"><div class="service-dot" style="background:#b8d4f0"></div><div class="service-name">Outros</div><div class="service-bar-bg"><div class="service-bar-fill" style="width:10%;background:#b8d4f0"></div></div><div class="service-pct">10%</div></div>
+              </div>
+            </div>
+ 
+            <div class="panel" style="flex:0 0 auto;">
+              <div class="panel-header"><div class="panel-title">Alertas Inteligentes</div></div>
+              <div style="padding:12px 18px;display:flex;flex-direction:column;gap:8px;">
+                <div class="alert-box">
+                  <svg class="alert-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="#c9894a" stroke-width="1.2"/><path d="M8 5v4M8 11v.5" stroke="#c9894a" stroke-width="1.3" stroke-linecap="round"/></svg>
+                  <div class="alert-text"><b style="font-weight:500;">3 pagamentos via Pix</b> aguardando confirmação hoje.<div><span class="pix-btn">Ver pagamentos</span></div></div>
+                </div>
+                <div style="background:#edf7f1;border:1px solid #b8ddc9;border-radius:8px;padding:10px 12px;display:flex;gap:8px;align-items:flex-start;">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style="flex-shrink:0;margin-top:1px"><path d="M8 1l1.8 4H14l-3.5 2.5 1.3 4.2L8 9.2l-3.8 2.5L5.5 7.5 2 5h4.2z" stroke="#3d7a56" stroke-width="1.1" fill="none"/></svg>
+                  <div style="font-size:11px;color:#2d5e40;line-height:1.4;">Meta mensal <b style="font-weight:500;">92% atingida</b>! Faltam R$ 380 para bater o recorde.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+ 
+      <!-- ══════════════════════════════════
+           PAGE: AGENDA
+      ══════════════════════════════════ -->
+      <div class="page" id="page-agenda">
+        <div class="agenda-toolbar">
+          <div class="agenda-nav">
+            <button class="agenda-nav-btn">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 2L4 6l3.5 4" stroke="#4a90d9" stroke-width="1.4" stroke-linecap="round"/></svg>
+            </button>
+            <span class="agenda-period">28 abr – 4 mai 2026</span>
+            <button class="agenda-nav-btn">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 2L8 6l-3.5 4" stroke="#4a90d9" stroke-width="1.4" stroke-linecap="round"/></svg>
+            </button>
+            <button class="btn-outline" style="padding:5px 12px;font-size:11px;">Hoje</button>
+          </div>
+          <div class="view-tabs">
+            <div class="view-tab">Dia</div>
+            <div class="view-tab active">Semana</div>
+            <div class="view-tab">Mês</div>
+          </div>
+        </div>
+ 
+        <div class="week-grid">
+          <!-- Time column -->
+          <div class="time-col">
+            <div class="time-col-header"></div>
+            <div class="time-slot-label">08h</div>
+            <div class="time-slot-label">09h</div>
+            <div class="time-slot-label">10h</div>
+            <div class="time-slot-label">11h</div>
+            <div class="time-slot-label">12h</div>
+            <div class="time-slot-label">13h</div>
+            <div class="time-slot-label">14h</div>
+            <div class="time-slot-label">15h</div>
+            <div class="time-slot-label">16h</div>
+            <div class="time-slot-label">17h</div>
+          </div>
+ 
+          <!-- Days -->
+          <div class="days-grid">
+            <!-- SEG 28/04 -->
+            <div class="day-col">
+              <div class="day-header"><div class="day-name">Seg</div><div class="day-num">28</div></div>
+              <div class="day-slots">
+                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+                <div class="cal-event done" style="top:10px;height:84px;">
+                  <div class="ev-name">Bruna Alves</div>
+                  <div class="ev-svc">Manicure + Gel</div>
+                </div>
+                <div class="cal-event confirmed" style="top:218px;height:52px;">
+                  <div class="ev-name">Luciana P.</div>
+                  <div class="ev-svc">Sobrancelha</div>
+                </div>
+              </div>
+            </div>
+            <!-- TER 29/04 -->
+            <div class="day-col">
+              <div class="day-header"><div class="day-name">Ter</div><div class="day-num">29</div></div>
+              <div class="day-slots">
+                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+                <div class="cal-event done" style="top:62px;height:52px;">
+                  <div class="ev-name">Talita M.</div>
+                  <div class="ev-svc">Pedicure</div>
+                </div>
+                <div class="cal-event done" style="top:166px;height:52px;">
+                  <div class="ev-name">Simone R.</div>
+                  <div class="ev-svc">Sobrancelha</div>
+                </div>
+                <div class="cal-event done" style="top:374px;height:84px;">
+                  <div class="ev-name">Vanessa K.</div>
+                  <div class="ev-svc">Alongamento</div>
+                </div>
+              </div>
+            </div>
+            <!-- QUA 30/04 -->
+            <div class="day-col">
+              <div class="day-header"><div class="day-name">Qua</div><div class="day-num">30</div></div>
+              <div class="day-slots">
+                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+                <div class="cal-event done" style="top:10px;height:52px;">
+                  <div class="ev-name">Cris Moura</div>
+                  <div class="ev-svc">Manicure</div>
+                </div>
+                <div class="cal-event done" style="top:114px;height:84px;">
+                  <div class="ev-name">Débora F.</div>
+                  <div class="ev-svc">Unhas em Gel</div>
+                </div>
+                <div class="cal-event done" style="top:270px;height:52px;">
+                  <div class="ev-name">Helena S.</div>
+                  <div class="ev-svc">Sobrancelha</div>
+                </div>
+              </div>
+            </div>
+            <!-- QUI 01/05 — TODAY -->
+            <div class="day-col">
+              <div class="day-header"><div class="day-name">Qui</div><div class="day-num today">1</div></div>
+              <div class="day-slots">
+                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+                <div class="cal-event done" style="top:10px;height:84px;">
+                  <div class="ev-name">Ana Paula S.</div>
+                  <div class="ev-svc">Manicure + Ped.</div>
+                </div>
+                <div class="cal-event done" style="top:114px;height:52px;">
+                  <div class="ev-name">Carla M.</div>
+                  <div class="ev-svc">Sobrancelha</div>
+                </div>
+                <div class="cal-event confirmed" style="top:166px;height:52px;">
+                  <div class="ev-name">Fernanda C.</div>
+                  <div class="ev-svc">Gel</div>
+                </div>
+                <div class="cal-event pending" style="top:270px;height:52px;">
+                  <div class="ev-name">Juliana R.</div>
+                  <div class="ev-svc">Sob.+Manicure</div>
+                </div>
+                <div class="cal-event pending" style="top:374px;height:52px;">
+                  <div class="ev-name">Mariana T.</div>
+                  <div class="ev-svc">Blindagem</div>
+                </div>
+              </div>
+            </div>
+            <!-- SEX 02/05 -->
+            <div class="day-col">
+              <div class="day-header"><div class="day-name">Sex</div><div class="day-num">2</div></div>
+              <div class="day-slots">
+                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+                <div class="cal-event confirmed" style="top:10px;height:52px;">
+                  <div class="ev-name">Raquel A.</div>
+                  <div class="ev-svc">Manicure</div>
+                </div>
+                <div class="cal-event confirmed" style="top:114px;height:52px;">
+                  <div class="ev-name">Aline C.</div>
+                  <div class="ev-svc">Pedicure</div>
+                </div>
+                <div class="cal-event confirmed" style="top:270px;height:84px;">
+                  <div class="ev-name">Beatriz N.</div>
+                  <div class="ev-svc">Alongamento</div>
+                </div>
+              </div>
+            </div>
+            <!-- SAB 03/05 -->
+            <div class="day-col">
+              <div class="day-header"><div class="day-name">Sáb</div><div class="day-num">3</div></div>
+              <div class="day-slots">
+                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+                <div class="cal-event confirmed" style="top:10px;height:52px;">
+                  <div class="ev-name">Sandra B.</div>
+                  <div class="ev-svc">Manicure + Ped.</div>
+                </div>
+                <div class="cal-event confirmed" style="top:166px;height:52px;">
+                  <div class="ev-name">Lúcia F.</div>
+                  <div class="ev-svc">Gel</div>
+                </div>
+                <div class="cal-event confirmed" style="top:322px;height:52px;">
+                  <div class="ev-name">Priscila M.</div>
+                  <div class="ev-svc">Sobrancelha</div>
+                </div>
+              </div>
+            </div>
+            <!-- DOM 04/05 -->
+            <div class="day-col">
+              <div class="day-header"><div class="day-name">Dom</div><div class="day-num">4</div></div>
+              <div class="day-slots">
+                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
+                <!-- folga -->
+                <div style="position:absolute;top:0;left:0;right:0;bottom:0;background:repeating-linear-gradient(45deg,transparent,transparent 6px,rgba(200,210,220,0.08) 6px,rgba(200,210,220,0.08) 12px);pointer-events:none;"></div>
+                <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:10px;color:#b8c8d8;text-align:center;pointer-events:none;">Folga</div>
+              </div>
+            </div>
+          </div>
+        </div>
+ 
+        <!-- Legend -->
+        <div style="display:flex;gap:16px;align-items:center;padding-top:4px;">
+          <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#5a80a0;">
+            <div style="width:10px;height:10px;border-radius:3px;background:#edf7f1;border:1px solid #4e8f6a;"></div>Concluído
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#5a80a0;">
+            <div style="width:10px;height:10px;border-radius:3px;background:#e8f2fc;border:1px solid #4a90d9;"></div>Confirmado
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#5a80a0;">
+            <div style="width:10px;height:10px;border-radius:3px;background:#fdf5e8;border:1px solid #c9894a;"></div>Pendente
+          </div>
+          <div style="margin-left:auto;font-size:11px;color:#8aaccb;">22 atendimentos esta semana</div>
+        </div>
+      </div>
+ 
+      <!-- ══════════════════════════════════
+           PAGE: CLIENTES
+      ══════════════════════════════════ -->
+      <div class="page" id="page-clientes">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div class="search-input-wrap" style="max-width:320px;">
+            <svg class="search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="4.5" stroke="#8aaccb" stroke-width="1.3"/><path d="M10.5 10.5L13 13" stroke="#8aaccb" stroke-width="1.3" stroke-linecap="round"/></svg>
+            <input class="search-input" placeholder="Buscar cliente por nome ou telefone…">
+          </div>
+          <div class="filter-tabs">
+            <div class="filter-tab active">Todos (84)</div>
+            <div class="filter-tab">Frequentes</div>
+            <div class="filter-tab">Novos</div>
+            <div class="filter-tab">Inativos</div>
+          </div>
+          <div style="margin-left:auto;">
+            <button class="btn-primary">+ Nova Cliente</button>
+          </div>
+        </div>
+ 
+        <div class="clients-layout">
+          <!-- TABLE -->
+          <div class="panel clients-table">
+            <div class="table-head">
+              <div class="th">Cliente</div>
+              <div class="th">Último Atend.</div>
+              <div class="th">Visitas</div>
+              <div class="th">Total Gasto</div>
+              <div class="th">Status</div>
+            </div>
+            <div id="client-list">
+              <div class="client-row selected" onclick="selectClient(this, 0)">
+                <div class="client-info-cell"><div class="client-av" style="background:#daeaf8;color:#1a5fab;">AP</div><div><div class="client-name-cell">Ana Paula Silva</div><div class="client-phone">(11) 98765-4321</div></div></div>
+                <div class="td">01/05/2026</div><div class="td">28</div><div class="td money">R$ 1.820</div>
+                <span class="appt-status status-done">Frequente</span>
+              </div>
+              <div class="client-row" onclick="selectClient(this, 1)">
+                <div class="client-info-cell"><div class="client-av" style="background:#f0e8f8;color:#6a2e8a;">CM</div><div><div class="client-name-cell">Carla Mendes</div><div class="client-phone">(11) 97654-3210</div></div></div>
+                <div class="td">01/05/2026</div><div class="td">15</div><div class="td money">R$ 675</div>
+                <span class="appt-status status-confirmed">Regular</span>
+              </div>
+              <div class="client-row" onclick="selectClient(this, 2)">
+                <div class="client-info-cell"><div class="client-av" style="background:#e8f8ee;color:#2e8a5a;">FC</div><div><div class="client-name-cell">Fernanda Costa</div><div class="client-phone">(11) 96543-2109</div></div></div>
+                <div class="td">01/05/2026</div><div class="td">11</div><div class="td money">R$ 990</div>
+                <span class="appt-status status-confirmed">Regular</span>
+              </div>
+              <div class="client-row" onclick="selectClient(this, 3)">
+                <div class="client-info-cell"><div class="client-av" style="background:#fdf3dc;color:#8c5e10;">JR</div><div><div class="client-name-cell">Juliana Rocha</div><div class="client-phone">(11) 95432-1098</div></div></div>
+                <div class="td">30/04/2026</div><div class="td">7</div><div class="td money">R$ 560</div>
+                <span class="appt-status status-confirmed">Regular</span>
+              </div>
+              <div class="client-row" onclick="selectClient(this, 4)">
+                <div class="client-info-cell"><div class="client-av" style="background:#fce8e8;color:#8a2e2e;">MT</div><div><div class="client-name-cell">Mariana Torres</div><div class="client-phone">(11) 94321-0987</div></div></div>
+                <div class="td">28/04/2026</div><div class="td">5</div><div class="td money">R$ 325</div>
+                <span class="appt-status status-pending">Novo</span>
+              </div>
+              <div class="client-row" onclick="selectClient(this, 5)">
+                <div class="client-info-cell"><div class="client-av" style="background:#e8f0fc;color:#2e5e8a;">PL</div><div><div class="client-name-cell">Patricia Lima</div><div class="client-phone">(11) 93210-9876</div></div></div>
+                <div class="td">01/05/2026</div><div class="td">3</div><div class="td money">R$ 105</div>
+                <span class="appt-status status-pending">Novo</span>
+              </div>
+              <div class="client-row" onclick="selectClient(this, 6)">
+                <div class="client-info-cell"><div class="client-av" style="background:#f0f8e8;color:#4a8a2e;">RN</div><div><div class="client-name-cell">Rafaela Nunes</div><div class="client-phone">(11) 92109-8765</div></div></div>
+                <div class="td">01/05/2026</div><div class="td">19</div><div class="td money">R$ 2.280</div>
+                <span class="appt-status status-done">Frequente</span>
+              </div>
+              <div class="client-row" onclick="selectClient(this, 7)">
+                <div class="client-info-cell"><div class="client-av" style="background:#f8e8f4;color:#8a2e6e;">BN</div><div><div class="client-name-cell">Beatriz Neves</div><div class="client-phone">(11) 91098-7654</div></div></div>
+                <div class="td">29/04/2026</div><div class="td">22</div><div class="td money">R$ 1.540</div>
+                <span class="appt-status status-done">Frequente</span>
+              </div>
+              <div class="client-row" onclick="selectClient(this, 8)">
+                <div class="client-info-cell"><div class="client-av" style="background:#e8fcf8;color:#2e8a7a;">LF</div><div><div class="client-name-cell">Lúcia Ferreira</div><div class="client-phone">(11) 90987-6543</div></div></div>
+                <div class="td">25/04/2026</div><div class="td">2</div><div class="td money">R$ 90</div>
+                <span class="appt-status status-pending">Novo</span>
+              </div>
+            </div>
+          </div>
+ 
+          <!-- DETAIL -->
+          <div class="panel client-detail" id="client-detail">
+            <div class="client-detail-header">
+              <div class="client-detail-av" id="cd-av" style="background:#daeaf8;color:#1a5fab;">AP</div>
+              <div class="client-detail-name" id="cd-name">Ana Paula Silva</div>
+              <div class="client-detail-sub" id="cd-phone">(11) 98765-4321 · Cliente desde Jan 2024</div>
+              <div style="display:flex;gap:8px;justify-content:center;margin-top:10px;">
+                <button class="btn-outline" style="font-size:11px;padding:5px 12px;">
+                  <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style="vertical-align:-1px;margin-right:3px;"><path d="M3 3h10v10H3z" stroke="currentColor" stroke-width="1.2"/><path d="M3 7h10M7 3v10" stroke="currentColor" stroke-width="1.2"/></svg>
+                  Agendar
+                </button>
+                <button class="btn-outline" style="font-size:11px;padding:5px 12px;">
+                  <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style="vertical-align:-1px;margin-right:3px;"><path d="M3 8l3-3 3 3M6 5v8M10 4h2a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                  Exportar
+                </button>
+              </div>
+            </div>
+ 
+            <div class="client-stats">
+              <div class="client-stat">
+                <div class="client-stat-label">Visitas</div>
+                <div class="client-stat-value" id="cd-visits">28</div>
+              </div>
+              <div class="client-stat">
+                <div class="client-stat-label">Total Gasto</div>
+                <div class="client-stat-value" id="cd-total">R$ 1.820</div>
+              </div>
+              <div class="client-stat">
+                <div class="client-stat-label">Ticket Médio</div>
+                <div class="client-stat-value" id="cd-ticket">R$ 65</div>
+              </div>
+              <div class="client-stat">
+                <div class="client-stat-label">Última Visita</div>
+                <div class="client-stat-value" id="cd-last" style="font-size:14px;">1 mai</div>
+              </div>
+            </div>
+ 
+            <div style="padding:12px 18px 6px;border-bottom:1px solid #d8e4f0;">
+              <div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;color:#8aaccb;">Histórico de Atendimentos</div>
+            </div>
+            <div class="history-list" id="cd-history">
+              <div class="history-item"><div class="history-date">01/05/2026</div><div class="history-svc">Manicure + Pedicure</div><div class="history-price">R$ 70</div></div>
+              <div class="history-item"><div class="history-date">17/04/2026</div><div class="history-svc">Unhas em Gel</div><div class="history-price">R$ 90</div></div>
+              <div class="history-item"><div class="history-date">03/04/2026</div><div class="history-svc">Manicure Simples</div><div class="history-price">R$ 35</div></div>
+              <div class="history-item"><div class="history-date">20/03/2026</div><div class="history-svc">Manicure + Pedicure</div><div class="history-price">R$ 70</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+ 
+      <!-- ══════════════════════════════════
+           PAGE: FINANCEIRO
+      ══════════════════════════════════ -->
+      <div class="page" id="page-financeiro">
+        <div class="metrics">
+          <div class="metric-card c1">
+            <div class="metric-label">Receita do Mês</div>
+            <div class="metric-value">R$ 6.840</div>
+            <div class="metric-change up"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 2v8M2 5l4-3 4 3" stroke="#4e8f6a" stroke-width="1.3" stroke-linecap="round"/></svg>+14% vs abril</div>
+          </div>
+          <div class="metric-card cr">
+            <div class="metric-label">Despesas do Mês</div>
+            <div class="metric-value">R$ 1.340</div>
+            <div class="metric-change down"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 10V2M2 7l4 3 4-3" stroke="#c05050" stroke-width="1.3" stroke-linecap="round"/></svg>+6% vs abril</div>
+          </div>
+          <div class="metric-card cg">
+            <div class="metric-label">Lucro Líquido</div>
+            <div class="metric-value">R$ 5.500</div>
+            <div class="metric-change up"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 2v8M2 5l4-3 4 3" stroke="#4e8f6a" stroke-width="1.3" stroke-linecap="round"/></svg>Margem 80%</div>
+          </div>
+          <div class="metric-card c4">
+            <div class="metric-label">Meta Mensal</div>
+            <div class="metric-value">R$ 7.000</div>
+            <div class="metric-change neutral">97% atingido</div>
+          </div>
+        </div>
+ 
+        <div class="finance-grid">
+          <div class="finance-left">
+            <div class="panel big-chart">
+              <div class="panel-header">
+                <div class="panel-title">Receita vs Despesas — Maio 2026</div>
+                <div class="chart-legend" style="margin-bottom:0;">
+                  <div class="legend-item"><div class="legend-dot" style="background:#4a90d9;"></div>Receita</div>
+                  <div class="legend-item"><div class="legend-dot" style="background:#b8d4f0;"></div>Despesa</div>
+                </div>
+              </div>
+              <div class="chart-area">
+                <div class="month-bars">
+                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:72px;"></div><div class="month-bar exp" style="height:24px;"></div></div><div class="month-label">Seg</div></div>
+                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:88px;"></div><div class="month-bar exp" style="height:18px;"></div></div><div class="month-label">Ter</div></div>
+                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:64px;"></div><div class="month-bar exp" style="height:30px;"></div></div><div class="month-label">Qua</div></div>
+                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:96px;"></div><div class="month-bar exp" style="height:20px;"></div></div><div class="month-label">Qui</div></div>
+                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:110px;"></div><div class="month-bar exp" style="height:28px;"></div></div><div class="month-label">Sex</div></div>
+                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:120px;"></div><div class="month-bar exp" style="height:0px;"></div></div><div class="month-label">Sáb</div></div>
+                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:0;background:#f0f5fb;"></div><div class="month-bar exp" style="height:0;"></div></div><div class="month-label">Dom</div></div>
+                </div>
+              </div>
+            </div>
+ 
+            <div class="panel" style="flex:0 0 auto;">
+              <div class="panel-header">
+                <div class="panel-title">Lançamentos Recentes</div>
+                <span class="panel-badge">Maio 2026</span>
+              </div>
+              <div class="transactions-table">
+                <div class="tx-row"><div class="tx-icon in"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 12V4M4 8l4-4 4 4" stroke="#4e8f6a" stroke-width="1.3" stroke-linecap="round"/></svg></div><div class="tx-desc"><div class="tx-name">Ana Paula Silva — Manicure+Ped</div><div class="tx-date">01/05/2026 · Pix</div></div><div class="tx-amount in">+R$ 70,00</div></div>
+                <div class="tx-row"><div class="tx-icon in"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 12V4M4 8l4-4 4 4" stroke="#4e8f6a" stroke-width="1.3" stroke-linecap="round"/></svg></div><div class="tx-desc"><div class="tx-name">Carla Mendes — Sobrancelha</div><div class="tx-date">01/05/2026 · Pix</div></div><div class="tx-amount in">+R$ 45,00</div></div>
+                <div class="tx-row"><div class="tx-icon out"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 4v8M4 8l4 4 4-4" stroke="#c05050" stroke-width="1.3" stroke-linecap="round"/></svg></div><div class="tx-desc"><div class="tx-name">Compra esmaltes e materiais</div><div class="tx-date">30/04/2026 · Débito</div></div><div class="tx-amount out">−R$ 180,00</div></div>
+                <div class="tx-row"><div class="tx-icon in"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 12V4M4 8l4-4 4 4" stroke="#4e8f6a" stroke-width="1.3" stroke-linecap="round"/></svg></div><div class="tx-desc"><div class="tx-name">Rafaela Nunes — Alongamento</div><div class="tx-date">30/04/2026 · Pix</div></div><div class="tx-amount in">+R$ 120,00</div></div>
+                <div class="tx-row"><div class="tx-icon out"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 4v8M4 8l4 4 4-4" stroke="#c05050" stroke-width="1.3" stroke-linecap="round"/></svg></div><div class="tx-desc"><div class="tx-name">Aluguel da sala (maio)</div><div class="tx-date">01/05/2026 · TED</div></div><div class="tx-amount out">−R$ 650,00</div></div>
+              </div>
+            </div>
+          </div>
+ 
+          <div class="finance-right">
+            <!-- Donut -->
+            <div class="panel" style="flex:0 0 auto;">
+              <div class="panel-header"><div class="panel-title">Receita por Serviço</div></div>
+              <div class="donut-wrap">
+                <svg width="90" height="90" viewBox="0 0 90 90">
+                  <!-- Donut slices: total circumference of r=32 = ~201 -->
+                  <circle cx="45" cy="45" r="32" fill="none" stroke="#e8f2fc" stroke-width="14"/>
+                  <!-- Manicure 65% → 130.65 -->
+                  <circle cx="45" cy="45" r="32" fill="none" stroke="#4a90d9" stroke-width="14"
+                    stroke-dasharray="130.65 200.96" stroke-dashoffset="0" transform="rotate(-90 45 45)"/>
+                  <!-- Sobrancelha 22% → 44.2 -->
+                  <circle cx="45" cy="45" r="32" fill="none" stroke="#1a5fab" stroke-width="14"
+                    stroke-dasharray="44.2 200.96" stroke-dashoffset="-130.65" transform="rotate(-90 45 45)"/>
+                  <!-- Gel 13% → 26.1 -->
+                  <circle cx="45" cy="45" r="32" fill="none" stroke="#b8d4f0" stroke-width="14"
+                    stroke-dasharray="26.1 200.96" stroke-dashoffset="-174.85" transform="rotate(-90 45 45)"/>
+                  <text x="45" y="48" text-anchor="middle" font-family="DM Serif Display,serif" font-size="13" fill="#0f2340">65%</text>
+                </svg>
+                <div class="donut-legend">
+                  <div class="donut-legend-item"><div class="donut-legend-dot" style="background:#4a90d9;"></div>Manicure <span style="margin-left:auto;color:#0f2340;font-weight:500;">65%</span></div>
+                  <div class="donut-legend-item"><div class="donut-legend-dot" style="background:#1a5fab;"></div>Sobrancelha <span style="margin-left:auto;color:#0f2340;font-weight:500;">22%</span></div>
+                  <div class="donut-legend-item"><div class="donut-legend-dot" style="background:#b8d4f0;"></div>Gel/Outros <span style="margin-left:auto;color:#0f2340;font-weight:500;">13%</span></div>
+                </div>
+              </div>
+            </div>
+ 
+            <!-- Expenses -->
+            <div class="panel" style="flex:0 0 auto;">
+              <div class="panel-header"><div class="panel-title">Despesas por Categoria</div></div>
+              <div class="expense-breakdown">
+                <div class="exp-row"><div class="service-dot" style="background:#c05050;"></div><div class="exp-name">Aluguel</div><div class="exp-bar-bg"><div class="exp-bar-fill" style="width:65%;background:#c05050;"></div></div><div class="exp-val">R$ 650</div></div>
+                <div class="exp-row"><div class="service-dot" style="background:#c9894a;"></div><div class="exp-name">Materiais</div><div class="exp-bar-bg"><div class="exp-bar-fill" style="width:28%;background:#c9894a;"></div></div><div class="exp-val">R$ 280</div></div>
+                <div class="exp-row"><div class="service-dot" style="background:#8aaccb;"></div><div class="exp-name">Marketing</div><div class="exp-bar-bg"><div class="exp-bar-fill" style="width:24%;background:#8aaccb;"></div></div><div class="exp-val">R$ 240</div></div>
+                <div class="exp-row"><div class="service-dot" style="background:#b8d4f0;"></div><div class="exp-name">Outros</div><div class="exp-bar-bg"><div class="exp-bar-fill" style="width:17%;background:#b8d4f0;"></div></div><div class="exp-val">R$ 170</div></div>
+              </div>
+            </div>
+ 
+            <!-- Meta progress -->
+            <div class="panel" style="flex:0 0 auto;">
+              <div class="panel-header"><div class="panel-title">Meta do Mês</div><span class="panel-badge green">97%</span></div>
+              <div style="padding:14px 18px;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                  <span style="font-size:12px;color:#5a88b8;">R$ 6.840 arrecadado</span>
+                  <span style="font-size:12px;color:#8aaccb;">Meta: R$ 7.000</span>
+                </div>
+                <div style="background:#daeaf8;border-radius:8px;height:10px;overflow:hidden;">
+                  <div style="background:linear-gradient(90deg,#4a90d9,#1a5fab);height:100%;width:97%;border-radius:8px;"></div>
+                </div>
+                <div style="font-size:11px;color:#4e8f6a;margin-top:6px;">Faltam apenas R$ 160 para bater a meta! 🎯</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+ 
+      <!-- ══════════════════════════════════
+           PAGE: RELATÓRIOS
+      ══════════════════════════════════ -->
+      <div class="page" id="page-relatorios">
+        <div style="display:flex;align-items:center;justify-content:space-between;">
+          <div class="period-selector">
+            <span style="font-size:12px;color:#8aaccb;margin-right:4px;">Período:</span>
+            <div class="period-btn">7 dias</div>
+            <div class="period-btn active">30 dias</div>
+            <div class="period-btn">3 meses</div>
+            <div class="period-btn">1 ano</div>
+          </div>
+          <button class="btn-outline">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="vertical-align:-1px;margin-right:4px;"><path d="M3 8h10M3 4h10M3 12h6" stroke="#1a5fab" stroke-width="1.3" stroke-linecap="round"/></svg>
+            Exportar PDF
+          </button>
+        </div>
+ 
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;flex:1;overflow:hidden;">
+          <!-- Trend chart -->
+          <div class="panel" style="overflow:hidden;">
+            <div class="panel-header"><div class="panel-title">Tendência de Receita</div><span style="font-size:11px;color:#8aaccb;">Últimos 30 dias</span></div>
+            <div style="padding:16px 18px;flex:1;">
+              <svg width="100%" height="130" viewBox="0 0 450 130" preserveAspectRatio="none">
+                <!-- grid lines -->
+                <line x1="0" y1="20" x2="450" y2="20" stroke="#f0f5fb" stroke-width="1"/>
+                <line x1="0" y1="55" x2="450" y2="55" stroke="#f0f5fb" stroke-width="1"/>
+                <line x1="0" y1="90" x2="450" y2="90" stroke="#f0f5fb" stroke-width="1"/>
+                <!-- area fill -->
+                <path d="M0 90 L30 85 L60 78 L90 82 L120 70 L150 65 L180 72 L210 60 L240 52 L270 55 L300 45 L330 38 L360 42 L390 30 L420 35 L450 25 L450 130 L0 130Z"
+                  fill="url(#grad1)" opacity="0.3"/>
+                <!-- line -->
+                <path d="M0 90 L30 85 L60 78 L90 82 L120 70 L150 65 L180 72 L210 60 L240 52 L270 55 L300 45 L330 38 L360 42 L390 30 L420 35 L450 25"
+                  fill="none" stroke="#4a90d9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <!-- dots -->
+                <circle cx="450" cy="25" r="4" fill="#4a90d9"/>
+                <circle cx="390" cy="30" r="3" fill="#4a90d9" opacity="0.6"/>
+                <defs>
+                  <linearGradient id="grad1" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#4a90d9"/>
+                    <stop offset="100%" stop-color="#4a90d9" stop-opacity="0"/>
+                  </linearGradient>
+                </defs>
+              </svg>
+              <div style="display:flex;justify-content:space-between;margin-top:4px;">
+                <span style="font-size:9px;color:#8aaccb;">1 abr</span>
+                <span style="font-size:9px;color:#8aaccb;">15 abr</span>
+                <span style="font-size:9px;color:#8aaccb;">30 abr</span>
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px;">
+                <div style="background:#f4f7fc;border-radius:8px;padding:10px 12px;"><div style="font-size:10px;color:#8aaccb;text-transform:uppercase;letter-spacing:.5px;">Total</div><div style="font-family:'DM Serif Display',serif;font-size:18px;color:#0f2340;margin-top:2px;">R$ 18.240</div></div>
+                <div style="background:#f4f7fc;border-radius:8px;padding:10px 12px;"><div style="font-size:10px;color:#8aaccb;text-transform:uppercase;letter-spacing:.5px;">Média/dia</div><div style="font-family:'DM Serif Display',serif;font-size:18px;color:#0f2340;margin-top:2px;">R$ 608</div></div>
+                <div style="background:#f4f7fc;border-radius:8px;padding:10px 12px;"><div style="font-size:10px;color:#8aaccb;text-transform:uppercase;letter-spacing:.5px;">Crescimento</div><div style="font-family:'DM Serif Display',serif;font-size:18px;color:#4e8f6a;margin-top:2px;">+22%</div></div>
+              </div>
+            </div>
+          </div>
+ 
+          <!-- Top clients -->
+          <div class="panel top-clients" style="overflow:hidden;">
+            <div class="panel-header"><div class="panel-title">Top Clientes</div><span style="font-size:11px;color:#8aaccb;">Por receita gerada</span></div>
+            <div style="overflow:hidden;">
+              <div class="top-client-row">
+                <div class="rank-badge gold">1°</div>
+                <div class="client-av" style="width:28px;height:28px;font-size:11px;background:#f0f8e8;color:#4a8a2e;">RN</div>
+                <div style="flex:1;"><div style="font-size:13px;font-weight:500;color:#0f2340;">Rafaela Nunes</div><div style="font-size:11px;color:#8aaccb;">19 visitas · último: 01/05</div></div>
+                <div style="font-size:14px;font-weight:600;color:#1a5fab;">R$ 2.280</div>
+              </div>
+              <div class="top-client-row">
+                <div class="rank-badge gold" style="background:#f4f8ff;color:#4a6888;">2°</div>
+                <div class="client-av" style="width:28px;height:28px;font-size:11px;background:#daeaf8;color:#1a5fab;">AP</div>
+                <div style="flex:1;"><div style="font-size:13px;font-weight:500;color:#0f2340;">Ana Paula Silva</div><div style="font-size:11px;color:#8aaccb;">28 visitas · último: 01/05</div></div>
+                <div style="font-size:14px;font-weight:600;color:#1a5fab;">R$ 1.820</div>
+              </div>
+              <div class="top-client-row">
+                <div class="rank-badge silver">3°</div>
+                <div class="client-av" style="width:28px;height:28px;font-size:11px;background:#f8e8f4;color:#8a2e6e;">BN</div>
+                <div style="flex:1;"><div style="font-size:13px;font-weight:500;color:#0f2340;">Beatriz Neves</div><div style="font-size:11px;color:#8aaccb;">22 visitas · último: 29/04</div></div>
+                <div style="font-size:14px;font-weight:600;color:#1a5fab;">R$ 1.540</div>
+              </div>
+              <div class="top-client-row">
+                <div class="rank-badge silver" style="background:#f8f8f8;color:#888;">4°</div>
+                <div class="client-av" style="width:28px;height:28px;font-size:11px;background:#e8f8ee;color:#2e8a5a;">FC</div>
+                <div style="flex:1;"><div style="font-size:13px;font-weight:500;color:#0f2340;">Fernanda Costa</div><div style="font-size:11px;color:#8aaccb;">11 visitas · último: 01/05</div></div>
+                <div style="font-size:14px;font-weight:600;color:#1a5fab;">R$ 990</div>
+              </div>
+              <div class="top-client-row">
+                <div class="rank-badge" style="background:#f4f7fc;color:#8aaccb;">5°</div>
+                <div class="client-av" style="width:28px;height:28px;font-size:11px;background:#e8f0fc;color:#2e5e8a;">CM</div>
+                <div style="flex:1;"><div style="font-size:13px;font-weight:500;color:#0f2340;">Carla Mendes</div><div style="font-size:11px;color:#8aaccb;">15 visitas · último: 01/05</div></div>
+                <div style="font-size:14px;font-weight:600;color:#1a5fab;">R$ 675</div>
+              </div>
+            </div>
+          </div>
+ 
+          <!-- Serviços mais populares -->
+          <div class="panel" style="overflow:hidden;">
+            <div class="panel-header"><div class="panel-title">Serviços Mais Populares</div><span style="font-size:11px;color:#8aaccb;">Últimos 30 dias</span></div>
+            <div style="padding:14px 18px;display:flex;flex-direction:column;gap:10px;">
+              <div><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:12px;font-weight:500;color:#0f2340;">Manicure Simples</span><span style="font-size:12px;color:#4a90d9;font-weight:600;">48x</span></div><div style="background:#daeaf8;height:8px;border-radius:4px;overflow:hidden;"><div style="background:#4a90d9;height:100%;width:88%;border-radius:4px;"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:12px;font-weight:500;color:#0f2340;">Manicure + Pedicure</span><span style="font-size:12px;color:#4a90d9;font-weight:600;">31x</span></div><div style="background:#daeaf8;height:8px;border-radius:4px;overflow:hidden;"><div style="background:#4a90d9;height:100%;width:58%;border-radius:4px;"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:12px;font-weight:500;color:#0f2340;">Design de Sobrancelha</span><span style="font-size:12px;color:#2563a8;font-weight:600;">27x</span></div><div style="background:#daeaf8;height:8px;border-radius:4px;overflow:hidden;"><div style="background:#2563a8;height:100%;width:50%;border-radius:4px;"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:12px;font-weight:500;color:#0f2340;">Unhas em Gel</span><span style="font-size:12px;color:#3a7abf;font-weight:600;">19x</span></div><div style="background:#daeaf8;height:8px;border-radius:4px;overflow:hidden;"><div style="background:#3a7abf;height:100%;width:35%;border-radius:4px;"></div></div></div>
+              <div><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:12px;font-weight:500;color:#0f2340;">Alongamento de Unhas</span><span style="font-size:12px;color:#1a5fab;font-weight:600;">12x</span></div><div style="background:#daeaf8;height:8px;border-radius:4px;overflow:hidden;"><div style="background:#1a5fab;height:100%;width:22%;border-radius:4px;"></div></div></div>
+            </div>
+          </div>
+ 
+          <!-- Horários de pico -->
+          <div class="panel" style="overflow:hidden;">
+            <div class="panel-header"><div class="panel-title">Horários de Pico</div><span style="font-size:11px;color:#8aaccb;">Mapa de calor</span></div>
+            <div class="heatmap-grid" style="overflow:hidden;">
+              <div class="heatmap-hours">
+                <div style="width:26px;"></div>
+                <div class="heatmap-hour-label">8h</div>
+                <div class="heatmap-hour-label">9h</div>
+                <div class="heatmap-hour-label">10h</div>
+                <div class="heatmap-hour-label">11h</div>
+                <div class="heatmap-hour-label">12h</div>
+                <div class="heatmap-hour-label">13h</div>
+                <div class="heatmap-hour-label">14h</div>
+                <div class="heatmap-hour-label">15h</div>
+                <div class="heatmap-hour-label">16h</div>
+                <div class="heatmap-hour-label">17h</div>
+              </div>
+              <!-- Days rows -->
+              <div class="heatmap-row"><div class="heatmap-day-label">Seg</div><div class="hm-cell" style="background:rgba(74,144,217,0.2);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.5);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.7);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.9);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.3);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.6);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.8);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.9);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.7);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.4);"></div></div>
+              <div class="heatmap-row"><div class="heatmap-day-label">Ter</div><div class="hm-cell" style="background:rgba(74,144,217,0.3);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.8);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.9);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.7);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.2);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.7);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.5);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.4);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.6);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.8);"></div></div>
+              <div class="heatmap-row"><div class="heatmap-day-label">Qua</div><div class="hm-cell" style="background:rgba(74,144,217,0.1);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.4);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.6);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.9);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.2);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.5);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.9);"></div><div class="hm-cell" style="background:rgba(74,144,217,1);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.8);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.5);"></div></div>
+              <div class="heatmap-row"><div class="heatmap-day-label">Qui</div><div class="hm-cell" style="background:rgba(74,144,217,0.5);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.9);"></div><div class="hm-cell" style="background:rgba(74,144,217,1);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.9);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.3);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.8);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.6);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.9);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.7);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.5);"></div></div>
+              <div class="heatmap-row"><div class="heatmap-day-label">Sex</div><div class="hm-cell" style="background:rgba(74,144,217,0.6);"></div><div class="hm-cell" style="background:rgba(74,144,217,1);"></div><div class="hm-cell" style="background:rgba(74,144,217,1);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.8);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.4);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.9);"></div><div class="hm-cell" style="background:rgba(74,144,217,1);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.9);"></div><div class="hm-cell" style="background:rgba(74,144,217,1);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.9);"></div></div>
+              <div class="heatmap-row"><div class="heatmap-day-label">Sáb</div><div class="hm-cell" style="background:rgba(74,144,217,0.7);"></div><div class="hm-cell" style="background:rgba(74,144,217,1);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.9);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.7);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.1);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.3);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.5);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.4);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.3);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.2);"></div></div>
+              <div class="heatmap-row"><div class="heatmap-day-label">Dom</div><div class="hm-cell" style="background:rgba(74,144,217,0.05);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.05);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.05);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.05);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.05);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.05);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.05);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.05);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.05);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.05);"></div></div>
+              <div style="display:flex;align-items:center;gap:6px;margin-top:10px;font-size:10px;color:#8aaccb;">
+                <span>Menos</span>
+                <div style="display:flex;gap:2px;">
+                  <div style="width:16px;height:16px;border-radius:3px;background:rgba(74,144,217,0.1);"></div>
+                  <div style="width:16px;height:16px;border-radius:3px;background:rgba(74,144,217,0.3);"></div>
+                  <div style="width:16px;height:16px;border-radius:3px;background:rgba(74,144,217,0.6);"></div>
+                  <div style="width:16px;height:16px;border-radius:3px;background:rgba(74,144,217,0.8);"></div>
+                  <div style="width:16px;height:16px;border-radius:3px;background:rgba(74,144,217,1);"></div>
+                </div>
+                <span>Mais</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+ 
+      <!-- ══════════════════════════════════
+           PAGE: CONFIGURAÇÕES
+      ══════════════════════════════════ -->
+      <div class="page" id="page-configuracoes">
+        <div class="settings-grid">
+          <!-- Settings nav -->
+          <div class="panel settings-nav" style="padding:12px;">
+            <div class="settings-nav-item active" onclick="showSettingsTab(this,'tab-perfil')">
+              <svg class="settings-nav-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="6" r="3.5" stroke="currentColor" stroke-width="1.2"/><path d="M2 13c0-2.5 2.7-4 6-4s6 1.5 6 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              Perfil
+            </div>
+            <div class="settings-nav-item" onclick="showSettingsTab(this,'tab-horarios')">
+              <svg class="settings-nav-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/><path d="M8 5v3l2 2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              Horários
+            </div>
+            <div class="settings-nav-item" onclick="showSettingsTab(this,'tab-servicos')">
+              <svg class="settings-nav-icon" viewBox="0 0 16 16" fill="none"><path d="M3 8h10M8 3v10" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><rect x="1" y="1" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.2"/></svg>
+              Serviços
+            </div>
+            <div class="settings-nav-item" onclick="showSettingsTab(this,'tab-notif')">
+              <svg class="settings-nav-icon" viewBox="0 0 16 16" fill="none"><path d="M8 1a5 5 0 0 1 5 5c0 3 1 4 1 4H2s1-1 1-4a5 5 0 0 1 5-5zM6.5 13.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              Notificações
+            </div>
+            <div class="settings-nav-item" onclick="showSettingsTab(this,'tab-integ')">
+              <svg class="settings-nav-icon" viewBox="0 0 16 16" fill="none"><circle cx="4" cy="8" r="2.5" stroke="currentColor" stroke-width="1.2"/><circle cx="12" cy="4" r="2.5" stroke="currentColor" stroke-width="1.2"/><circle cx="12" cy="12" r="2.5" stroke="currentColor" stroke-width="1.2"/><path d="M6.5 8h2L10 5M6.5 8h2L10 11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              Integrações
+            </div>
+          </div>
+ 
+          <!-- Settings content -->
+          <div class="settings-content">
+ 
+            <!-- PERFIL tab -->
+            <div id="tab-perfil">
+              <div class="settings-section">
+                <div class="settings-section-header">
+                  <div class="settings-section-title">Informações do Negócio</div>
+                  <div class="settings-section-sub">Dados exibidos para os clientes</div>
+                </div>
+                <div class="settings-body">
+                  <div style="display:flex;align-items:center;gap:16px;padding-bottom:14px;border-bottom:1px solid #f0f5fb;">
+                    <div style="width:60px;height:60px;border-radius:50%;background:#1a4a7a;display:flex;align-items:center;justify-content:center;font-family:'DM Serif Display',serif;font-size:22px;color:#b8d4f0;">MF</div>
+                    <div>
+                      <div style="font-size:14px;font-weight:500;color:#0f2340;">Mirian Fontes</div>
+                      <div style="font-size:12px;color:#8aaccb;margin-top:2px;">Manicure & Design de Sobrancelhas</div>
+                      <button class="btn-outline" style="font-size:11px;padding:4px 12px;margin-top:6px;">Alterar foto</button>
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-field"><label class="form-label">Nome</label><input class="form-input" value="Mirian Fontes"></div>
+                    <div class="form-field"><label class="form-label">Nome do Studio</label><input class="form-input" value="Studio Mirian Fontes"></div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-field"><label class="form-label">WhatsApp</label><input class="form-input" value="(11) 99999-8888"></div>
+                    <div class="form-field"><label class="form-label">Instagram</label><input class="form-input" value="@mirianstudionfls"></div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-field full"><label class="form-label">Endereço</label><input class="form-input" value="Rua das Flores, 128 — Vila Nova, São Paulo - SP"></div>
+                  </div>
+                  <div class="save-bar">
+                    <button class="btn-outline">Cancelar</button>
+                    <button class="btn-primary">Salvar Alterações</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+ 
+            <!-- HORÁRIOS tab -->
+            <div id="tab-horarios" style="display:none;">
+              <div class="settings-section">
+                <div class="settings-section-header">
+                  <div class="settings-section-title">Horário de Funcionamento</div>
+                  <div class="settings-section-sub">Configure quais dias e horários você atende</div>
+                </div>
+                <div class="settings-body">
+                  <div class="hours-grid">
+                    <div class="hour-day"><div class="hour-day-name">Seg</div><div class="hour-toggle on" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div><div class="hour-times">8h–18h</div></div>
+                    <div class="hour-day"><div class="hour-day-name">Ter</div><div class="hour-toggle on" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div><div class="hour-times">8h–18h</div></div>
+                    <div class="hour-day"><div class="hour-day-name">Qua</div><div class="hour-toggle on" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div><div class="hour-times">8h–18h</div></div>
+                    <div class="hour-day"><div class="hour-day-name">Qui</div><div class="hour-toggle on" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div><div class="hour-times">8h–18h</div></div>
+                    <div class="hour-day"><div class="hour-day-name">Sex</div><div class="hour-toggle on" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div><div class="hour-times">8h–18h</div></div>
+                    <div class="hour-day"><div class="hour-day-name">Sáb</div><div class="hour-toggle on" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div><div class="hour-times">8h–14h</div></div>
+                    <div class="hour-day"><div class="hour-day-name">Dom</div><div class="hour-toggle off" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div><div class="hour-times">Fechado</div></div>
+                  </div>
+                  <div style="background:#f4f7fc;border-radius:10px;padding:14px 16px;margin-top:4px;">
+                    <div style="font-size:12px;font-weight:500;color:#0f2340;margin-bottom:8px;">Intervalo de Almoço</div>
+                    <div class="form-row">
+                      <div class="form-field"><label class="form-label">Início</label><input class="form-input" value="12:00"></div>
+                      <div class="form-field"><label class="form-label">Fim</label><input class="form-input" value="13:30"></div>
+                    </div>
+                  </div>
+                  <div class="save-bar">
+                    <button class="btn-outline">Cancelar</button>
+                    <button class="btn-primary">Salvar Horários</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+ 
+            <!-- SERVIÇOS tab -->
+            <div id="tab-servicos" style="display:none;">
+              <div class="settings-section">
+                <div class="settings-section-header" style="display:flex;align-items:center;justify-content:space-between;">
+                  <div>
+                    <div class="settings-section-title">Catálogo de Serviços</div>
+                    <div class="settings-section-sub">Gerencie os serviços oferecidos e preços</div>
+                  </div>
+                  <button class="btn-primary" style="font-size:11px;padding:6px 14px;">+ Novo Serviço</button>
+                </div>
+                <div class="settings-body">
+                  <div class="service-item"><div class="service-color-dot" style="background:#4a90d9;"></div><div class="service-item-info"><div class="service-item-name">Manicure Simples</div><div class="service-item-dur">⏱ 40 min</div></div><div class="service-item-price">R$ 35</div><button class="service-item-edit">Editar</button></div>
+                  <div class="service-item"><div class="service-color-dot" style="background:#2563a8;"></div><div class="service-item-info"><div class="service-item-name">Pedicure Simples</div><div class="service-item-dur">⏱ 50 min</div></div><div class="service-item-price">R$ 40</div><button class="service-item-edit">Editar</button></div>
+                  <div class="service-item"><div class="service-color-dot" style="background:#4a90d9;"></div><div class="service-item-info"><div class="service-item-name">Manicure + Pedicure</div><div class="service-item-dur">⏱ 1h 20min</div></div><div class="service-item-price">R$ 70</div><button class="service-item-edit">Editar</button></div>
+                  <div class="service-item"><div class="service-color-dot" style="background:#3a7abf;"></div><div class="service-item-info"><div class="service-item-name">Unhas em Gel</div><div class="service-item-dur">⏱ 1h 30min</div></div><div class="service-item-price">R$ 90</div><button class="service-item-edit">Editar</button></div>
+                  <div class="service-item"><div class="service-color-dot" style="background:#1a5fab;"></div><div class="service-item-info"><div class="service-item-name">Alongamento de Unhas</div><div class="service-item-dur">⏱ 2h</div></div><div class="service-item-price">R$ 120</div><button class="service-item-edit">Editar</button></div>
+                  <div class="service-item"><div class="service-color-dot" style="background:#0f2340;"></div><div class="service-item-info"><div class="service-item-name">Blindagem de Unhas</div><div class="service-item-dur">⏱ 1h</div></div><div class="service-item-price">R$ 65</div><button class="service-item-edit">Editar</button></div>
+                  <div class="service-item"><div class="service-color-dot" style="background:#8aaccb;"></div><div class="service-item-info"><div class="service-item-name">Design de Sobrancelha</div><div class="service-item-dur">⏱ 30 min</div></div><div class="service-item-price">R$ 45</div><button class="service-item-edit">Editar</button></div>
+                  <div class="service-item"><div class="service-color-dot" style="background:#4e8f6a;"></div><div class="service-item-info"><div class="service-item-name">Sobrancelha + Manicure</div><div class="service-item-dur">⏱ 1h 10min</div></div><div class="service-item-price">R$ 80</div><button class="service-item-edit">Editar</button></div>
+                </div>
+              </div>
+            </div>
+ 
+            <!-- NOTIFICAÇÕES tab -->
+            <div id="tab-notif" style="display:none;">
+              <div class="settings-section">
+                <div class="settings-section-header">
+                  <div class="settings-section-title">Notificações e Automações</div>
+                  <div class="settings-section-sub">Configure alertas automáticos via WhatsApp e e-mail</div>
+                </div>
+                <div class="settings-body">
+                  <div class="toggle-row">
+                    <div class="toggle-info"><div class="toggle-title">Confirmação de Agendamento</div><div class="toggle-desc">Enviar mensagem automática quando um agendamento for criado</div></div>
+                    <div class="hour-toggle on" style="flex-shrink:0;" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div>
+                  </div>
+                  <div class="toggle-row">
+                    <div class="toggle-info"><div class="toggle-title">Lembrete 24h antes</div><div class="toggle-desc">Enviar lembrete automático um dia antes do atendimento</div></div>
+                    <div class="hour-toggle on" style="flex-shrink:0;" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div>
+                  </div>
+                  <div class="toggle-row">
+                    <div class="toggle-info"><div class="toggle-title">Lembrete 1h antes</div><div class="toggle-desc">Enviar lembrete 1 hora antes do horário agendado</div></div>
+                    <div class="hour-toggle off" style="flex-shrink:0;" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div>
+                  </div>
+                  <div class="toggle-row">
+                    <div class="toggle-info"><div class="toggle-title">Confirmação de Pagamento Pix</div><div class="toggle-desc">Alertar quando um pagamento via Pix for recebido</div></div>
+                    <div class="hour-toggle on" style="flex-shrink:0;" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div>
+                  </div>
+                  <div class="toggle-row">
+                    <div class="toggle-info"><div class="toggle-title">Alerta de Meta Atingida</div><div class="toggle-desc">Notificar quando a meta mensal for alcançada</div></div>
+                    <div class="hour-toggle on" style="flex-shrink:0;" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div>
+                  </div>
+                  <div class="toggle-row">
+                    <div class="toggle-info"><div class="toggle-title">Aniversário de Clientes</div><div class="toggle-desc">Enviar mensagem de parabéns automática para clientes</div></div>
+                    <div class="hour-toggle off" style="flex-shrink:0;" onclick="this.classList.toggle('on');this.classList.toggle('off')"></div>
+                  </div>
+                  <div class="save-bar">
+                    <button class="btn-primary">Salvar Preferências</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+ 
+            <!-- INTEGRAÇÕES tab -->
+            <div id="tab-integ" style="display:none;">
+              <div class="settings-section">
+                <div class="settings-section-header">
+                  <div class="settings-section-title">Integrações</div>
+                  <div class="settings-section-sub">Conecte o BeautyFlow com outros serviços</div>
+                </div>
+                <div class="settings-body">
+                  <div class="service-item">
+                    <div style="width:36px;height:36px;background:#dcf8c6;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M20.5 3.5C18.8 1.8 16.5 1 14 1 8.5 1 4 5.5 4 11c0 1.8.5 3.6 1.3 5.1L3 21l5.1-1.3C9.6 20.5 11.3 21 13 21c5.5 0 10-4.5 10-10 0-2.5-.8-4.8-2.5-6.5z" stroke="#25D366" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </div>
+                    <div class="service-item-info"><div class="service-item-name">WhatsApp (n8n)</div><div class="service-item-dur">Automação de mensagens ativa</div></div>
+                    <span class="appt-status status-done" style="margin-right:8px;">Conectado</span>
+                    <button class="service-item-edit">Config.</button>
+                  </div>
+                  <div class="service-item">
+                    <div style="width:36px;height:36px;background:#e8f0fe;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="2" y="4" width="20" height="16" rx="2" stroke="#4285F4" stroke-width="1.5"/><path d="M2 8l10 7 10-7" stroke="#4285F4" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    </div>
+                    <div class="service-item-info"><div class="service-item-name">Google Agenda</div><div class="service-item-dur">Sincronizar agendamentos automaticamente</div></div>
+                    <span class="appt-status status-pending" style="margin-right:8px;">Desconectado</span>
+                    <button class="btn-primary" style="font-size:11px;padding:5px 12px;">Conectar</button>
+                  </div>
+                  <div class="service-item">
+                    <div style="width:36px;height:36px;background:#fce8e8;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#EA4335" stroke-width="1.5"/><path d="M12 8v4l3 3" stroke="#EA4335" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    </div>
+                    <div class="service-item-info"><div class="service-item-name">Pix Automático</div><div class="service-item-dur">Confirmação de pagamentos em tempo real</div></div>
+                    <span class="appt-status status-done" style="margin-right:8px;">Conectado</span>
+                    <button class="service-item-edit">Config.</button>
+                  </div>
+                  <div class="service-item">
+                    <div style="width:36px;height:36px;background:#fff3e0;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M3 3h18v18H3zM9 9h6M9 12h6M9 15h4" stroke="#FF9800" stroke-width="1.5" stroke-linecap="round"/></svg>
+                    </div>
+                    <div class="service-item-info"><div class="service-item-name">Exportar para Excel</div><div class="service-item-dur">Relatórios financeiros automáticos</div></div>
+                    <span class="appt-status status-pending" style="margin-right:8px;">Não ativo</span>
+                    <button class="btn-primary" style="font-size:11px;padding:5px 12px;">Ativar</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+ 
+          </div>
+        </div>
+      </div>
+ 
+    </div>
+  </div>
+</div>
+ 
+<script>
+  // ── Page switching ──
+  const pageConfig = {
+    dashboard:      { title: 'Painel Geral',    sub: 'Quinta-feira, 1 de maio de 2026',      btn: '+ Novo Agendamento' },
+    agenda:         { title: 'Agenda',          sub: '28 abr – 4 mai 2026',                  btn: '+ Novo Agendamento' },
+    clientes:       { title: 'Clientes',        sub: '84 clientes cadastrados',              btn: '+ Nova Cliente' },
+    financeiro:     { title: 'Financeiro',      sub: 'Visão geral de maio de 2026',          btn: '+ Novo Lançamento' },
+    relatorios:     { title: 'Relatórios',      sub: 'Análise dos últimos 30 dias',          btn: '⬇ Exportar PDF' },
+    configuracoes:  { title: 'Configurações',   sub: 'Gerencie seu sistema BeautyFlow',      btn: null },
+  };
+ 
+  function showPage(pageId, navEl) {
+    // Hide all pages
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + pageId).classList.add('active');
+ 
+    // Update nav
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    navEl.classList.add('active');
+ 
+    // Update topbar
+    const cfg = pageConfig[pageId];
+    document.getElementById('page-title').textContent = cfg.title;
+    document.getElementById('page-sub').textContent = cfg.sub;
+    const btn = document.getElementById('topbar-btn');
+    if (cfg.btn) { btn.textContent = cfg.btn; btn.style.display = ''; }
+    else { btn.style.display = 'none'; }
+  }
+ 
+  function handleTopbarBtn() {
+    // Could open modals in a real app
+  }
+ 
+  // ── Settings tabs ──
+  function showSettingsTab(navEl, tabId) {
+    document.querySelectorAll('.settings-nav-item').forEach(n => n.classList.remove('active'));
+    navEl.classList.add('active');
+    ['tab-perfil','tab-horarios','tab-servicos','tab-notif','tab-integ'].forEach(id => {
+      document.getElementById(id).style.display = id === tabId ? '' : 'none';
+    });
+  }
+ 
+  // ── Client selection ──
+  const clientData = [
+    { av:'AP', avBg:'#daeaf8', avColor:'#1a5fab', name:'Ana Paula Silva',  phone:'(11) 98765-4321 · Cliente desde Jan 2024', visits:'28', total:'R$ 1.820', ticket:'R$ 65', last:'1 mai',
+      history:[['01/05/2026','Manicure + Pedicure','R$ 70'],['17/04/2026','Unhas em Gel','R$ 90'],['03/04/2026','Manicure Simples','R$ 35'],['20/03/2026','Manicure + Pedicure','R$ 70']]},
+    { av:'CM', avBg:'#f0e8f8', avColor:'#6a2e8a', name:'Carla Mendes',     phone:'(11) 97654-3210 · Cliente desde Mar 2024', visits:'15', total:'R$ 675',   ticket:'R$ 45', last:'1 mai',
+      history:[['01/05/2026','Design de Sobrancelha','R$ 45'],['18/04/2026','Sobrancelha + Manicure','R$ 80'],['05/04/2026','Design de Sobrancelha','R$ 45']]},
+    { av:'FC', avBg:'#e8f8ee', avColor:'#2e8a5a', name:'Fernanda Costa',   phone:'(11) 96543-2109 · Cliente desde Mai 2024', visits:'11', total:'R$ 990',   ticket:'R$ 90', last:'1 mai',
+      history:[['01/05/2026','Unhas em Gel','R$ 90'],['15/04/2026','Unhas em Gel','R$ 90'],['02/04/2026','Manicure Simples','R$ 35']]},
+    { av:'JR', avBg:'#fdf3dc', avColor:'#8c5e10', name:'Juliana Rocha',    phone:'(11) 95432-1098 · Cliente desde Jun 2024', visits:'7',  total:'R$ 560',   ticket:'R$ 80', last:'30 abr',
+      history:[['30/04/2026','Sobrancelha + Manicure','R$ 80'],['14/04/2026','Manicure Simples','R$ 35'],['01/04/2026','Sobrancelha + Manicure','R$ 80']]},
+    { av:'MT', avBg:'#fce8e8', avColor:'#8a2e2e', name:'Mariana Torres',   phone:'(11) 94321-0987 · Cliente desde Fev 2025', visits:'5',  total:'R$ 325',   ticket:'R$ 65', last:'28 abr',
+      history:[['28/04/2026','Blindagem de Unhas','R$ 65'],['10/04/2026','Manicure + Pedicure','R$ 70']]},
+    { av:'PL', avBg:'#e8f0fc', avColor:'#2e5e8a', name:'Patricia Lima',    phone:'(11) 93210-9876 · Cliente desde Abr 2026', visits:'3',  total:'R$ 105',   ticket:'R$ 35', last:'1 mai',
+      history:[['01/05/2026','Manicure Simples','R$ 35'],['18/04/2026','Manicure Simples','R$ 35'],['05/04/2026','Manicure Simples','R$ 35']]},
+    { av:'RN', avBg:'#f0f8e8', avColor:'#4a8a2e', name:'Rafaela Nunes',    phone:'(11) 92109-8765 · Cliente desde Nov 2023', visits:'19', total:'R$ 2.280', ticket:'R$ 120', last:'1 mai',
+      history:[['01/05/2026','Alongamento de Unhas','R$ 120'],['17/04/2026','Alongamento de Unhas','R$ 120'],['03/04/2026','Gel + Pedicure','R$ 130']]},
+    { av:'BN', avBg:'#f8e8f4', avColor:'#8a2e6e', name:'Beatriz Neves',    phone:'(11) 91098-7654 · Cliente desde Dez 2023', visits:'22', total:'R$ 1.540', ticket:'R$ 70',  last:'29 abr',
+      history:[['29/04/2026','Manicure + Pedicure','R$ 70'],['15/04/2026','Unhas em Gel','R$ 90'],['02/04/2026','Manicure + Pedicure','R$ 70']]},
+    { av:'LF', avBg:'#e8fcf8', avColor:'#2e8a7a', name:'Lúcia Ferreira',   phone:'(11) 90987-6543 · Cliente desde Abr 2026', visits:'2',  total:'R$ 90',    ticket:'R$ 45',  last:'25 abr',
+      history:[['25/04/2026','Unhas em Gel','R$ 90']]},
+  ];
+ 
+  function selectClient(row, idx) {
+    document.querySelectorAll('.client-row').forEach(r => r.classList.remove('selected'));
+    row.classList.add('selected');
+    const c = clientData[idx];
+    document.getElementById('cd-av').textContent   = c.av;
+    document.getElementById('cd-av').style.background = c.avBg;
+    document.getElementById('cd-av').style.color = c.avColor;
+    document.getElementById('cd-name').textContent  = c.name;
+    document.getElementById('cd-phone').textContent = c.phone;
+    document.getElementById('cd-visits').textContent= c.visits;
+    document.getElementById('cd-total').textContent = c.total;
+    document.getElementById('cd-ticket').textContent= c.ticket;
+    document.getElementById('cd-last').textContent  = c.last;
+    const hist = document.getElementById('cd-history');
+    hist.innerHTML = c.history.map(([d,s,p]) => `
+      <div class="history-item">
+        <div class="history-date">${d}</div>
+        <div class="history-svc">${s}</div>
+        <div class="history-price">${p}</div>
+      </div>`).join('');
+  }
+ 
+  // Filter tab click (UI only)
+  document.querySelectorAll('.filter-tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.filter-tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+    });
+  });
+ 
+  // Period btn click (UI only)
+  document.querySelectorAll('.period-btn').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.period-btn').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+    });
+  });
+ 
+  // View tab click (UI only)
+  document.querySelectorAll('.view-tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.view-tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+    });
+  });
+</script>
+</body>
+</html>
+ 
