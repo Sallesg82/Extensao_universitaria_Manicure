@@ -614,19 +614,6 @@ conn.close()
       & "$venvDir\Scripts\pip" install --quiet flask flask-cors 2>$null
       $stepCrm.Set("OK CRM instalado", $colors.success)
       $form.Refresh()
-
-      # Iniciar CRM
-      $env:BEAUTYFLOW_DB_PATH = $DB_PATH
-      $env:BEAUTYFLOW_NO_SEED = "true"
-      $psi = New-Object System.Diagnostics.ProcessStartInfo
-      $psi.FileName = "$venvDir\Scripts\python.exe"
-      $psi.Arguments = "$CRM_DIR\backend\server.py"
-      $psi.EnvironmentVariables["BEAUTYFLOW_DB_PATH"] = $DB_PATH
-      $psi.EnvironmentVariables["BEAUTYFLOW_NO_SEED"] = "true"
-      $psi.WorkingDirectory = "$CRM_DIR\backend"
-      $psi.UseShellExecute = $false
-      $psi.CreateNoWindow = $true
-      [System.Diagnostics.Process]::Start($psi) | Out-Null
     }
 
     if ($selection -eq "agenda" -or $selection -eq "ambos") {
@@ -655,24 +642,54 @@ conn.close()
       Pop-Location
       $stepAgenda.Set("OK Agendamento instalado", $colors.success)
       $form.Refresh()
+    }
+  }
 
-      # Iniciar Agendamento
-      $psi2 = New-Object System.Diagnostics.ProcessStartInfo
-      $psi2.FileName = "cmd.exe"
-      $psi2.Arguments = "/c cd /d $APP_DIR && npm run dev"
-      $psi2.UseShellExecute = $false
-      $psi2.CreateNoWindow = $true
-      [System.Diagnostics.Process]::Start($psi2) | Out-Null
+  # Perguntar se deseja iniciar
+  $stepFinal.Set("Concluido!", $colors.success)
+  $form.Refresh()
+  Start-Sleep -Milliseconds 300
+
+  $urls = @()
+  if ($selection -eq "crm" -or $selection -eq "ambos") { $urls += "CRM: http://localhost:3001" }
+  if ($selection -eq "agenda" -or $selection -eq "ambos") { $urls += "Agendamento: http://localhost:5173" }
+
+  if ($method -eq "native") {
+    $msg = "Instalacao concluida!`n`nDeseja iniciar os aplicativos agora?"
+    $resp = [System.Windows.Forms.MessageBox]::Show($msg, "Iniciar agora?", "YesNo", "Question")
+    if ($resp -eq "Yes") {
+      $stepFinal.Set("Iniciando...", $colors.warning)
+      $form.Refresh()
+
+      if ($selection -eq "crm" -or $selection -eq "ambos") {
+        $venvDir = "$CRM_DIR\backend\.venv"
+        $env:BEAUTYFLOW_DB_PATH = $DB_PATH
+        $env:BEAUTYFLOW_NO_SEED = "true"
+        $psi = New-Object System.Diagnostics.ProcessStartInfo
+        $psi.FileName = "$venvDir\Scripts\python.exe"
+        $psi.Arguments = "$CRM_DIR\backend\server.py"
+        $psi.EnvironmentVariables["BEAUTYFLOW_DB_PATH"] = $DB_PATH
+        $psi.EnvironmentVariables["BEAUTYFLOW_NO_SEED"] = "true"
+        $psi.WorkingDirectory = "$CRM_DIR\backend"
+        $psi.UseShellExecute = $false
+        $psi.CreateNoWindow = $true
+        [System.Diagnostics.Process]::Start($psi) | Out-Null
+      }
+      if ($selection -eq "agenda" -or $selection -eq "ambos") {
+        $psi2 = New-Object System.Diagnostics.ProcessStartInfo
+        $psi2.FileName = "cmd.exe"
+        $psi2.Arguments = "/c cd /d $APP_DIR && npm run dev"
+        $psi2.UseShellExecute = $false
+        $psi2.CreateNoWindow = $true
+        [System.Diagnostics.Process]::Start($psi2) | Out-Null
+      }
     }
   }
 
   $stepFinal.Set("Concluido!", $colors.success)
   $form.Refresh()
-  Start-Sleep -Milliseconds 500
+  Start-Sleep -Milliseconds 300
 
-  $urls = @()
-  if ($selection -eq "crm" -or $selection -eq "ambos") { $urls += "CRM: http://localhost:3001" }
-  if ($selection -eq "agenda" -or $selection -eq "ambos") { $urls += "Agendamento: http://localhost:5173" }
   Show-Final $urls
 }
 
