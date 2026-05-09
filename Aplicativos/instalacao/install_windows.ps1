@@ -78,7 +78,18 @@ function Show-Menu {
   }
   $y += 15
 
-  # ── Opção 1: CRM ──
+  # ── Opção 1: Ambos (Recomendado) ──
+  $btnAmbos = New-Object System.Windows.Forms.Button
+  $btnAmbos.Text = "  Instalar AMBOS (Recomendado)`n  CRM + Agendamento integrados"
+  $btnAmbos.Font = $fonts.body; $btnAmbos.Size = New-Object System.Drawing.Size(500, 55)
+  $btnAmbos.Location = New-Object System.Drawing.Point(80, $y)
+  $btnAmbos.BackColor = HexColor $colors.success; $btnAmbos.ForeColor = "White"
+  $btnAmbos.FlatStyle = "Flat"
+  $btnAmbos.TextAlign = "MiddleLeft"
+  $btnAmbos.Add_Click({ Show-MethodMenu "ambos" })
+  $panelMain.Controls.Add($btnAmbos); $y += 65
+
+  # ── Opção 2: CRM ──
   $btnCrm = New-Object System.Windows.Forms.Button
   $btnCrm.Text = "  BeautyFlow CRM`n  Gestao do salao (clientes, agenda, financeiro)"
   $btnCrm.Font = $fonts.body; $btnCrm.Size = New-Object System.Drawing.Size(500, 55)
@@ -90,7 +101,7 @@ function Show-Menu {
   $btnCrm.Add_Click({ Show-MethodMenu "crm" })
   $panelMain.Controls.Add($btnCrm); $y += 65
 
-  # ── Opção 2: Agendamento ──
+  # ── Opção 3: Agendamento ──
   $btnAgenda = New-Object System.Windows.Forms.Button
   $btnAgenda.Text = "  BeautyFlow Agendamento`n  Painel do cliente (agendar servicos)"
   $btnAgenda.Font = $fonts.body; $btnAgenda.Size = New-Object System.Drawing.Size(500, 55)
@@ -100,18 +111,7 @@ function Show-Menu {
   $btnAgenda.FlatAppearance.BorderSize = 1; $btnAgenda.FlatAppearance.BorderColor = HexColor $colors.sub
   $btnAgenda.TextAlign = "MiddleLeft"
   $btnAgenda.Add_Click({ Show-MethodMenu "agenda" })
-  $panelMain.Controls.Add($btnAgenda); $y += 65
-
-  # ── Opção 3: Ambos ──
-  $btnAmbos = New-Object System.Windows.Forms.Button
-  $btnAmbos.Text = "  Instalar AMBOS (Recomendado)`n  CRM + Agendamento integrados"
-  $btnAmbos.Font = $fonts.body; $btnAmbos.Size = New-Object System.Drawing.Size(500, 55)
-  $btnAmbos.Location = New-Object System.Drawing.Point(80, $y)
-  $btnAmbos.BackColor = HexColor $colors.success; $btnAmbos.ForeColor = "White"
-  $btnAmbos.FlatStyle = "Flat"
-  $btnAmbos.TextAlign = "MiddleLeft"
-  $btnAmbos.Add_Click({ Show-MethodMenu "ambos" })
-  $panelMain.Controls.Add($btnAmbos)
+  $panelMain.Controls.Add($btnAgenda)
 }
 
 # ════════════════════════════════════════════
@@ -244,10 +244,16 @@ conn.close()
     # ═══════ DOCKER ═══════
     $dockerOk = (Get-Command "docker" -ErrorAction SilentlyContinue) -ne $null
     if (-not $dockerOk) {
-      $stepFinal.Set("Docker Desktop nao encontrado!", "#c05050")
+      $stepFinal.Set("Docker Desktop nao encontrado!", $colors.warning)
+      $form.Refresh()
+      $msg = "Docker Desktop nao esta instalado.`n`nDeseja baixar o instalador do Docker Desktop?`n`n(Se ja tiver instalado, reinicie o instalador apos a instalacao.)"
+      $resp = [System.Windows.Forms.MessageBox]::Show($msg, "Docker nao encontrado", "YesNo", "Question")
+      if ($resp -eq "Yes") {
+        Start-Process "https://docs.docker.com/desktop/setup/install/windows-install/"
+      }
       Add-Spacer
       $l = New-Object System.Windows.Forms.Label
-      $l.Text = "Instale Docker Desktop e tente novamente."
+      $l.Text = "Instale o Docker Desktop e execute o instalador novamente."
       $l.Font = $fonts.body; $l.ForeColor = HexColor $colors.white
       $l.Size = New-Object System.Drawing.Size(560, 22)
       $l.Location = New-Object System.Drawing.Point(60, 350)
@@ -275,10 +281,16 @@ conn.close()
       $stepCrm.Set("Verificando Python...", $colors.warning); $form.Refresh()
       $pythonOk = Get-Command "python" -ErrorAction SilentlyContinue
       if (-not $pythonOk) {
-        $stepCrm.Set("Python nao encontrado!", "#c05050")
+        $stepCrm.Set("Python nao encontrado!", $colors.warning)
+        $form.Refresh()
+        $msg = "Python 3.10+ nao foi encontrado.`n`nDeseja baixar o instalador do Python?`n(Instale com a opcao 'Add Python to PATH' marcada.)"
+        $resp = [System.Windows.Forms.MessageBox]::Show($msg, "Python nao encontrado", "YesNo", "Question")
+        if ($resp -eq "Yes") {
+          Start-Process "https://www.python.org/downloads/"
+        }
         Add-Spacer
         $l = New-Object System.Windows.Forms.Label
-        $l.Text = "Instale Python 3.10+ em: https://python.org"
+        $l.Text = "Instale Python 3.10+ e execute o instalador novamente."
         $l.Font = $fonts.body; $l.ForeColor = HexColor $colors.white
         $l.Size = New-Object System.Drawing.Size(560, 22)
         $l.Location = New-Object System.Drawing.Point(60, 350)
@@ -316,10 +328,16 @@ conn.close()
       $stepAgenda.Set("Verificando Node.js...", $colors.warning); $form.Refresh()
       $nodeOk = Get-Command "node" -ErrorAction SilentlyContinue
       if (-not $nodeOk) {
-        $stepAgenda.Set("Node.js nao encontrado!", "#c05050")
+        $stepAgenda.Set("Node.js nao encontrado!", $colors.warning)
+        $form.Refresh()
+        $msg = "Node.js LTS nao foi encontrado.`n`nDeseja baixar o instalador do Node.js?"
+        $resp = [System.Windows.Forms.MessageBox]::Show($msg, "Node.js nao encontrado", "YesNo", "Question")
+        if ($resp -eq "Yes") {
+          Start-Process "https://nodejs.org/"
+        }
         Add-Spacer
         $l = New-Object System.Windows.Forms.Label
-        $l.Text = "Instale Node.js LTS em: https://nodejs.org"
+        $l.Text = "Instale Node.js LTS e execute o instalador novamente."
         $l.Font = $fonts.body; $l.ForeColor = HexColor $colors.white
         $l.Size = New-Object System.Drawing.Size(560, 22)
         $l.Location = New-Object System.Drawing.Point(60, 350)

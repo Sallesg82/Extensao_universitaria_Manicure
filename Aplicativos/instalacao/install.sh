@@ -182,12 +182,61 @@ iniciar_agendamento() {
   cd "$DIR"
 }
 
-modo_docker() {
+instalar_docker() {
+  echo ""
   echo "── Docker ──"
-  command -v docker >/dev/null 2>&1 || { echo "  ERRO: docker não encontrado"; exit 1; }
-  docker compose version >/dev/null 2>&1 || { echo "  ERRO: docker compose v2+ não encontrado"; exit 1; }
-  echo "  ✓ docker $(docker --version | cut -d' ' -f3 | tr -d ',')"
+  if command -v docker >/dev/null 2>&1; then
+    echo "  ✓ docker $(docker --version | cut -d' ' -f3 | tr -d ',')"
+    return 0
+  fi
 
+  echo "  ⚠ Docker não encontrado."
+
+  if [ "$OS" = "linux" ]; then
+    if command -v apt >/dev/null 2>&1; then
+      echo "  O Docker será instalado via script oficial (get.docker.com)."
+      read -r -p "  Deseja instalar o Docker? [s/N] " R
+      [ "$R" != "s" ] && [ "$R" != "S" ] && { echo "  Cancelado"; exit 1; }
+      curl -fsSL https://get.docker.com | sudo sh
+      sudo usermod -aG docker "$USER"
+      echo "  ✓ Docker instalado! Faça logout/login para usar sem sudo."
+      command -v docker >/dev/null 2>&1 || { echo "  ERRO: falha ao instalar Docker"; exit 1; }
+    elif command -v dnf >/dev/null 2>&1; then
+      read -r -p "  Instalar docker com sudo dnf? [s/N] " R
+      [ "$R" != "s" ] && [ "$R" != "S" ] && { echo "  Cancelado"; exit 1; }
+      sudo dnf install -y docker docker-compose
+      sudo systemctl enable --now docker
+      echo "  ✓ Docker instalado"
+    elif command -v pacman >/dev/null 2>&1; then
+      read -r -p "  Instalar docker com sudo pacman? [s/N] " R
+      [ "$R" != "s" ] && [ "$R" != "S" ] && { echo "  Cancelado"; exit 1; }
+      sudo pacman -S --noconfirm docker docker-compose
+      sudo systemctl enable --now docker
+      echo "  ✓ Docker instalado"
+    else
+      echo "  Instale manualmente: https://docs.docker.com/engine/install/"
+      exit 1
+    fi
+  elif [ "$OS" = "macos" ]; then
+    echo "  Baixe o Docker Desktop em: https://docs.docker.com/desktop/setup/install/mac-install/"
+    read -r -p "  Deseja abrir o site? [s/N] " R
+    [ "$R" = "s" ] || [ "$R" = "S" ] && open "https://docs.docker.com/desktop/setup/install/mac-install/"
+    exit 1
+  fi
+}
+
+verificar_docker_compose() {
+  if ! docker compose version >/dev/null 2>&1; then
+    echo "  ⚠ docker compose v2+ não encontrado."
+    echo "  Atualize o Docker para a versão mais recente."
+    exit 1
+  fi
+  echo "  ✓ docker compose $(docker compose version | awk '{print $4}' | tr -d ',')"
+}
+
+modo_docker() {
+  instalar_docker
+  verificar_docker_compose
   criar_banco
 
   local UP=""
@@ -217,48 +266,20 @@ modo_docker() {
 if [ "$MODE" = "menu" ]; then
   echo "Escolha o que deseja instalar:"
   echo ""
-  echo "  1) BeautyFlow CRM (gestão do salão)"
-  echo "  2) BeautyFlow Agendamento (painel do cliente)"
-  echo "  3) Ambos (CRM + Agendamento)"
+  echo "  1) Ambos (CRM + Agendamento) ← RECOMENDADO"
+  echo "  2) BeautyFlow CRM (gestão do salão)"
+  echo "  3) BeautyFlow Agendamento (painel do cliente)"
   echo "  4) Docker — Ambos (container)"
   echo ""
-  read -r -p "Digite o número [1-4]: " ESCOLHA
+  read -r -p "Digite o número [1-4] (padrão 1): " ESCOLHA
+  ESCOLHA="${ESCOLHA:-1}"
   echo ""
 fi
 
 # ────────── Execução ──────────
 
 case "${ESCOLHA:-$MODE}" in
-  1|crm)
-    instalar_dependencias_base
-    criar_banco
-    instalar_crm
-    echo ""
-    echo "╔══════════════════════════════════════════════╗"
-    echo "║  Instalação concluída!                       ║"
-    echo "║                                              ║"
-    echo "║  Para iniciar o CRM:                         ║"
-    echo "║    bash \"$DIR/start.sh\" crm              ║"
-    echo "║                                              ║"
-    echo "║  Acessar: http://localhost:3001              ║"
-    echo "╚══════════════════════════════════════════════╝"
-    ;;
-  2|agenda)
-    instalar_dependencias_base
-    criar_banco
-    instalar_agendamento
-    echo ""
-    echo "╔══════════════════════════════════════════════╗"
-    echo "║  Instalação concluída!                       ║"
-    echo "║                                              ║"
-    echo "║  Para iniciar o Agendamento:                 ║"
-    echo "║    bash \"$DIR/start.sh\" agenda           ║"
-    echo "║                                              ║"
-    echo "║  Acessar: http://localhost:5173              ║"
-    echo "║  (CRM deve estar rodando em :3001)           ║"
-    echo "╚══════════════════════════════════════════════╝"
-    ;;
-  3|ambos)
+  1|ambos)
     instalar_dependencias_base
     criar_banco
     instalar_crm
@@ -272,6 +293,35 @@ case "${ESCOLHA:-$MODE}" in
     echo "║                                              ║"
     echo "║  CRM:        http://localhost:3001            ║"
     echo "║  Agendamento: http://localhost:5173           ║"
+    echo "╚══════════════════════════════════════════════╝"
+    ;;
+  2|crm)
+    instalar_dependencias_base
+    criar_banco
+    instalar_crm
+    echo ""
+    echo "╔══════════════════════════════════════════════╗"
+    echo "║  Instalação concluída!                       ║"
+    echo "║                                              ║"
+    echo "║  Para iniciar o CRM:                         ║"
+    echo "║    bash \"$DIR/start.sh\" crm              ║"
+    echo "║                                              ║"
+    echo "║  Acessar: http://localhost:3001              ║"
+    echo "╚══════════════════════════════════════════════╝"
+    ;;
+  3|agenda)
+    instalar_dependencias_base
+    criar_banco
+    instalar_agendamento
+    echo ""
+    echo "╔══════════════════════════════════════════════╗"
+    echo "║  Instalação concluída!                       ║"
+    echo "║                                              ║"
+    echo "║  Para iniciar o Agendamento:                 ║"
+    echo "║    bash \"$DIR/start.sh\" agenda           ║"
+    echo "║                                              ║"
+    echo "║  Acessar: http://localhost:5173              ║"
+    echo "║  (CRM deve estar rodando em :3001)           ║"
     echo "╚══════════════════════════════════════════════╝"
     ;;
   4|docker)
