@@ -63,22 +63,7 @@ instalar_dependencias_base() {
   command -v sqlite3 >/dev/null 2>&1 || MISSING+=("sqlite3")
 
   if [ ${#MISSING[@]} -gt 0 ]; then
-    echo "  ⚠ Faltam: ${MISSING[*]}"
-    if command -v apt >/dev/null 2>&1; then
-      read -r -p "  Instalar com sudo apt? [s/N] " RESP
-      [ "$RESP" != "s" ] && [ "$RESP" != "S" ] && { echo "  Cancelado"; exit 1; }
-      sudo apt install -y "${MISSING[@]}"
-    elif command -v dnf >/dev/null 2>&1; then
-      read -r -p "  Instalar com sudo dnf? [s/N] " RESP
-      [ "$RESP" != "s" ] && [ "$RESP" != "S" ] && { echo "  Cancelado"; exit 1; }
-      sudo dnf install -y "${MISSING[@]}"
-    elif command -v pacman >/dev/null 2>&1; then
-      read -r -p "  Instalar com sudo pacman? [s/N] " RESP
-      [ "$RESP" != "s" ] && [ "$RESP" != "S" ] && { echo "  Cancelado"; exit 1; }
-      sudo pacman -S --noconfirm "${MISSING[@]}"
-    else
-      echo "  Instale manualmente: ${MISSING[*]}"; exit 1
-    fi
+    PERGUNTAR_INSTALACAO "${MISSING[*]}" "${MISSING[@]}"
     echo "  ✓ Instalados"
   else
     echo "  ✓ git"; echo "  ✓ sqlite3"
@@ -100,6 +85,37 @@ criar_banco() {
   fi
 }
 
+# ────────── Gerenciador de pacotes ──────────
+PERGUNTAR_INSTALACAO() {
+  local nome="$1"
+  shift
+  echo "  ⚠ $nome não encontrado"
+  if [ "$OS" = "macos" ]; then
+    if command -v brew >/dev/null 2>&1; then
+      read -r -p "  Instalar $nome com brew? [s/N] " R
+      [ "$R" != "s" ] && [ "$R" != "S" ] && { echo "  Cancelado"; exit 1; }
+      brew install "$@"
+      return 0
+    fi
+    echo "  Instale $nome manualmente"; exit 1
+  fi
+  if command -v apt >/dev/null 2>&1; then
+    read -r -p "  Instalar $nome com sudo apt? [s/N] " R
+    [ "$R" != "s" ] && [ "$R" != "S" ] && { echo "  Cancelado"; exit 1; }
+    sudo apt install -y "$@"
+  elif command -v dnf >/dev/null 2>&1; then
+    read -r -p "  Instalar $nome com sudo dnf? [s/N] " R
+    [ "$R" != "s" ] && [ "$R" != "S" ] && { echo "  Cancelado"; exit 1; }
+    sudo dnf install -y "$@"
+  elif command -v pacman >/dev/null 2>&1; then
+    read -r -p "  Instalar $nome com sudo pacman? [s/N] " R
+    [ "$R" != "s" ] && [ "$R" != "S" ] && { echo "  Cancelado"; exit 1; }
+    sudo pacman -S --noconfirm "$@"
+  else
+    echo "  Instale $nome manualmente"; exit 1
+  fi
+}
+
 instalar_crm() {
   echo ""
   echo "── Instalando BeautyFlow CRM ──"
@@ -109,14 +125,7 @@ instalar_crm() {
 
   # Python
   if ! command -v python3 >/dev/null 2>&1; then
-    echo "  ⚠ python3 não encontrado"
-    if command -v apt >/dev/null 2>&1; then
-      read -r -p "  Instalar python3? [s/N] " R
-      [ "$R" != "s" ] && [ "$R" != "S" ] && { echo "  Cancelado"; exit 1; }
-      sudo apt install -y python3 python3-venv
-    else
-      echo "  Instale python3 manualmente"; exit 1
-    fi
+    PERGUNTAR_INSTALACAO "python3" python3 python3-venv
   fi
 
   # venv
@@ -139,14 +148,26 @@ instalar_agendamento() {
   local APP_DIR="$BASE/agendamento Vinicius"
 
   if ! command -v node >/dev/null 2>&1; then
-    echo "  ⚠ Node.js não encontrado"
-    if command -v apt >/dev/null 2>&1; then
-      read -r -p "  Instalar Node.js? [s/N] " R
-      [ "$R" != "s" ] && [ "$R" != "S" ] && { echo "  Cancelado"; exit 1; }
-      curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-      sudo apt install -y nodejs
-    else
-      echo "  Instale Node.js manualmente: https://nodejs.org"; exit 1
+    if [ "$OS" = "linux" ]; then
+      echo "  ⚠ Node.js não encontrado"
+      if command -v apt >/dev/null 2>&1; then
+        read -r -p "  Instalar Node.js via nodesource? [s/N] " R
+        [ "$R" != "s" ] && [ "$R" != "S" ] && { echo "  Cancelado"; exit 1; }
+        curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+        sudo apt install -y nodejs
+      elif command -v dnf >/dev/null 2>&1; then
+        read -r -p "  Instalar Node.js com sudo dnf? [s/N] " R
+        [ "$R" != "s" ] && [ "$R" != "S" ] && { echo "  Cancelado"; exit 1; }
+        sudo dnf module install -y nodejs:22
+      elif command -v pacman >/dev/null 2>&1; then
+        read -r -p "  Instalar Node.js com sudo pacman? [s/N] " R
+        [ "$R" != "s" ] && [ "$R" != "S" ] && { echo "  Cancelado"; exit 1; }
+        sudo pacman -S --noconfirm nodejs npm
+      else
+        echo "  Instale Node.js manualmente: https://nodejs.org"; exit 1
+      fi
+    elif [ "$OS" = "macos" ]; then
+      PERGUNTAR_INSTALACAO "Node.js" node
     fi
   fi
   echo "  ✓ node $(node --version)"
