@@ -29,6 +29,7 @@ iniciar_crm() {
   echo "  Iniciando CRM (http://localhost:3001)..."
   export BEAUTYFLOW_DB_PATH="$DB_PATH"
   export BEAUTYFLOW_NO_SEED="true"
+  rm -f /tmp/beautyflow_crm.log
   cd "$CRM_DIR"
   nohup backend/.venv/bin/python backend/server.py > /tmp/beautyflow_crm.log 2>&1 &
   echo "  ✓ CRM rodando (PID $!)"
@@ -41,6 +42,7 @@ iniciar_agenda() {
     exit 1
   fi
   echo "  Iniciando Agendamento (http://localhost:5173)..."
+  rm -f /tmp/beautyflow_agenda.log
   cd "$APP_DIR"
   nohup npm run dev > /tmp/beautyflow_agenda.log 2>&1 &
   echo "  ✓ Agendamento rodando (PID $!)"
