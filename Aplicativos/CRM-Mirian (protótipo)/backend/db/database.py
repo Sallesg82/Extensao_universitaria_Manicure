@@ -2,7 +2,7 @@ import sqlite3
 import os
 from datetime import datetime
 
-DB_PATH = os.path.join(os.path.dirname(__file__), 'beautyflow.db')
+DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'DB', 'beautyflow.db'))
 
 
 def get_db():
