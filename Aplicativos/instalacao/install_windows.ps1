@@ -364,6 +364,16 @@ function Start-Manage($target, $action) {
         $stepAct.Set("OK Agendamento desinstalado", $colors.success)
         $form.Refresh()
       }
+      # Perguntar sobre o banco de dados
+      if (Test-Path $DB_PATH) {
+        $msg = "Remover tambem o banco de dados?`n`n$DB_PATH"
+        $resp = [System.Windows.Forms.MessageBox]::Show($msg, "Banco de dados", "YesNo", "Question")
+        if ($resp -eq "Yes") {
+          Remove-Item -Force $DB_PATH -ErrorAction SilentlyContinue
+          $stepAct.Set("OK banco de dados removido", $colors.success)
+          $form.Refresh()
+        }
+      }
     } else {
       # Update
       if ($isCrm) {
@@ -488,9 +498,18 @@ function Start-Install($selection, $method) {
   $form.Refresh()
 
   # ── Banco de Dados ──
-  $stepDb.Set("Criando banco SQLite...", $colors.warning)
+  $stepDb.Set("Verificando banco de dados...", $colors.warning)
   $form.Refresh()
   if (-not (Test-Path $DB_DIR)) { New-Item -ItemType Directory -Path $DB_DIR -Force | Out-Null }
+
+  if (Test-Path $DB_PATH) {
+    $msg = "Banco de dados ja existe.`n`nLimpar (remover dados existentes)?"
+    $resp = [System.Windows.Forms.MessageBox]::Show($msg, "Banco de dados", "YesNo", "Question")
+    if ($resp -eq "Yes") {
+      Remove-Item -Force $DB_PATH -ErrorAction SilentlyContinue
+    }
+  }
+
   if (-not (Test-Path $DB_PATH)) {
     $sqlScript = "$INST_DIR\init_db.sql"
     if (Test-Path $sqlScript) {

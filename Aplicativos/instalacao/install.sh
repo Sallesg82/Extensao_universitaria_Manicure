@@ -75,11 +75,18 @@ criar_banco() {
   echo "── Banco de Dados ──"
   mkdir -p "$DB_DIR"
   if [ -f "$DB_PATH" ]; then
-    echo "  ✓ Banco já existe em:"
-    echo "    $DB_PATH"
+    echo "  Banco existente: $DB_PATH"
+    read -r -p "  Limpar banco (remover dados existentes)? [s/N] " R
+    if [ "$R" = "s" ] || [ "$R" = "S" ]; then
+      rm -f "$DB_PATH"
+      sqlite3 "$DB_PATH" < "$DIR/init_db.sql"
+      echo "  ✓ Banco limpo e recriado vazio"
+    else
+      echo "  ✓ Banco mantido"
+    fi
   else
     sqlite3 "$DB_PATH" < "$DIR/init_db.sql"
-    echo "  ✓ Banco criado em:"
+    echo "  ✓ Banco criado vazio em:"
     echo "    $DB_PATH"
     echo "  ✓ Tabelas criadas (sem dados)"
   fi
@@ -488,6 +495,15 @@ gestor_atualizacao() {
     3)
       echo ""
       echo "── Desinstalando ──"
+
+      # Perguntar sobre o banco de dados
+      local DEL_DB=false
+      if [ -f "$DB_PATH" ]; then
+        echo "  Banco existente em: $DB_PATH"
+        read -r -p "  Remover também o banco de dados? [s/N] " R
+        [ "$R" = "s" ] || [ "$R" = "S" ] && DEL_DB=true
+      fi
+
       case "$target" in
         nativo-crm)
           pkill -f "backend/server.py" 2>/dev/null || true
@@ -515,6 +531,11 @@ gestor_atualizacao() {
           fi
           ;;
       esac
+
+      if [ "$DEL_DB" = true ]; then
+        rm -f "$DB_PATH"
+        echo "  ✓ Banco de dados removido"
+      fi
       echo "  ✓ Desinstalação concluída"
       ;;
     4|*)
