@@ -237,7 +237,28 @@ verificar_docker_compose() {
 modo_docker() {
   instalar_docker
   verificar_docker_compose
-  criar_banco
+
+  # Docker mode: se o banco já existe, pergunta se quer limpar
+  echo ""
+  echo "── Banco de Dados ──"
+  mkdir -p "$DB_DIR"
+  if [ -f "$DB_PATH" ]; then
+    echo "  Banco existente: $DB_PATH"
+    read -r -p "  Limpar banco (remover dados existentes)? [s/N] " R
+    if [ "$R" = "s" ] || [ "$R" = "S" ]; then
+      rm -f "$DB_PATH"
+      sqlite3 "$DB_PATH" < "$DIR/init_db.sql"
+      echo "  ✓ Banco limpo e recriado vazio"
+    else
+      echo "  ✓ Banco mantido"
+    fi
+  else
+    sqlite3 "$DB_PATH" < "$DIR/init_db.sql"
+    echo "  ✓ Banco criado vazio em: $DB_PATH"
+  fi
+
+  # Remove containers antigos para aplicar nova config
+  docker compose down 2>/dev/null || true
 
   local UP=""
   if [ "$1" = "crm" ] || [ "$1" = "ambos" ]; then

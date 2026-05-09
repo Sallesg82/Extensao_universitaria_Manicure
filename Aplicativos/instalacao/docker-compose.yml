@@ -7,9 +7,9 @@ services:
     ports:
       - "3001:3001"
     volumes:
-      - beautyflow_data:/app/backend/db
+      - ../../DB:/shared_db
     environment:
-      - BEAUTYFLOW_DB_PATH=/app/backend/db/beautyflow.db
+      - BEAUTYFLOW_DB_PATH=/shared_db/beautyflow.db
       - BEAUTYFLOW_NO_SEED=true
     restart: unless-stopped
     networks:
@@ -29,7 +29,3 @@ services:
 networks:
   beautyflow_net:
     driver: bridge
-
-volumes:
-  beautyflow_data:
-    driver: local
