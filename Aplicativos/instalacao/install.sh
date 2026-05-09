@@ -281,18 +281,197 @@ modo_docker() {
 }
 
 # ══════════════════════════════════════════
+#  DETECTAR INSTALAÇÃO EXISTENTE
+# ══════════════════════════════════════════
+
+detectar_instalacao() {
+  local CRM_DIR="$BASE/CRM-Mirian (protótipo)"
+  local APP_DIR="$BASE/agendamento Vinicius"
+  local VENV_DIR="$CRM_DIR/backend/.venv"
+
+  local CRM_INST=false
+  local AGENDA_INST=false
+  local DOCKER_INST=false
+
+  [ -d "$VENV_DIR" ] && CRM_INST=true
+  [ -d "$APP_DIR/node_modules" ] && AGENDA_INST=true
+  command -v docker >/dev/null 2>&1 && docker ps -a --filter "name=beautyflow" --format "{{.Names}}" 2>/dev/null | grep -q . && DOCKER_INST=true
+
+  echo ""
+  echo "── Instalações Detectadas ──"
+  echo "  Nativo:"
+  echo "    CRM:        $([ "$CRM_INST" = true ] && echo '✓ instalado' || echo '— não instalado')"
+  echo "    Agendamento: $([ "$AGENDA_INST" = true ] && echo '✓ instalado' || echo '— não instalado')"
+  echo "  Docker:      $([ "$DOCKER_INST" = true ] && echo '✓ containers encontrados' || echo '— não instalado')"
+  echo ""
+
+  # Retorna flags para quem chamou
+  echo "$CRM_INST:$AGENDA_INST:$DOCKER_INST"
+}
+
+atualizar_repositorio() {
+  echo ""
+  echo "── Atualizando repositório ──"
+  if [ "$INSIDE_REPO" = true ]; then
+    git pull --ff-only
+    echo "  ✓ Repositório atualizado"
+  else
+    echo "  Repositório clonado recentemente, já está atualizado"
+  fi
+}
+
+reinstalar_nativo() {
+  local target="$1"  # crm, agenda, ambos
+  local CRM_DIR="$BASE/CRM-Mirian (protótipo)"
+  local APP_DIR="$BASE/agendamento Vinicius"
+  local VENV_DIR="$CRM_DIR/backend/.venv"
+
+  echo ""
+  echo "── Reinstalando (limpo) ──"
+
+  if [ "$target" = "crm" ] || [ "$target" = "ambos" ]; then
+    echo "  Removendo CRM..."
+    rm -rf "$VENV_DIR"
+    instalar_crm
+  fi
+  if [ "$target" = "agenda" ] || [ "$target" = "ambos" ]; then
+    echo "  Removendo Agendamento..."
+    rm -rf "$APP_DIR/node_modules"
+    instalar_agendamento
+  fi
+  echo "  ✓ Reinstalação concluída"
+}
+
+reinstalar_docker() {
+  echo ""
+  echo "── Reinstalando Docker (limpo) ──"
+  if command -v docker >/dev/null 2>&1; then
+    docker compose down 2>/dev/null || true
+    docker rmi -f instalacao-crm instalacao-agenda 2>/dev/null || true
+    echo "  ✓ Containers e imagens removidos"
+  fi
+  modo_docker "ambos"
+}
+
+atualizar_dependencias_nativo() {
+  local target="$1"
+  local CRM_DIR="$BASE/CRM-Mirian (protótipo)"
+  local APP_DIR="$BASE/agendamento Vinicius"
+  local VENV_DIR="$CRM_DIR/backend/.venv"
+
+  echo ""
+  echo "── Atualizando dependências ──"
+
+  if [ "$target" = "crm" ] || [ "$target" = "ambos" ]; then
+    if [ -d "$VENV_DIR" ]; then
+      echo "  Atualizando dependências Python do CRM..."
+      "$VENV_DIR/bin/pip" install --quiet --upgrade pip flask flask-cors
+      echo "  ✓ CRM atualizado"
+    else
+      echo "  ⚠ CRM não instalado. Instalando..."
+      instalar_crm
+    fi
+  fi
+  if [ "$target" = "agenda" ] || [ "$target" = "ambos" ]; then
+    if [ -d "$APP_DIR/node_modules" ]; then
+      echo "  Atualizando dependências npm do Agendamento..."
+      cd "$APP_DIR" && npm update --silent && cd "$DIR"
+      echo "  ✓ Agendamento atualizado"
+    else
+      echo "  ⚠ Agendamento não instalado. Instalando..."
+      instalar_agendamento
+    fi
+  fi
+}
+
+atualizar_docker() {
+  echo ""
+  echo "── Atualizando Docker ──"
+  if command -v docker >/dev/null 2>&1; then
+    docker compose pull 2>/dev/null || true
+    docker compose build --no-cache 2>/dev/null || true
+    docker compose up -d
+    echo "  ✓ Containers atualizados e reiniciados"
+  else
+    echo "  ⚠ Docker não disponível"
+  fi
+}
+
+gestor_atualizacao() {
+  local target="$1"   # nativo-crm, nativo-agenda, nativo-ambos, docker
+  local nome=""
+  local CRM_DIR="$BASE/CRM-Mirian (protótipo)"
+  local APP_DIR="$BASE/agendamento Vinicius"
+  local VENV_DIR="$CRM_DIR/backend/.venv"
+
+  case "$target" in
+    nativo-crm)    nome="CRM (nativo)" ;;
+    nativo-agenda) nome="Agendamento (nativo)" ;;
+    nativo-ambos)  nome="CRM + Agendamento (nativo)" ;;
+    docker)        nome="Docker (Ambos)" ;;
+  esac
+
+  echo ""
+  echo "═══ Gerenciar: $nome ═══"
+  echo ""
+  echo "  1) Reinstalar (deletar tudo + instalar do zero)"
+  echo "  2) Atualizar (git pull + atualizar dependências)"
+  echo "  3) Cancelar"
+  echo ""
+  read -r -p "Escolha [1-3] (padrão 3): " R
+  R="${R:-3}"
+
+  case "$R" in
+    1)
+      case "$target" in
+        nativo-crm)    reinstalar_nativo "crm" ;;
+        nativo-agenda) reinstalar_nativo "agenda" ;;
+        nativo-ambos)  reinstalar_nativo "ambos" ;;
+        docker)        reinstalar_docker ;;
+      esac
+      ;;
+    2)
+      atualizar_repositorio
+      case "$target" in
+        nativo-crm)    atualizar_dependencias_nativo "crm" ;;
+        nativo-agenda) atualizar_dependencias_nativo "agenda" ;;
+        nativo-ambos)  atualizar_dependencias_nativo "ambos" ;;
+        docker)        atualizar_docker ;;
+      esac
+      echo ""
+      echo "╔══════════════════════════════════════════════╗"
+      echo "║  Atualização concluída!                      ║"
+      if [ "$target" = "docker" ]; then
+        echo "║                                              ║"
+        echo "║  CRM:        http://localhost:3001            ║"
+        echo "║  Agendamento: http://localhost:5173           ║"
+      else
+        echo "║                                              ║"
+        echo "║  Use start.sh para iniciar:                  ║"
+        echo "║    bash \"$DIR/start.sh\" $([ "$target" = "nativo-crm" ] && echo "crm" || { [ "$target" = "nativo-agenda" ] && echo "agenda"; } || echo "ambos")  ║"
+      fi
+      echo "╚══════════════════════════════════════════════╝"
+      ;;
+    3|*)
+      echo "  Cancelado"
+      ;;
+  esac
+}
+
+# ══════════════════════════════════════════
 #  MENU INTERATIVO
 # ══════════════════════════════════════════
 
 if [ "$MODE" = "menu" ]; then
-  echo "Escolha o que deseja instalar:"
+  echo "Escolha o que deseja fazer:"
   echo ""
   echo "  1) Ambos (CRM + Agendamento) ← RECOMENDADO"
   echo "  2) BeautyFlow CRM (gestão do salão)"
   echo "  3) BeautyFlow Agendamento (painel do cliente)"
   echo "  4) Docker — Ambos (container)"
+  echo "  5) Gerenciar instalação (reinstalar / atualizar)"
   echo ""
-  read -r -p "Digite o número [1-4] (padrão 1): " ESCOLHA
+  read -r -p "Digite o número [1-5] (padrão 1): " ESCOLHA
   ESCOLHA="${ESCOLHA:-1}"
   echo ""
 fi
@@ -355,6 +534,28 @@ case "${ESCOLHA:-$MODE}" in
     echo "║  CRM:        http://localhost:3001            ║"
     echo "║  Agendamento: http://localhost:5173           ║"
     echo "╚══════════════════════════════════════════════╝"
+    ;;
+  5|gerenciar)
+    echo "═══ Gerenciar Instalação ═══"
+    echo ""
+    echo "Escolha o que deseja gerenciar:"
+    echo ""
+    echo "  1) Instalação Nativa — Ambos (CRM + Agendamento)"
+    echo "  2) Instalação Nativa — CRM"
+    echo "  3) Instalação Nativa — Agendamento"
+    echo "  4) Instalação Docker — Ambos"
+    echo "  5) Voltar"
+    echo ""
+    read -r -p "Escolha [1-5] (padrão 5): " SUB
+    SUB="${SUB:-5}"
+    echo ""
+    case "$SUB" in
+      1) gestor_atualizacao "nativo-ambos" ;;
+      2) gestor_atualizacao "nativo-crm" ;;
+      3) gestor_atualizacao "nativo-agenda" ;;
+      4) gestor_atualizacao "docker" ;;
+      5|*) echo "  Cancelado" ;;
+    esac
     ;;
   *)
     echo "  Opção inválida: $ESCOLHA"; exit 1

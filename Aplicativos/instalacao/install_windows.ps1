@@ -111,7 +111,249 @@ function Show-Menu {
   $btnAgenda.FlatAppearance.BorderSize = 1; $btnAgenda.FlatAppearance.BorderColor = HexColor $colors.sub
   $btnAgenda.TextAlign = "MiddleLeft"
   $btnAgenda.Add_Click({ Show-MethodMenu "agenda" })
-  $panelMain.Controls.Add($btnAgenda)
+  $panelMain.Controls.Add($btnAgenda); $y += 75
+
+  # ── Opção 4: Gerenciar ──
+  $btnGerenciar = New-Object System.Windows.Forms.Button
+  $btnGerenciar.Text = "  Gerenciar instalacao`n  Reinstalar ou atualizar aplicativos ja instalados"
+  $btnGerenciar.Font = $fonts.body; $btnGerenciar.Size = New-Object System.Drawing.Size(500, 55)
+  $btnGerenciar.Location = New-Object System.Drawing.Point(80, $y)
+  $btnGerenciar.BackColor = HexColor $colors.card; $btnGerenciar.ForeColor = HexColor $colors.warning
+  $btnGerenciar.FlatStyle = "Flat"
+  $btnGerenciar.FlatAppearance.BorderSize = 1; $btnGerenciar.FlatAppearance.BorderColor = HexColor $colors.warning
+  $btnGerenciar.TextAlign = "MiddleLeft"
+  $btnGerenciar.Add_Click({ Show-ManageMenu })
+  $panelMain.Controls.Add($btnGerenciar)
+}
+
+# ════════════════════════════════════════════
+#  TELA DE GERENCIAR
+# ════════════════════════════════════════════
+
+function Show-ManageMenu {
+  $panelMain.Controls.Clear()
+
+  $title = New-Object System.Windows.Forms.Label
+  $title.Text = "Gerenciar Instalacao"
+  $title.Font = $fonts.header; $title.ForeColor = HexColor $colors.white
+  $title.Size = New-Object System.Drawing.Size(600, 30)
+  $title.Location = New-Object System.Drawing.Point(40, 20)
+  $panelMain.Controls.Add($title)
+
+  $sub = New-Object System.Windows.Forms.Label
+  $sub.Text = "Escolha o que deseja gerenciar:"
+  $sub.Font = $fonts.body; $sub.ForeColor = HexColor $colors.sub
+  $sub.Size = New-Object System.Drawing.Size(560, 22)
+  $sub.Location = New-Object System.Drawing.Point(60, 65)
+  $panelMain.Controls.Add($sub)
+
+  $y = 110
+  $buttons = @(
+    @{Text="  Instalacao Nativa — Ambos (CRM + Agendamento)";   Action="nativo-ambos";  Color=$colors.primary}
+    @{Text="  Instalacao Nativa — CRM";                          Action="nativo-crm";    Color=$colors.primary}
+    @{Text="  Instalacao Nativa — Agendamento";                  Action="nativo-agenda"; Color=$colors.primary}
+    @{Text="  Instalacao Docker — Ambos";                        Action="docker";        Color=$colors.warning}
+  )
+  foreach ($btn in $buttons) {
+    $b = New-Object System.Windows.Forms.Button
+    $b.Text = $btn.Text
+    $b.Font = $fonts.body; $b.Size = New-Object System.Drawing.Size(500, 45)
+    $b.Location = New-Object System.Drawing.Point(80, $y)
+    $b.BackColor = HexColor $colors.card; $b.ForeColor = HexColor $btn.Color
+    $b.FlatStyle = "Flat"
+    $b.FlatAppearance.BorderSize = 1; $b.FlatAppearance.BorderColor = HexColor $btn.Color
+    $b.TextAlign = "MiddleLeft"
+    $local:action = $btn.Action
+    $b.Add_Click({ Show-ManageAction $local:action })
+    $panelMain.Controls.Add($b); $y += 55
+  }
+
+  $y += 10
+  $btnBack = New-Object System.Windows.Forms.Button
+  $btnBack.Text = "  Voltar"
+  $btnBack.Font = $fonts.body; $btnBack.Size = New-Object System.Drawing.Size(200, 40)
+  $btnBack.Location = New-Object System.Drawing.Point(80, $y)
+  $btnBack.BackColor = HexColor $colors.card; $btnBack.ForeColor = HexColor $colors.sub
+  $btnBack.FlatStyle = "Flat"
+  $btnBack.Add_Click({ Show-Menu })
+  $panelMain.Controls.Add($btnBack)
+}
+
+function Show-ManageAction($target) {
+  $panelMain.Controls.Clear()
+
+  $names = @{
+    "nativo-ambos"  = "CRM + Agendamento (Nativo)"
+    "nativo-crm"    = "CRM (Nativo)"
+    "nativo-agenda" = "Agendamento (Nativo)"
+    "docker"        = "Docker (Ambos)"
+  }
+
+  Add-Title "Gerenciar: $($names[$target])"
+  Add-Spacer
+
+  $l = New-Object System.Windows.Forms.Label
+  $l.Text = "Escolha uma acao:"
+  $l.Font = $fonts.body; $l.ForeColor = HexColor $colors.sub
+  $l.Size = New-Object System.Drawing.Size(560, 22)
+  $l.Location = New-Object System.Drawing.Point(60, 70)
+  $panelMain.Controls.Add($l)
+
+  $y = 110
+
+  $btnReinstall = New-Object System.Windows.Forms.Button
+  $btnReinstall.Text = "  Reinstalar (deletar tudo + instalar do zero)"
+  $btnReinstall.Font = $fonts.body; $btnReinstall.Size = New-Object System.Drawing.Size(500, 50)
+  $btnReinstall.Location = New-Object System.Drawing.Point(80, $y)
+  $btnReinstall.BackColor = HexColor $colors.card; $btnReinstall.ForeColor = "#c05050"
+  $btnReinstall.FlatStyle = "Flat"
+  $btnReinstall.FlatAppearance.BorderSize = 1; $btnReinstall.FlatAppearance.BorderColor = "#c05050"
+  $btnReinstall.TextAlign = "MiddleLeft"
+  $local:target1 = $target
+  $btnReinstall.Add_Click({ Start-Manage $local:target1 "reinstall" })
+  $panelMain.Controls.Add($btnReinstall); $y += 60
+
+  $btnUpdate = New-Object System.Windows.Forms.Button
+  $btnUpdate.Text = "  Atualizar (git pull + atualizar dependencias)"
+  $btnUpdate.Font = $fonts.body; $btnUpdate.Size = New-Object System.Drawing.Size(500, 50)
+  $btnUpdate.Location = New-Object System.Drawing.Point(80, $y)
+  $btnUpdate.BackColor = HexColor $colors.card; $btnUpdate.ForeColor = HexColor $colors.success
+  $btnUpdate.FlatStyle = "Flat"
+  $btnUpdate.FlatAppearance.BorderSize = 1; $btnUpdate.FlatAppearance.BorderColor = HexColor $colors.success
+  $btnUpdate.TextAlign = "MiddleLeft"
+  $local:target2 = $target
+  $btnUpdate.Add_Click({ Start-Manage $local:target2 "update" })
+  $panelMain.Controls.Add($btnUpdate); $y += 60
+
+  $btnCancel = New-Object System.Windows.Forms.Button
+  $btnCancel.Text = "  Cancelar"
+  $btnCancel.Font = $fonts.body; $btnCancel.Size = New-Object System.Drawing.Size(200, 40)
+  $btnCancel.Location = New-Object System.Drawing.Point(80, $y)
+  $btnCancel.BackColor = HexColor $colors.card; $btnCancel.ForeColor = HexColor $colors.sub
+  $btnCancel.FlatStyle = "Flat"
+  $btnCancel.Add_Click({ Show-ManageMenu })
+  $panelMain.Controls.Add($btnCancel)
+}
+
+function Start-Manage($target, $action) {
+  $panelMain.Controls.Clear()
+  Add-Title "Executando..."
+  Add-Spacer
+
+  $stepGit  = Add-Step "Atualizando repositorio..."
+  $stepAct  = Add-Step "Executando acao..."
+  $stepFin  = Add-Step "Finalizando..."
+  Add-Spacer
+
+  # Pedir confirmacao para reinstall
+  if ($action -eq "reinstall") {
+    $msg = "Tem certeza? Isso vai deletar tudo e reinstalar do zero.`n`nContinuar?"
+    $resp = [System.Windows.Forms.MessageBox]::Show($msg, "Confirmar reinstalacao", "YesNo", "Warning")
+    if ($resp -ne "Yes") {
+      Show-ManageMenu
+      return
+    }
+  }
+
+  # git pull
+  $stepGit.Set("Atualizando repositorio...", $colors.warning)
+  $form.Refresh()
+  if (Test-Path "$REPO_DIR\.git") {
+    Push-Location $REPO_DIR
+    git pull --ff-only 2>&1 | Out-Null
+    Pop-Location
+  }
+  $stepGit.Set("OK repositorio atualizado", $colors.success)
+  $form.Refresh()
+
+  if ($target -eq "docker") {
+    if ($action -eq "reinstall") {
+      $stepAct.Set("Removendo containers e imagens...", $colors.warning)
+      $form.Refresh()
+      Push-Location $INST_DIR
+      docker compose down 2>&1 | Out-Null
+      docker rmi -f instalacao-crm instalacao-agenda 2>&1 | Out-Null
+      Pop-Location
+      $stepAct.Set("OK limpo", $colors.success)
+      $form.Refresh()
+      # Re-roda o install docker
+      Start-Install "ambos" "docker"
+      return
+    } else {
+      $stepAct.Set("Rebuildando e reiniciando containers...", $colors.warning)
+      $form.Refresh()
+      Push-Location $INST_DIR
+      docker compose build --no-cache 2>&1 | Out-Null
+      docker compose up -d 2>&1 | Out-Null
+      Pop-Location
+      $stepAct.Set("OK containers atualizados", $colors.success)
+      $form.Refresh()
+    }
+  } else {
+    # Nativo
+    $isAmbos = $target -eq "nativo-ambos"
+    $isCrm = $target -eq "nativo-crm" -or $isAmbos
+    $isAgenda = $target -eq "nativo-agenda" -or $isAmbos
+
+    if ($action -eq "reinstall") {
+      if ($isCrm) {
+        $stepAct.Set("Removendo e reinstalando CRM...", $colors.warning)
+        $form.Refresh()
+        $venvDir = "$CRM_DIR\backend\.venv"
+        if (Test-Path $venvDir) { Remove-Item -Recurse -Force $venvDir -ErrorAction SilentlyContinue }
+        # Reinstalar via logica do Start-Install
+        # (simplificado: recria venv e instala dep)
+        python -m venv $venvDir 2>$null
+        & "$venvDir\Scripts\pip" install --quiet --upgrade pip 2>$null
+        & "$venvDir\Scripts\pip" install --quiet flask flask-cors 2>$null
+        $stepAct.Set("OK CRM reinstalado", $colors.success)
+        $form.Refresh()
+      }
+      if ($isAgenda) {
+        $stepAct.Set("Removendo e reinstalando Agendamento...", $colors.warning)
+        $form.Refresh()
+        $nmDir = "$APP_DIR\node_modules"
+        if (Test-Path $nmDir) { Remove-Item -Recurse -Force $nmDir -ErrorAction SilentlyContinue }
+        Push-Location $APP_DIR
+        npm install --silent 2>$null
+        Pop-Location
+        $stepAct.Set("OK Agendamento reinstalado", $colors.success)
+        $form.Refresh()
+      }
+    } else {
+      # Update
+      if ($isCrm) {
+        $venvDir = "$CRM_DIR\backend\.venv"
+        if (Test-Path $venvDir) {
+          $stepAct.Set("Atualizando dependencias Python do CRM...", $colors.warning)
+          $form.Refresh()
+          & "$venvDir\Scripts\pip" install --quiet --upgrade pip flask flask-cors 2>$null
+        }
+      }
+      if ($isAgenda) {
+        $nmDir = "$APP_DIR\node_modules"
+        if (Test-Path $nmDir) {
+          $stepAct.Set("Atualizando dependencias npm do Agendamento...", $colors.warning)
+          $form.Refresh()
+          Push-Location $APP_DIR
+          npm update --silent 2>$null
+          Pop-Location
+        }
+      }
+      $stepAct.Set("OK dependencias atualizadas", $colors.success)
+      $form.Refresh()
+    }
+  }
+
+  $stepFin.Set("Concluido!", $colors.success)
+  $form.Refresh()
+  Start-Sleep -Milliseconds 500
+
+  if ($target -eq "docker") {
+    Show-Final @("CRM: http://localhost:3001", "Agendamento: http://localhost:5173")
+  } else {
+    Show-Final @("Use o start.sh para iniciar os aplicativos")
+  }
 }
 
 # ════════════════════════════════════════════
