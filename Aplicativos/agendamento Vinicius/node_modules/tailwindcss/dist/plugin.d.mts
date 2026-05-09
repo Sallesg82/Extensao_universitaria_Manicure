@@ -8,4 +8,4 @@ declare namespace createPlugin {
     var withOptions: <T>(pluginFunction: (options?: T) => PluginFn, configFunction?: (options?: T) => Partial<Config>) => PluginWithOptions<T>;
 }
 
-export { Config, PluginFn as PluginCreator, createPlugin as default };
+export { Config, PluginFn as PluginCreator, PluginWithConfig, createPlugin as default };

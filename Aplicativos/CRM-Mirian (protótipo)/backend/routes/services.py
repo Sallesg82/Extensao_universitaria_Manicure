@@ -17,13 +17,22 @@ def create_service():
     if not data.get('name') or not data.get('duration') or data.get('price') is None:
         return jsonify({'error': 'Nome, duração e preço são obrigatórios'}), 400
     conn = get_db()
-    cur = conn.execute(
-        "INSERT INTO services (name, duration, price, color) VALUES (?,?,?,?)",
-        (data['name'], data['duration'], float(data['price']), data.get('color', '#4a90d9'))
-    )
-    conn.commit()
-    svc = conn.execute("SELECT * FROM services WHERE id = ?", (cur.lastrowid,)).fetchone()
-    return jsonify(dict(svc)), 201
+    try:
+        existing = conn.execute("SELECT * FROM services WHERE name = ?", (data['name'],)).fetchone()
+        if existing:
+            return jsonify(dict(existing)), 200
+        cur = conn.execute(
+            "INSERT INTO services (name, duration, price, color) VALUES (?,?,?,?)",
+            (data['name'], data['duration'], float(data['price']), data.get('color', '#4a90d9'))
+        )
+        conn.commit()
+        svc = conn.execute("SELECT * FROM services WHERE id = ?", (cur.lastrowid,)).fetchone()
+        return jsonify(dict(svc)), 201
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 
 @services_bp.route('/<int:svc_id>', methods=['PUT'])

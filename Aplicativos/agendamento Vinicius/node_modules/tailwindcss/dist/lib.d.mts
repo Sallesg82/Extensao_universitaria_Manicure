@@ -26,7 +26,7 @@ declare class Theme {
     get(themeKeys: ThemeKey[]): string | null;
     hasDefault(key: string): boolean;
     getOptions(key: string): ThemeOptions;
-    entries(): IterableIterator<[string, {
+    entries(): MapIterator<[string, {
         value: string;
         options: ThemeOptions;
         src: Declaration["src"];
@@ -99,13 +99,13 @@ declare class Variants {
         compoundsWith: Compounds;
         compounds: Compounds;
     } | undefined;
-    kind(name: string): "static" | "arbitrary" | "functional" | "compound";
+    kind(name: string): "arbitrary" | "static" | "functional" | "compound";
     compoundsWith(parent: string, child: string | Variant): boolean;
     suggest(name: string, suggestions: () => string[]): void;
     getCompletions(name: string): string[];
     compare(a: Variant | null, z: Variant | null): number;
-    keys(): IterableIterator<string>;
-    entries(): IterableIterator<[string, {
+    keys(): MapIterator<string>;
+    entries(): MapIterator<[string, {
         kind: Variant["kind"];
         order: number;
         applyFn: VariantFn<any>;
@@ -314,7 +314,8 @@ interface DecodedMapping {
     name: string | null;
 }
 
-type Config = UserConfig;
+interface Config extends UserConfig {
+}
 declare const enum Polyfills {
     None = 0,
     AtProperty = 1,
