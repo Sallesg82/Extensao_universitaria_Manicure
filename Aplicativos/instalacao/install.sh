@@ -490,16 +490,22 @@ gestor_atualizacao() {
       echo "── Desinstalando ──"
       case "$target" in
         nativo-crm)
+          pkill -f "backend/server.py" 2>/dev/null || true
           rm -rf "$VENV_DIR"
-          echo "  ✓ CRM desinstalado (venv removido)"
+          echo "  ✓ CRM desinstalado (processo encerrado, venv removido)"
           ;;
         nativo-agenda)
+          pkill -f "npm run dev" 2>/dev/null || true
+          pkill -f "vite" 2>/dev/null || true
           rm -rf "$APP_DIR/node_modules"
-          echo "  ✓ Agendamento desinstalado (node_modules removido)"
+          echo "  ✓ Agendamento desinstalado (processo encerrado, node_modules removido)"
           ;;
         nativo-ambos)
+          pkill -f "backend/server.py" 2>/dev/null || true
+          pkill -f "npm run dev" 2>/dev/null || true
+          pkill -f "vite" 2>/dev/null || true
           rm -rf "$VENV_DIR" "$APP_DIR/node_modules"
-          echo "  ✓ CRM e Agendamento desinstalados"
+          echo "  ✓ CRM e Agendamento desinstalados (processos encerrados)"
           ;;
         docker)
           if command -v docker >/dev/null 2>&1; then
@@ -515,6 +521,16 @@ gestor_atualizacao() {
       echo "  Cancelado"
       ;;
   esac
+}
+
+perguntar_iniciar() {
+  local modo="$1"
+  echo ""
+  read -r -p "  Iniciar agora? [s/N] " R
+  if [ "$R" = "s" ] || [ "$R" = "S" ]; then
+    echo ""
+    bash "$DIR/start.sh" "$modo"
+  fi
 }
 
 # ══════════════════════════════════════════
@@ -553,6 +569,7 @@ case "${ESCOLHA:-$MODE}" in
     echo "║  CRM:        http://localhost:3001            ║"
     echo "║  Agendamento: http://localhost:5173           ║"
     echo "╚══════════════════════════════════════════════╝"
+    perguntar_iniciar "ambos"
     ;;
   2|crm)
     instalar_dependencias_base
@@ -567,6 +584,7 @@ case "${ESCOLHA:-$MODE}" in
     echo "║                                              ║"
     echo "║  Acessar: http://localhost:3001              ║"
     echo "╚══════════════════════════════════════════════╝"
+    perguntar_iniciar "crm"
     ;;
   3|agenda)
     instalar_dependencias_base
@@ -582,6 +600,7 @@ case "${ESCOLHA:-$MODE}" in
     echo "║  Acessar: http://localhost:5173              ║"
     echo "║  (CRM deve estar rodando em :3001)           ║"
     echo "╚══════════════════════════════════════════════╝"
+    perguntar_iniciar "agenda"
     ;;
   4|docker)
     instalar_dependencias_base

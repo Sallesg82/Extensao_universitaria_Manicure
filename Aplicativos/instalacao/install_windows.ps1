@@ -347,6 +347,8 @@ function Start-Manage($target, $action) {
       if ($isCrm) {
         $stepAct.Set("Removendo CRM...", $colors.warning)
         $form.Refresh()
+        # Mata processo do CRM
+        Get-CimInstance Win32_Process -Filter "Name LIKE 'python%' AND CommandLine LIKE '%server.py%'" | Invoke-CimMethod -MethodName Terminate -ErrorAction SilentlyContinue
         $venvDir = "$CRM_DIR\backend\.venv"
         if (Test-Path $venvDir) { Remove-Item -Recurse -Force $venvDir -ErrorAction SilentlyContinue }
         $stepAct.Set("OK CRM desinstalado", $colors.success)
@@ -355,6 +357,8 @@ function Start-Manage($target, $action) {
       if ($isAgenda) {
         $stepAct.Set("Removendo Agendamento...", $colors.warning)
         $form.Refresh()
+        # Mata processo do Agendamento (vite ou npm)
+        Get-CimInstance Win32_Process -Filter "Name LIKE 'node%' AND (CommandLine LIKE '%vite%' OR CommandLine LIKE '%npm%')" | Invoke-CimMethod -MethodName Terminate -ErrorAction SilentlyContinue
         $nmDir = "$APP_DIR\node_modules"
         if (Test-Path $nmDir) { Remove-Item -Recurse -Force $nmDir -ErrorAction SilentlyContinue }
         $stepAct.Set("OK Agendamento desinstalado", $colors.success)
