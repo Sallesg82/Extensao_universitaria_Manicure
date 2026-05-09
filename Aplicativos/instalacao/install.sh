@@ -186,7 +186,7 @@ instalar_docker() {
   echo ""
   echo "── Docker ──"
   if command -v docker >/dev/null 2>&1; then
-    echo "  ✓ docker $(docker --version | cut -d' ' -f3 | tr -d ',')"
+    echo "  ✓ docker $($SUDO docker --version | cut -d' ' -f3 | tr -d ',')"
     return 0
   fi
 
@@ -226,13 +226,24 @@ instalar_docker() {
 }
 
 verificar_docker_compose() {
-  if ! docker compose version >/dev/null 2>&1; then
+  if ! $SUDO docker compose version >/dev/null 2>&1; then
     echo "  ⚠ docker compose v2+ não encontrado."
     echo "  Atualize o Docker para a versão mais recente."
     exit 1
   fi
-  echo "  ✓ docker compose $(docker compose version | awk '{print $4}' | tr -d ',')"
+  echo "  ✓ docker compose $($SUDO docker compose version | awk '{print $4}' | tr -d ',')"
 }
+
+# Detecta se precisamos de sudo para Docker
+SUDO=""
+if command -v docker >/dev/null 2>&1; then
+  if ! docker ps >/dev/null 2>&1; then
+    if sudo docker ps >/dev/null 2>&1; then
+      SUDO="sudo"
+      echo "  ⚠ Docker requer sudo — usando 'sudo docker'"
+    fi
+  fi
+fi
 
 modo_docker() {
   instalar_docker
@@ -258,25 +269,25 @@ modo_docker() {
   fi
 
   # Remove containers antigos para aplicar nova config
-  docker compose down 2>/dev/null || true
+  $SUDO docker compose down 2>/dev/null || true
 
   local UP=""
   if [ "$1" = "crm" ] || [ "$1" = "ambos" ]; then
     echo ""
     echo "  Build CRM..."
-    docker compose build crm
+    $SUDO docker compose build crm
     UP+="crm "
   fi
   if [ "$1" = "agenda" ] || [ "$1" = "ambos" ]; then
     echo ""
     echo "  Build Agendamento..."
-    docker compose build agenda
+    $SUDO docker compose build agenda
     UP+="agenda "
   fi
 
   echo ""
   echo "  Iniciando containers: $UP"
-  docker compose up -d $UP
+  $SUDO docker compose up -d $UP
   echo "  ✓ Containers rodando"
 }
 
@@ -295,7 +306,7 @@ detectar_instalacao() {
 
   [ -d "$VENV_DIR" ] && CRM_INST=true
   [ -d "$APP_DIR/node_modules" ] && AGENDA_INST=true
-  command -v docker >/dev/null 2>&1 && docker ps -a --filter "name=beautyflow" --format "{{.Names}}" 2>/dev/null | grep -q . && DOCKER_INST=true
+  command -v docker >/dev/null 2>&1 && $SUDO docker ps -a --filter "name=beautyflow" --format "{{.Names}}" 2>/dev/null | grep -q . && DOCKER_INST=true
 
   echo ""
   echo "── Instalações Detectadas ──"
@@ -346,8 +357,8 @@ reinstalar_docker() {
   echo ""
   echo "── Reinstalando Docker (limpo) ──"
   if command -v docker >/dev/null 2>&1; then
-    docker compose down 2>/dev/null || true
-    docker rmi -f instalacao-crm instalacao-agenda 2>/dev/null || true
+    $SUDO docker compose down 2>/dev/null || true
+    $SUDO docker rmi -f instalacao-crm instalacao-agenda 2>/dev/null || true
     echo "  ✓ Containers e imagens removidos"
   fi
   modo_docker "ambos"
@@ -388,9 +399,9 @@ atualizar_docker() {
   echo ""
   echo "── Atualizando Docker ──"
   if command -v docker >/dev/null 2>&1; then
-    docker compose pull 2>/dev/null || true
-    docker compose build --no-cache 2>/dev/null || true
-    docker compose up -d
+    $SUDO docker compose pull 2>/dev/null || true
+    $SUDO docker compose build --no-cache 2>/dev/null || true
+    $SUDO docker compose up -d
     echo "  ✓ Containers atualizados e reiniciados"
   else
     echo "  ⚠ Docker não disponível"
@@ -416,10 +427,11 @@ gestor_atualizacao() {
   echo ""
   echo "  1) Reinstalar (deletar tudo + instalar do zero)"
   echo "  2) Atualizar (git pull + atualizar dependências)"
-  echo "  3) Cancelar"
+  echo "  3) Desinstalar (remover completamente)"
+  echo "  4) Cancelar"
   echo ""
-  read -r -p "Escolha [1-3] (padrão 3): " R
-  R="${R:-3}"
+  read -r -p "Escolha [1-4] (padrão 4): " R
+  R="${R:-4}"
 
   case "$R" in
     1)
@@ -452,7 +464,33 @@ gestor_atualizacao() {
       fi
       echo "╚══════════════════════════════════════════════╝"
       ;;
-    3|*)
+    3)
+      echo ""
+      echo "── Desinstalando ──"
+      case "$target" in
+        nativo-crm)
+          rm -rf "$VENV_DIR"
+          echo "  ✓ CRM desinstalado (venv removido)"
+          ;;
+        nativo-agenda)
+          rm -rf "$APP_DIR/node_modules"
+          echo "  ✓ Agendamento desinstalado (node_modules removido)"
+          ;;
+        nativo-ambos)
+          rm -rf "$VENV_DIR" "$APP_DIR/node_modules"
+          echo "  ✓ CRM e Agendamento desinstalados"
+          ;;
+        docker)
+          if command -v docker >/dev/null 2>&1; then
+            $SUDO docker compose down 2>/dev/null || true
+            $SUDO docker rmi -f instalacao-crm instalacao-agenda 2>/dev/null || true
+            echo "  ✓ Containers e imagens Docker removidos"
+          fi
+          ;;
+      esac
+      echo "  ✓ Desinstalação concluída"
+      ;;
+    4|*)
       echo "  Cancelado"
       ;;
   esac

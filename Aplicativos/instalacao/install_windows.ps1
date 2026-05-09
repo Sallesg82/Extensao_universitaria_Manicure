@@ -225,6 +225,18 @@ function Show-ManageAction($target) {
   $btnUpdate.Add_Click({ Start-Manage $local:target2 "update" })
   $panelMain.Controls.Add($btnUpdate); $y += 60
 
+  $btnUninstall = New-Object System.Windows.Forms.Button
+  $btnUninstall.Text = "  Desinstalar (remover completamente)"
+  $btnUninstall.Font = $fonts.body; $btnUninstall.Size = New-Object System.Drawing.Size(500, 50)
+  $btnUninstall.Location = New-Object System.Drawing.Point(80, $y)
+  $btnUninstall.BackColor = HexColor $colors.card; $btnUninstall.ForeColor = "#c05050"
+  $btnUninstall.FlatStyle = "Flat"
+  $btnUninstall.FlatAppearance.BorderSize = 1; $btnUninstall.FlatAppearance.BorderColor = "#c05050"
+  $btnUninstall.TextAlign = "MiddleLeft"
+  $local:target3 = $target
+  $btnUninstall.Add_Click({ Start-Manage $local:target3 "uninstall" })
+  $panelMain.Controls.Add($btnUninstall); $y += 60
+
   $btnCancel = New-Object System.Windows.Forms.Button
   $btnCancel.Text = "  Cancelar"
   $btnCancel.Font = $fonts.body; $btnCancel.Size = New-Object System.Drawing.Size(200, 40)
@@ -245,26 +257,30 @@ function Start-Manage($target, $action) {
   $stepFin  = Add-Step "Finalizando..."
   Add-Spacer
 
-  # Pedir confirmacao para reinstall
+  # Pedir confirmacao para acoes destrutivas
   if ($action -eq "reinstall") {
     $msg = "Tem certeza? Isso vai deletar tudo e reinstalar do zero.`n`nContinuar?"
     $resp = [System.Windows.Forms.MessageBox]::Show($msg, "Confirmar reinstalacao", "YesNo", "Warning")
-    if ($resp -ne "Yes") {
-      Show-ManageMenu
-      return
-    }
+    if ($resp -ne "Yes") { Show-ManageMenu; return }
+  }
+  if ($action -eq "uninstall") {
+    $msg = "Tem certeza? Isso vai remover completamente a instalacao.`n`nContinuar?"
+    $resp = [System.Windows.Forms.MessageBox]::Show($msg, "Confirmar desinstalacao", "YesNo", "Warning")
+    if ($resp -ne "Yes") { Show-ManageMenu; return }
   }
 
-  # git pull
-  $stepGit.Set("Atualizando repositorio...", $colors.warning)
-  $form.Refresh()
-  if (Test-Path "$REPO_DIR\.git") {
-    Push-Location $REPO_DIR
-    git pull --ff-only 2>&1 | Out-Null
-    Pop-Location
+  if ($action -ne "uninstall") {
+    # git pull (pula na desinstalacao)
+    $stepGit.Set("Atualizando repositorio...", $colors.warning)
+    $form.Refresh()
+    if (Test-Path "$REPO_DIR\.git") {
+      Push-Location $REPO_DIR
+      git pull --ff-only 2>&1 | Out-Null
+      Pop-Location
+    }
+    $stepGit.Set("OK repositorio atualizado", $colors.success)
+    $form.Refresh()
   }
-  $stepGit.Set("OK repositorio atualizado", $colors.success)
-  $form.Refresh()
 
   if ($target -eq "docker") {
     if ($action -eq "reinstall") {
@@ -279,6 +295,15 @@ function Start-Manage($target, $action) {
       # Re-roda o install docker
       Start-Install "ambos" "docker"
       return
+    } elseif ($action -eq "uninstall") {
+      $stepAct.Set("Removendo containers e imagens...", $colors.warning)
+      $form.Refresh()
+      Push-Location $INST_DIR
+      docker compose down 2>&1 | Out-Null
+      docker rmi -f instalacao-crm instalacao-agenda 2>&1 | Out-Null
+      Pop-Location
+      $stepAct.Set("OK Docker desinstalado", $colors.success)
+      $form.Refresh()
     } else {
       $stepAct.Set("Rebuildando e reiniciando containers...", $colors.warning)
       $form.Refresh()
@@ -301,8 +326,6 @@ function Start-Manage($target, $action) {
         $form.Refresh()
         $venvDir = "$CRM_DIR\backend\.venv"
         if (Test-Path $venvDir) { Remove-Item -Recurse -Force $venvDir -ErrorAction SilentlyContinue }
-        # Reinstalar via logica do Start-Install
-        # (simplificado: recria venv e instala dep)
         python -m venv $venvDir 2>$null
         & "$venvDir\Scripts\pip" install --quiet --upgrade pip 2>$null
         & "$venvDir\Scripts\pip" install --quiet flask flask-cors 2>$null
@@ -318,6 +341,23 @@ function Start-Manage($target, $action) {
         npm install --silent 2>$null
         Pop-Location
         $stepAct.Set("OK Agendamento reinstalado", $colors.success)
+        $form.Refresh()
+      }
+    } elseif ($action -eq "uninstall") {
+      if ($isCrm) {
+        $stepAct.Set("Removendo CRM...", $colors.warning)
+        $form.Refresh()
+        $venvDir = "$CRM_DIR\backend\.venv"
+        if (Test-Path $venvDir) { Remove-Item -Recurse -Force $venvDir -ErrorAction SilentlyContinue }
+        $stepAct.Set("OK CRM desinstalado", $colors.success)
+        $form.Refresh()
+      }
+      if ($isAgenda) {
+        $stepAct.Set("Removendo Agendamento...", $colors.warning)
+        $form.Refresh()
+        $nmDir = "$APP_DIR\node_modules"
+        if (Test-Path $nmDir) { Remove-Item -Recurse -Force $nmDir -ErrorAction SilentlyContinue }
+        $stepAct.Set("OK Agendamento desinstalado", $colors.success)
         $form.Refresh()
       }
     } else {
