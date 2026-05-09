@@ -1,7 +1,7 @@
 services:
   crm:
     build:
-      context: ../CRM-Mirian\ (protótipo)
+      context: "../CRM-Mirian (protótipo)"
       dockerfile: instalacao/Dockerfile
     container_name: beautyflow-crm
     ports:
@@ -17,7 +17,7 @@ services:
 
   agenda:
     build:
-      context: ../agendamento\ Vinicius
+      context: "../agendamento Vinicius"
       dockerfile: instalacao/Dockerfile
     container_name: beautyflow-agendamento
     ports:
