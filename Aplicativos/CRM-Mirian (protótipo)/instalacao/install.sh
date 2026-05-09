@@ -1,28 +1,72 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DIR="$(cd "$(dirname "$0")/.." && pwd)"
-VENV_DIR="$DIR/backend/.venv"
+REPO_URL="https://github.com/Sallesg82/Extensao_universitaria_Manicure.git"
 
 echo "============================================"
 echo "  BeautyFlow CRM — Instalação"
 echo "============================================"
 echo ""
 
-# ---------- Modo: Docker ou Native ----------
+# ────────── Detectar SO ──────────
+OS="$(uname -s)"
+case "$OS" in
+  Linux)  OS="linux"  ;;
+  Darwin) OS="macos"  ;;
+  MINGW*|MSYS*|CYGWIN*)
+    echo "  Windows detectado. Use WSL (Ubuntu) ou Docker."
+    echo "  Docker: bash install.sh docker"
+    echo "  WSL:   rode este script dentro do WSL."
+    exit 1
+    ;;
+  *)
+    echo "  SO não suportado: $OS"
+    exit 1
+    ;;
+esac
+echo "  SO: $OS"
+
+# ────────── Detectar se está dentro do repositório ──────────
+INSIDE_REPO=false
+if git rev-parse --show-toplevel >/dev/null 2>&1; then
+  BASENAME="$(basename "$(git rev-parse --show-toplevel)")"
+  if [ "$BASENAME" = "Extensao_universitaria_Manicure" ]; then
+    INSIDE_REPO=true
+  fi
+fi
+
 MODE="${1:-native}"
 
+# ────────── Modo Docker ──────────
 if [ "$MODE" = "docker" ]; then
-  echo "[1/3] Verificando Docker..."
-  command -v docker >/dev/null 2>&1 || { echo "ERRO: docker não encontrado."; exit 1; }
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "  ERRO: docker não encontrado."
+    echo "  Instale: https://docs.docker.com/engine/install/"
+    exit 1
+  fi
+  if ! docker compose version >/dev/null 2>&1; then
+    echo "  ERRO: docker compose não encontrado (versão 2+)."
+    exit 1
+  fi
   echo "  ✓ docker $(docker --version | cut -d' ' -f3 | tr -d ',')"
+  echo "  ✓ docker compose $(docker compose version | awk '{print $4}' | tr -d ',')"
 
-  echo "[2/3] Build da imagem..."
-  cd "$(dirname "$0")"
+  if [ "$INSIDE_REPO" = false ]; then
+    echo ""
+    echo "  Clonando repositório..."
+    git clone "$REPO_URL" /tmp/Extensao_universitaria_Manicure
+    cd "/tmp/Extensao_universitaria_Manicure/Aplicativos/CRM-Mirian (protótipo)/instalacao"
+  else
+    cd "$(dirname "$0")"
+  fi
+
+  echo ""
+  echo "  Build da imagem..."
   docker compose build
   echo "  ✓ Imagem criada"
 
-  echo "[3/3] Iniciando container..."
+  echo ""
+  echo "  Iniciando container..."
   docker compose up -d
   echo "  ✓ Container rodando"
 
@@ -39,27 +83,137 @@ if [ "$MODE" = "docker" ]; then
   exit 0
 fi
 
-# ────────── Instalação Native ──────────
+# ══════════════════════════════════════════
+#  Instalação Nativa
+# ══════════════════════════════════════════
 
-echo "[1/4] Verificando pré-requisitos..."
-command -v python3 >/dev/null 2>&1 || { echo "ERRO: python3 não encontrado. Instale Python 3.14+."; exit 1; }
-echo "  ✓ python3 $(python3 --version | cut -d' ' -f2)"
+# ────────── Verificar / Instalar dependências do sistema ──────────
+echo "[1/5] Verificando dependências do sistema..."
 
-command -v git >/dev/null 2>&1 || echo "  ⚠ git não encontrado (apenas para clonar)"
+MISSING=()
+NEED_VENV=false
 
+if ! command -v python3 >/dev/null 2>&1; then
+  MISSING+=("python3")
+fi
+
+if ! python3 -c "import venv" >/dev/null 2>&1; then
+  NEED_VENV=true
+  if [ "$OS" = "linux" ]; then
+    MISSING+=("python3-venv")
+  fi
+fi
+
+if ! command -v git >/dev/null 2>&1; then
+  MISSING+=("git")
+fi
+
+if [ ${#MISSING[@]} -gt 0 ]; then
+  echo ""
+  echo "  ⚠ Faltam os seguintes pacotes: ${MISSING[*]}"
+
+  if [ "$OS" = "linux" ]; then
+    # Detectar gerenciador de pacotes
+    if command -v apt >/dev/null 2>&1; then
+      PKG_MGR="apt"
+      INSTALL_CMD="sudo apt install -y ${MISSING[*]}"
+    elif command -v dnf >/dev/null 2>&1; then
+      PKG_MGR="dnf"
+      INSTALL_CMD="sudo dnf install -y ${MISSING[*]}"
+    elif command -v pacman >/dev/null 2>&1; then
+      PKG_MGR="pacman"
+      INSTALL_CMD="sudo pacman -S --noconfirm ${MISSING[*]}"
+    else
+      echo "  Nenhum gerenciador de pacotes conhecido (apt/dnf/pacman)."
+      echo "  Instale manualmente: ${MISSING[*]}"
+      exit 1
+    fi
+    echo "  Gerenciador detectado: $PKG_MGR"
+
+    read -r -p "  Deseja instalar com '$INSTALL_CMD'? [s/N] " RESP
+    if [ "$RESP" != "s" ] && [ "$RESP" != "S" ]; then
+      echo "  Instalação cancelada pelo usuário."
+      exit 1
+    fi
+    eval "$INSTALL_CMD"
+    echo "  ✓ Pacotes instalados"
+
+    # Garantir que python3-venv funcionou
+    if $NEED_VENV && ! python3 -c "import venv" >/dev/null 2>&1; then
+      echo "  ERRO: python3-venv não disponível mesmo após instalação."
+      echo "  Tente: sudo apt install python3-venv  (ou equivalente)"
+      exit 1
+    fi
+
+  elif [ "$OS" = "macos" ]; then
+    if ! command -v brew >/dev/null 2>&1; then
+      echo "  Homebrew não encontrado. Instale em: https://brew.sh"
+      echo "  Ou instale manualmente: ${MISSING[*]}"
+      exit 1
+    fi
+    BREW_PKGS=()
+    for pkg in "${MISSING[@]}"; do
+      [ "$pkg" = "python3-venv" ] && pkg="python"
+      BREW_PKGS+=("$pkg")
+    done
+    INSTALL_CMD="brew install ${BREW_PKGS[*]}"
+    echo "  Comando: $INSTALL_CMD"
+
+    read -r -p "  Deseja executar? [s/N] " RESP
+    if [ "$RESP" != "s" ] && [ "$RESP" != "S" ]; then
+      echo "  Instalação cancelada pelo usuário."
+      exit 1
+    fi
+    eval "$INSTALL_CMD"
+    echo "  ✓ Pacotes instalados"
+  fi
+else
+  echo "  ✓ python3 $(python3 --version | cut -d' ' -f2)"
+  echo "  ✓ python3-venv disponível"
+  command -v git >/dev/null 2>&1 && echo "  ✓ git $(git --version | cut -d' ' -f3)"
+fi
 echo ""
 
-echo "[2/4] Criando ambiente virtual..."
-python3 -m venv "$VENV_DIR"
-source "$VENV_DIR/bin/activate"
-echo "  ✓ Ambiente criado em $VENV_DIR"
+# ────────── Clonar se necessário ──────────
+if [ "$INSIDE_REPO" = false ]; then
+  echo "  Repositório não encontrado. Clonando..."
+  TARGET="/tmp/Extensao_universitaria_Manicure"
+  if [ -d "$TARGET" ]; then
+    echo "  Diretório $TARGET já existe. Atualizando..."
+    cd "$TARGET" && git pull
+  else
+    git clone "$REPO_URL" "$TARGET"
+  fi
+  CRM_DIR="$TARGET/Aplicativos/CRM-Mirian (protótipo)"
+  cd "$CRM_DIR/instalacao"
+  DIR="$CRM_DIR"
+  VENV_DIR="$DIR/backend/.venv"
+  echo "  ✓ Repositório clonado em $TARGET"
+  echo ""
+else
+  DIR="$(cd "$(dirname "$0")/.." && pwd)"
+  VENV_DIR="$DIR/backend/.venv"
+fi
 
-echo "[3/4] Instalando dependências..."
+# ────────── Ambiente virtual ──────────
+echo "[2/5] Criando ambiente virtual..."
+if [ -d "$VENV_DIR" ]; then
+  echo "  ✓ Ambiente virtual já existe em $VENV_DIR"
+else
+  python3 -m venv "$VENV_DIR"
+  echo "  ✓ Ambiente criado em $VENV_DIR"
+fi
+echo ""
+
+# ────────── Dependências Python ──────────
+echo "[3/5] Instalando dependências Python..."
 "$VENV_DIR/bin/pip" install --quiet --upgrade pip
 "$VENV_DIR/bin/pip" install --quiet flask flask-cors
-echo "  ✓ Dependências instaladas (Flask, Flask-CORS)"
+echo "  ✓ Flask e Flask-CORS instalados"
+echo ""
 
-echo "[4/4] Inicializando banco de dados..."
+# ────────── Inicializar banco ──────────
+echo "[4/5] Inicializando banco de dados..."
 "$VENV_DIR/bin/python" -c "
 import sys
 sys.path.insert(0, '$DIR/backend')
@@ -70,6 +224,9 @@ print('  ✓ Banco criado e populado com dados de demonstração')
 "
 echo ""
 
+# ────────── Resumo final ──────────
+echo "[5/5] Concluído!"
+echo ""
 echo "============================================"
 echo "  Instalação concluída!"
 echo "============================================"

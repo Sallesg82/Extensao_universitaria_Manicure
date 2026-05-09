@@ -1,0 +1,40 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: instalacao/Dockerfile
+    container_name: beautyflow-agendamento
+    ports:
+      - "5173:80"
+    restart: unless-stopped
+    networks:
+      - beautyflow_net
+
+  # ═══════════════════════════════════════════
+  #  NOTA: O CRM (porta 3001) precisa estar
+  #  rodando para o agendamento funcionar.
+  #  Descomente abaixo para rodar junto:
+  # ═══════════════════════════════════════════
+
+  # crm:
+  #   build:
+  #     context: ../../CRM-Mirian\ (protótipo)
+  #     dockerfile: instalacao/Dockerfile
+  #   container_name: beautyflow-crm
+  #   ports:
+  #     - "3001:3001"
+  #   volumes:
+  #     - beautyflow_data:/app/backend/db
+  #   environment:
+  #     - BEAUTYFLOW_DB_PATH=/app/backend/db/beautyflow.db
+  #   restart: unless-stopped
+  #   networks:
+  #     - beautyflow_net
+
+networks:
+  beautyflow_net:
+    driver: bridge
+
+# volumes:
+#   beautyflow_data:
+#     driver: local

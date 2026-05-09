@@ -8,8 +8,9 @@ CRM para salão de beleza — gestão de clientes, agendamentos, financeiro e re
 
 1. [Pré-requisitos](#1-pré-requisitos)
 2. [Instalação](#2-instalação)
-   - [2.1. Native (Python direto)](#21-native-python-direto)
-   - [2.2. Docker](#22-docker)
+    - [2.1. Native (Python direto)](#21-native-python-direto)
+    - [2.2. Windows (Instalador Gráfico)](#22-windows-instalador-gráfico)
+    - [2.3. Docker](#23-docker)
 3. [Execução](#3-execução)
    - [3.1. Native](#31-native)
    - [3.2. Docker](#32-docker)
@@ -28,11 +29,11 @@ CRM para salão de beleza — gestão de clientes, agendamentos, financeiro e re
 | Recurso      | Versão Mínima | Obrigatório        |
 |-------------|---------------|--------------------|
 | Git         | Qualquer      | Sempre             |
-| Python      | 3.14+         | Instalação Native  |
+| Python      | 3.10+         | Instalação Native  |
 | Docker      | 24+           | Instalação Docker  |
 | docker compose | 2.0+       | Instalação Docker  |
 
-Sistema operacional: Linux, macOS ou Windows (com WSL).
+Sistema operacional: Linux, macOS ou Windows.
 
 Verifique sua instalação:
 
@@ -69,6 +70,8 @@ O script `install.sh` faz automaticamente:
 3. **Instala** as dependências (Flask, Flask-CORS)
 4. **Inicializa** o banco SQLite com dados de demonstração (9 clientes, 16 agendamentos, 8 serviços, transações financeiras)
 
+> O banco de dados fica em `backend/db/beautyflow.db`. Para usar o banco compartilhado com o app de agendamento, defina a variável de ambiente `BEAUTYFLOW_DB_PATH` antes de iniciar.
+
 #### 2.1.3. Instalação manual passo a passo
 
 Caso prefira instalar manualmente (da raiz do projeto):
@@ -91,9 +94,35 @@ get_db().close()
 "
 ```
 
+> **Windows (PowerShell, sem WSL):**
+> ```powershell
+> python -m venv backend\.venv
+> backend\.venv\Scripts\pip install flask flask-cors
+> backend\.venv\Scripts\python -c "import sys; sys.path.insert(0, 'backend'); from db.database import get_db; get_db().close()"
+> backend\.venv\Scripts\python backend\server.py
+> ```
+
 ---
 
-### 2.2. Docker
+### 2.2. Windows (Instalador Gráfico)
+
+No Windows 10/11, basta executar o instalador com interface gráfica:
+
+1. Abra a pasta `instalacao/` no Explorer
+2. Dê um **duplo clique** em `install.bat`
+3. Escolha o método de instalação:
+   - **Docker** (recomendado) — container isolado, sem poluir o sistema
+   - **WSL + Python** — usa o Windows Subsystem for Linux
+4. O instalador verifica as dependências e orienta o download se necessário
+5. Ao final, mostra o endereço **http://localhost:3001** e oferece "Abrir no navegador"
+
+> **Pré-requisitos:** Windows 10/11 com PowerShell 5.1+.  
+> Para o método Docker, instale [Docker Desktop](https://docs.docker.com/desktop/setup/install/windows-install/).  
+> Para o método WSL, siga as instruções em https://learn.microsoft.com/pt-br/windows/wsl/install.
+
+---
+
+### 2.3. Docker
 
 A instalação via Docker empacota o CRM em um container isolado. Além disso, o
 `docker-compose.yml` já inclui (comentados) serviços de integração como n8n
@@ -303,7 +332,7 @@ Navegador (index.html)
     ↓  fetch()  ↑  JSON
 Servidor Flask (server.py)
     ↓              ↑
-SQLite (beautyflow.db)
+SQLite (backend/db/beautyflow.db)
 ```
 
 O front-end faz requisições `fetch()` para a API REST. O servidor processa e retorna JSON. O banco SQLite é acessado diretamente pelo servidor.
@@ -523,6 +552,8 @@ docker compose down
 rm backend/db/beautyflow.db
 bash start.sh   # recria automaticamente com seed
 ```
+
+> O banco fica em `backend/db/beautyflow.db` (padrão) ou no caminho definido por `BEAUTYFLOW_DB_PATH`.
 
 **Docker:**
 

@@ -2,7 +2,8 @@ import sqlite3
 import os
 from datetime import datetime
 
-DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'DB', 'beautyflow.db'))
+_DEFAULT_DB = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'DB', 'beautyflow.db'))
+DB_PATH = os.environ.get('BEAUTYFLOW_DB_PATH') or _DEFAULT_DB
 
 
 def get_db():
@@ -12,6 +13,8 @@ def get_db():
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     init_tables(conn)
+    if not os.environ.get('BEAUTYFLOW_NO_SEED'):
+        seed_if_empty(conn)
     return conn
 
 
@@ -66,6 +69,11 @@ def init_tables(conn):
             appointment_id INTEGER,
             created_at TEXT DEFAULT (datetime('now', 'localtime')),
             FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE SET NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL
         );
     """)
     conn.commit()

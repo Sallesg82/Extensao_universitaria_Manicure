@@ -4,8 +4,8 @@ WORKDIR /app
 
 RUN pip install --no-cache-dir flask flask-cors
 
-COPY ../src ./src
-COPY ../backend ./backend
+COPY ./src ./src
+COPY ./backend ./backend
 
 EXPOSE 3001
 

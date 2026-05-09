@@ -10,6 +10,7 @@ services:
       - beautyflow_data:/app/backend/db
     environment:
       - FLASK_ENV=production
+      - BEAUTYFLOW_DB_PATH=/app/backend/db/beautyflow.db
     restart: unless-stopped
     networks:
       - beautyflow_net
