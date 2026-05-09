@@ -4,6 +4,8 @@ const pageConfig = {
   dashboard:      { title: 'Painel Geral',    sub: '',      btn: '+ Novo Agendamento' },
   agenda:         { title: 'Agenda',          sub: '',      btn: '+ Novo Agendamento' },
   clientes:       { title: 'Clientes',        sub: '',      btn: '+ Nova Cliente' },
+  servicos:       { title: 'Serviços',        sub: '',      btn: '+ Novo Serviço' },
+  metas:          { title: 'Metas',           sub: '',      btn: null },
   financeiro:     { title: 'Financeiro',      sub: '',      btn: '+ Novo Lançamento' },
   relatorios:     { title: 'Relatórios',      sub: 'Análise dos últimos 30 dias',      btn: '⬇ Exportar PDF' },
   configuracoes:  { title: 'Configurações',   sub: 'Gerencie seu sistema BeautyFlow',      btn: null },
@@ -27,6 +29,8 @@ function showPage(pageId, navEl) {
 
   if (pageId === 'dashboard') loadDashboard()
   else if (pageId === 'clientes') loadClients()
+  else if (pageId === 'servicos') loadServicos()
+  else if (pageId === 'metas') loadMetas()
   else if (pageId === 'agenda') loadAgenda()
   else if (pageId === 'financeiro') loadFinanceiro()
 }
@@ -39,6 +43,8 @@ function handleTopbarBtn() {
     openAppointmentModal()
   } else if (pageId === 'clientes') {
     openClientModal()
+  } else if (pageId === 'servicos') {
+    openServiceModal()
   } else if (pageId === 'financeiro') {
   } else if (pageId === 'relatorios') {
     const btn = document.getElementById('topbar-btn')
@@ -51,7 +57,7 @@ function handleTopbarBtn() {
 function showSettingsTab(navEl, tabId) {
   document.querySelectorAll('.settings-nav-item').forEach(n => n.classList.remove('active'))
   navEl.classList.add('active')
-  ;['tab-perfil','tab-horarios','tab-servicos','tab-notif','tab-integ','tab-aparencia'].forEach(id => {
+  ;['tab-perfil','tab-horarios','tab-notif','tab-integ','tab-aparencia'].forEach(id => {
     document.getElementById(id).style.display = id === tabId ? '' : 'none'
   })
 }
@@ -220,18 +226,15 @@ async function loadDashboard() {
     }
 
     // ── Alertas Inteligentes ──
-    const alertList = document.querySelector('.alert-list')
-    if (alertList) {
-      const pixText = alertList.querySelector('.alert-text')
-      if (pixText) {
-        pixText.innerHTML = '<b style="font-weight:500;">' + stats.pix_pending + ' pagamentos via Pix</b> aguardando confirmação hoje.<div><span class="pix-btn">Ver pagamentos</span></div>'
-      }
-
-      const metaText = alertList.querySelector('.meta-alert-text')
-      if (metaText) {
-        const falta = Math.max(0, stats.meta_mensal - stats.month_revenue)
-        metaText.innerHTML = 'Meta mensal <b style="font-weight:500;">' + stats.meta_pct + '% atingida</b>! ' +
-          (falta > 0 ? 'Faltam R$ ' + falta.toLocaleString('pt-BR', {minimumFractionDigits: 0}) + ' para bater a meta.' : 'Meta atingida! 🎉')
+    const metaText = document.getElementById('meta-alert-text')
+    if (metaText) {
+      const falta = Math.max(0, stats.meta_mensal - stats.month_revenue)
+      const metaVal = 'R$ ' + Number(stats.meta_mensal).toLocaleString('pt-BR', {minimumFractionDigits: 0})
+      const receita = 'R$ ' + stats.month_revenue.toLocaleString('pt-BR', {minimumFractionDigits: 0})
+      if (stats.month_revenue >= stats.meta_mensal) {
+        metaText.innerHTML = '<b style="font-weight:500;">Meta de ' + metaVal + ' atingida!</b> 🎉 Receita atual: ' + receita
+      } else {
+        metaText.innerHTML = '<b style="font-weight:500;">' + stats.meta_pct + '% da meta</b> — Faltam R$ ' + falta.toLocaleString('pt-BR', {minimumFractionDigits: 0}) + ' de ' + metaVal
       }
     }
 
@@ -433,6 +436,94 @@ async function loadServices() {
   } catch (e) {
     console.error('Erro ao carregar serviços:', e)
   }
+}
+
+async function loadServicos() {
+  try {
+    const res = await fetch(API + '/services/')
+    const services = await res.json()
+    servicesCache = services
+    pageConfig.servicos.sub = services.length + ' serviços cadastrados'
+    document.getElementById('page-sub').textContent = pageConfig.servicos.sub
+
+    const list = document.getElementById('services-list')
+    if (!list) return
+    if (services.length === 0) {
+      list.innerHTML = '<div style="padding:30px;text-align:center;color:var(--text-secondary);">Nenhum serviço cadastrado. Clique em "+ Novo Serviço" para começar.</div>'
+      return
+    }
+    list.innerHTML = services.map(s => {
+      const dur = s.duration >= 60
+        ? (s.duration % 60 === 0 ? (s.duration / 60) + 'h' : Math.floor(s.duration / 60) + 'h ' + (s.duration % 60) + 'min')
+        : s.duration + ' min'
+      return `
+        <div class="service-item">
+          <div class="service-color-dot" style="background:${s.color};"></div>
+          <div class="service-item-info">
+            <div class="service-item-name">${s.name}</div>
+            <div class="service-item-dur">⏱ ${dur}</div>
+          </div>
+          <div class="service-item-price">R$ ${Number(s.price).toFixed(0)}</div>
+          <button class="service-item-edit" onclick="editService(${s.id})">Editar</button>
+          <button class="service-item-delete" onclick="deleteService(${s.id})">Excluir</button>
+        </div>`
+    }).join('')
+  } catch (e) {
+    console.error('Erro ao carregar serviços:', e)
+  }
+}
+
+async function loadMetas() {
+  try {
+    const res = await fetch(API + '/settings/')
+    const settings = await res.json()
+    const meta = settings.meta_mensal || 7000
+    const input = document.getElementById('meta-input')
+    if (input) input.value = meta
+    pageConfig.metas.sub = 'Meta: R$ ' + Number(meta).toLocaleString('pt-BR', {minimumFractionDigits: 0})
+    document.getElementById('page-sub').textContent = pageConfig.metas.sub
+    updateMetaPreview(meta)
+  } catch (e) {
+    console.error('Erro ao carregar metas:', e)
+  }
+}
+
+async function saveMeta() {
+  const val = document.getElementById('meta-input').value
+  if (!val || Number(val) < 1) { showToast('Informe um valor de meta válido.'); return }
+  const meta = Number(val)
+  try {
+    const res = await fetch(API + '/settings/', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ meta_mensal: meta })
+    })
+    if (!res.ok) { showToast('Erro ao salvar meta.'); return }
+    showToast('Meta salva com sucesso!', 'success')
+    pageConfig.metas.sub = 'Meta: R$ ' + meta.toLocaleString('pt-BR', {minimumFractionDigits: 0})
+    document.getElementById('page-sub').textContent = pageConfig.metas.sub
+    updateMetaPreview(meta)
+    loadDashboard()
+  } catch (e) {
+    showToast('Erro ao salvar meta.')
+  }
+}
+
+async function updateMetaPreview(meta) {
+  try {
+    const res = await fetch(API + '/stats')
+    const s = await res.json()
+    const fill = document.getElementById('meta-preview-fill')
+    const label = document.getElementById('meta-preview-label')
+    const statsEl = document.getElementById('meta-stats')
+    if (fill) fill.style.width = Math.min(s.month_revenue / meta * 100, 100) + '%'
+    if (label) label.textContent = Math.round(s.month_revenue / meta * 100) + '%'
+    if (statsEl) {
+      const falta = Math.max(0, meta - s.month_revenue)
+      statsEl.innerHTML = '<span>Receita atual: <b>R$ ' + s.month_revenue.toLocaleString('pt-BR', {minimumFractionDigits: 0}) + '</b></span>' +
+        '<span>Faltam: <b>R$ ' + falta.toLocaleString('pt-BR', {minimumFractionDigits: 0}) + '</b></span>'
+    }
+  } catch (e) {}
 }
 
 let apptsWeekCache = []
@@ -782,9 +873,108 @@ async function saveClient() {
   }
 }
 
+// ── SERVICE MODAL ───────────────────────────────────
+
+function openServiceModal(svcId) {
+  const overlay = document.getElementById('service-modal-overlay')
+  const title = document.getElementById('service-modal-title')
+  const saveBtn = document.getElementById('service-save-btn')
+  const idField = document.getElementById('service-id')
+
+  idField.value = ''
+  title.textContent = 'Novo Serviço'
+  saveBtn.textContent = 'Salvar Serviço'
+  document.getElementById('service-name').value = ''
+  document.getElementById('service-duration').value = ''
+  document.getElementById('service-price').value = ''
+  document.getElementById('service-color').value = '#4a90d9'
+
+  if (svcId) {
+    const svc = servicesCache.find(s => s.id === svcId)
+    if (svc) {
+      idField.value = svc.id
+      title.textContent = 'Editar Serviço'
+      saveBtn.textContent = 'Salvar Alterações'
+      document.getElementById('service-name').value = svc.name
+      document.getElementById('service-duration').value = svc.duration
+      document.getElementById('service-price').value = svc.price
+      document.getElementById('service-color').value = svc.color
+    }
+  }
+
+  overlay.classList.add('open')
+}
+
+function closeServiceModal() {
+  document.getElementById('service-modal-overlay').classList.remove('open')
+}
+
+async function saveService() {
+  const name = document.getElementById('service-name').value.trim()
+  const duration = document.getElementById('service-duration').value
+  const price = document.getElementById('service-price').value
+  const color = document.getElementById('service-color').value
+  const idField = document.getElementById('service-id')
+
+  if (!name || name.length < 2) { showToast('Informe o nome do serviço.'); return }
+  if (!duration || Number(duration) < 1) { showToast('Informe a duração do serviço.'); return }
+  if (price === '' || Number(price) < 0) { showToast('Informe o preço do serviço.'); return }
+
+  const body = { name, duration: Number(duration), price: Number(price), color }
+
+  try {
+    let res
+    if (idField.value) {
+      res = await fetch(API + '/services/' + idField.value, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+    } else {
+      res = await fetch(API + '/services/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+    }
+    if (!res.ok) {
+      const err = await res.json()
+      showToast('Erro: ' + (err.error || 'Erro ao salvar serviço'))
+      return
+    }
+    closeServiceModal()
+    servicesCache = []
+    loadServicos()
+  } catch (e) {
+    showToast('Erro ao salvar serviço.')
+  }
+}
+
+async function editService(svcId) {
+  openServiceModal(svcId)
+}
+
+async function deleteService(svcId) {
+  if (!confirm('Tem certeza que deseja remover este serviço? Esta ação não pode ser desfeita.')) return
+  try {
+    const res = await fetch(API + '/services/' + svcId, { method: 'DELETE' })
+    if (!res.ok) { showToast('Erro ao remover serviço.'); return }
+    servicesCache = []
+    loadServicos()
+  } catch (e) {
+    showToast('Erro ao remover serviço.')
+  }
+}
+
+function filterClients(filter) {
+  if (!clientsCache.length) return
+  const filtered = filter === 'all' ? clientsCache : clientsCache.filter(c => c.status === filter)
+  renderClientList(filtered)
+}
+
 // ── TOAST ──────────────────────────────────────────
 
-function showToast(msg) {
+function showToast(msg, type) {
   let container = document.getElementById('toast-container')
   if (!container) {
     container = document.createElement('div')
@@ -794,6 +984,8 @@ function showToast(msg) {
   }
   const el = document.createElement('div')
   el.className = 'toast'
+  if (type === 'success') el.classList.add('toast-success')
+  else if (type === 'info') el.classList.add('toast-info')
   el.textContent = msg
   el.onclick = () => { el.style.animation = 'none'; el.remove() }
   container.appendChild(el)
