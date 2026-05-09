@@ -6,7 +6,7 @@ COPY ./package.json ./package-lock.json ./
 RUN npm ci --silent
 
 COPY . .
-RUN npx vite build --silent
+RUN npx vite build
 
 FROM nginx:alpine
 
