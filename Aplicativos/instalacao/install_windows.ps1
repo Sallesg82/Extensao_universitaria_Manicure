@@ -4,6 +4,10 @@
 ╚══════════════════════════════════════════════╝
 #>
 
+$ErrorActionPreference = "Stop"
+$startErr = $null
+try {
+
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
 
@@ -39,6 +43,11 @@ $colors = @{
 
 function HexColor($hex) {
   return [System.Drawing.Color]::FromArgb([int]("0x$($hex.Substring(1))"))
+}
+
+function Get-NextY {
+  if ($panelMain.Controls.Count -eq 0) { return 10 }
+  return ($panelMain.Controls | % { $_.Location.Y + $_.Size.Height } | Measure -Max | % { $_.Maximum + 10 })
 }
 
 # ════════════════════════════════════════════
@@ -78,7 +87,6 @@ function Show-Menu {
   }
   $y += 15
 
-  # ── Opção 1: Ambos (Recomendado) ──
   $btnAmbos = New-Object System.Windows.Forms.Button
   $btnAmbos.Text = "  Instalar AMBOS (Recomendado)`n  CRM + Agendamento integrados"
   $btnAmbos.Font = $fonts.body; $btnAmbos.Size = New-Object System.Drawing.Size(500, 55)
@@ -86,10 +94,10 @@ function Show-Menu {
   $btnAmbos.BackColor = HexColor $colors.success; $btnAmbos.ForeColor = "White"
   $btnAmbos.FlatStyle = "Flat"
   $btnAmbos.TextAlign = "MiddleLeft"
-  $btnAmbos.Add_Click({ Show-MethodMenu "ambos" })
+  $btnAmbos.Tag = "ambos"
+  $btnAmbos.Add_Click({ Show-MethodMenu $this.Tag })
   $panelMain.Controls.Add($btnAmbos); $y += 65
 
-  # ── Opção 2: CRM ──
   $btnCrm = New-Object System.Windows.Forms.Button
   $btnCrm.Text = "  BeautyFlow CRM`n  Gestao do salao (clientes, agenda, financeiro)"
   $btnCrm.Font = $fonts.body; $btnCrm.Size = New-Object System.Drawing.Size(500, 55)
@@ -98,10 +106,10 @@ function Show-Menu {
   $btnCrm.FlatStyle = "Flat"
   $btnCrm.FlatAppearance.BorderSize = 1; $btnCrm.FlatAppearance.BorderColor = HexColor $colors.primary
   $btnCrm.TextAlign = "MiddleLeft"
-  $btnCrm.Add_Click({ Show-MethodMenu "crm" })
+  $btnCrm.Tag = "crm"
+  $btnCrm.Add_Click({ Show-MethodMenu $this.Tag })
   $panelMain.Controls.Add($btnCrm); $y += 65
 
-  # ── Opção 3: Agendamento ──
   $btnAgenda = New-Object System.Windows.Forms.Button
   $btnAgenda.Text = "  BeautyFlow Agendamento`n  Painel do cliente (agendar servicos)"
   $btnAgenda.Font = $fonts.body; $btnAgenda.Size = New-Object System.Drawing.Size(500, 55)
@@ -110,10 +118,10 @@ function Show-Menu {
   $btnAgenda.FlatStyle = "Flat"
   $btnAgenda.FlatAppearance.BorderSize = 1; $btnAgenda.FlatAppearance.BorderColor = HexColor $colors.sub
   $btnAgenda.TextAlign = "MiddleLeft"
-  $btnAgenda.Add_Click({ Show-MethodMenu "agenda" })
+  $btnAgenda.Tag = "agenda"
+  $btnAgenda.Add_Click({ Show-MethodMenu $this.Tag })
   $panelMain.Controls.Add($btnAgenda); $y += 75
 
-  # ── Opção 4: Gerenciar ──
   $btnGerenciar = New-Object System.Windows.Forms.Button
   $btnGerenciar.Text = "  Gerenciar instalacao`n  Reinstalar ou atualizar aplicativos ja instalados"
   $btnGerenciar.Font = $fonts.body; $btnGerenciar.Size = New-Object System.Drawing.Size(500, 55)
@@ -148,23 +156,23 @@ function Show-ManageMenu {
   $panelMain.Controls.Add($sub)
 
   $y = 110
-  $buttons = @(
-    @{Text="  Instalacao Nativa — Ambos (CRM + Agendamento)";   Action="nativo-ambos";  Color=$colors.primary}
-    @{Text="  Instalacao Nativa — CRM";                          Action="nativo-crm";    Color=$colors.primary}
-    @{Text="  Instalacao Nativa — Agendamento";                  Action="nativo-agenda"; Color=$colors.primary}
-    @{Text="  Instalacao Docker — Ambos";                        Action="docker";        Color=$colors.warning}
+  $btnData = @(
+    @("  Instalacao Nativa — Ambos (CRM + Agendamento)", "nativo-ambos", $colors.primary),
+    @("  Instalacao Nativa — CRM", "nativo-crm", $colors.primary),
+    @("  Instalacao Nativa — Agendamento", "nativo-agenda", $colors.primary),
+    @("  Instalacao Docker — Ambos", "docker", $colors.warning)
   )
-  foreach ($btn in $buttons) {
+  foreach ($item in $btnData) {
     $b = New-Object System.Windows.Forms.Button
-    $b.Text = $btn.Text
+    $b.Text = $item[0]
     $b.Font = $fonts.body; $b.Size = New-Object System.Drawing.Size(500, 45)
     $b.Location = New-Object System.Drawing.Point(80, $y)
-    $b.BackColor = HexColor $colors.card; $b.ForeColor = HexColor $btn.Color
+    $b.BackColor = HexColor $colors.card; $b.ForeColor = HexColor $item[2]
     $b.FlatStyle = "Flat"
-    $b.FlatAppearance.BorderSize = 1; $b.FlatAppearance.BorderColor = HexColor $btn.Color
+    $b.FlatAppearance.BorderSize = 1; $b.FlatAppearance.BorderColor = HexColor $item[2]
     $b.TextAlign = "MiddleLeft"
-    $local:action = $btn.Action
-    $b.Add_Click({ Show-ManageAction $local:action })
+    $b.Tag = $item[1]
+    $b.Add_Click({ Show-ManageAction $this.Tag })
     $panelMain.Controls.Add($b); $y += 55
   }
 
@@ -200,42 +208,24 @@ function Show-ManageAction($target) {
   $panelMain.Controls.Add($l)
 
   $y = 110
-
-  $btnReinstall = New-Object System.Windows.Forms.Button
-  $btnReinstall.Text = "  Reinstalar (deletar tudo + instalar do zero)"
-  $btnReinstall.Font = $fonts.body; $btnReinstall.Size = New-Object System.Drawing.Size(500, 50)
-  $btnReinstall.Location = New-Object System.Drawing.Point(80, $y)
-  $btnReinstall.BackColor = HexColor $colors.card; $btnReinstall.ForeColor = "#c05050"
-  $btnReinstall.FlatStyle = "Flat"
-  $btnReinstall.FlatAppearance.BorderSize = 1; $btnReinstall.FlatAppearance.BorderColor = "#c05050"
-  $btnReinstall.TextAlign = "MiddleLeft"
-  $local:target1 = $target
-  $btnReinstall.Add_Click({ Start-Manage $local:target1 "reinstall" })
-  $panelMain.Controls.Add($btnReinstall); $y += 60
-
-  $btnUpdate = New-Object System.Windows.Forms.Button
-  $btnUpdate.Text = "  Atualizar (git pull + atualizar dependencias)"
-  $btnUpdate.Font = $fonts.body; $btnUpdate.Size = New-Object System.Drawing.Size(500, 50)
-  $btnUpdate.Location = New-Object System.Drawing.Point(80, $y)
-  $btnUpdate.BackColor = HexColor $colors.card; $btnUpdate.ForeColor = HexColor $colors.success
-  $btnUpdate.FlatStyle = "Flat"
-  $btnUpdate.FlatAppearance.BorderSize = 1; $btnUpdate.FlatAppearance.BorderColor = HexColor $colors.success
-  $btnUpdate.TextAlign = "MiddleLeft"
-  $local:target2 = $target
-  $btnUpdate.Add_Click({ Start-Manage $local:target2 "update" })
-  $panelMain.Controls.Add($btnUpdate); $y += 60
-
-  $btnUninstall = New-Object System.Windows.Forms.Button
-  $btnUninstall.Text = "  Desinstalar (remover completamente)"
-  $btnUninstall.Font = $fonts.body; $btnUninstall.Size = New-Object System.Drawing.Size(500, 50)
-  $btnUninstall.Location = New-Object System.Drawing.Point(80, $y)
-  $btnUninstall.BackColor = HexColor $colors.card; $btnUninstall.ForeColor = "#c05050"
-  $btnUninstall.FlatStyle = "Flat"
-  $btnUninstall.FlatAppearance.BorderSize = 1; $btnUninstall.FlatAppearance.BorderColor = "#c05050"
-  $btnUninstall.TextAlign = "MiddleLeft"
-  $local:target3 = $target
-  $btnUninstall.Add_Click({ Start-Manage $local:target3 "uninstall" })
-  $panelMain.Controls.Add($btnUninstall); $y += 60
+  $actions = @(
+    @("  Reinstalar (deletar tudo + instalar do zero)", "reinstall", "#c05050"),
+    @("  Atualizar (git pull + atualizar dependencias)", "update", $colors.success),
+    @("  Desinstalar (remover completamente)", "uninstall", "#c05050")
+  )
+  foreach ($item in $actions) {
+    $b = New-Object System.Windows.Forms.Button
+    $b.Text = $item[0]
+    $b.Font = $fonts.body; $b.Size = New-Object System.Drawing.Size(500, 50)
+    $b.Location = New-Object System.Drawing.Point(80, $y)
+    $b.BackColor = HexColor $colors.card; $b.ForeColor = HexColor $item[2]
+    $b.FlatStyle = "Flat"
+    $b.FlatAppearance.BorderSize = 1; $b.FlatAppearance.BorderColor = HexColor $item[2]
+    $b.TextAlign = "MiddleLeft"
+    $b.Tag = @($target, $item[1])
+    $b.Add_Click({ $tag = $this.Tag; Start-Manage $tag[0] $tag[1] })
+    $panelMain.Controls.Add($b); $y += 60
+  }
 
   $btnCancel = New-Object System.Windows.Forms.Button
   $btnCancel.Text = "  Cancelar"
@@ -257,7 +247,6 @@ function Start-Manage($target, $action) {
   $stepFin  = Add-Step "Finalizando..."
   Add-Spacer
 
-  # Pedir confirmacao para acoes destrutivas
   if ($action -eq "reinstall") {
     $msg = "Tem certeza? Isso vai deletar tudo e reinstalar do zero.`n`nContinuar?"
     $resp = [System.Windows.Forms.MessageBox]::Show($msg, "Confirmar reinstalacao", "YesNo", "Warning")
@@ -270,7 +259,6 @@ function Start-Manage($target, $action) {
   }
 
   if ($action -ne "uninstall") {
-    # git pull (pula na desinstalacao)
     $stepGit.Set("Atualizando repositorio...", $colors.warning)
     $form.Refresh()
     if (Test-Path "$REPO_DIR\.git") {
@@ -292,7 +280,6 @@ function Start-Manage($target, $action) {
       Pop-Location
       $stepAct.Set("OK limpo", $colors.success)
       $form.Refresh()
-      # Re-roda o install docker
       Start-Install "ambos" "docker"
       return
     } elseif ($action -eq "uninstall") {
@@ -315,7 +302,6 @@ function Start-Manage($target, $action) {
       $form.Refresh()
     }
   } else {
-    # Nativo
     $isAmbos = $target -eq "nativo-ambos"
     $isCrm = $target -eq "nativo-crm" -or $isAmbos
     $isAgenda = $target -eq "nativo-agenda" -or $isAmbos
@@ -347,7 +333,6 @@ function Start-Manage($target, $action) {
       if ($isCrm) {
         $stepAct.Set("Removendo CRM...", $colors.warning)
         $form.Refresh()
-        # Mata processo do CRM
         Get-CimInstance Win32_Process -Filter "Name LIKE 'python%' AND CommandLine LIKE '%server.py%'" | Invoke-CimMethod -MethodName Terminate -ErrorAction SilentlyContinue
         $venvDir = "$CRM_DIR\backend\.venv"
         if (Test-Path $venvDir) { Remove-Item -Recurse -Force $venvDir -ErrorAction SilentlyContinue }
@@ -357,14 +342,12 @@ function Start-Manage($target, $action) {
       if ($isAgenda) {
         $stepAct.Set("Removendo Agendamento...", $colors.warning)
         $form.Refresh()
-        # Mata processo do Agendamento (vite ou npm)
         Get-CimInstance Win32_Process -Filter "Name LIKE 'node%' AND (CommandLine LIKE '%vite%' OR CommandLine LIKE '%npm%')" | Invoke-CimMethod -MethodName Terminate -ErrorAction SilentlyContinue
         $nmDir = "$APP_DIR\node_modules"
         if (Test-Path $nmDir) { Remove-Item -Recurse -Force $nmDir -ErrorAction SilentlyContinue }
         $stepAct.Set("OK Agendamento desinstalado", $colors.success)
         $form.Refresh()
       }
-      # Perguntar sobre o banco de dados
       if (Test-Path $DB_PATH) {
         $msg = "Remover tambem o banco de dados?`n`n$DB_PATH"
         $resp = [System.Windows.Forms.MessageBox]::Show($msg, "Banco de dados", "YesNo", "Question")
@@ -375,7 +358,6 @@ function Start-Manage($target, $action) {
         }
       }
     } else {
-      # Update
       if ($isCrm) {
         $venvDir = "$CRM_DIR\backend\.venv"
         if (Test-Path $venvDir) {
@@ -442,7 +424,8 @@ function Show-MethodMenu($selection) {
   $btnDocker.FlatStyle = "Flat"
   $btnDocker.FlatAppearance.BorderSize = 1; $btnDocker.FlatAppearance.BorderColor = HexColor $colors.primary
   $btnDocker.TextAlign = "MiddleLeft"
-  $btnDocker.Add_Click({ Start-Install $selection "docker" })
+  $btnDocker.Tag = $selection
+  $btnDocker.Add_Click({ Start-Install $this.Tag "docker" })
   $panelMain.Controls.Add($btnDocker); $y += 75
 
   $btnNative = New-Object System.Windows.Forms.Button
@@ -453,7 +436,8 @@ function Show-MethodMenu($selection) {
   $btnNative.FlatStyle = "Flat"
   $btnNative.FlatAppearance.BorderSize = 1; $btnNative.FlatAppearance.BorderColor = HexColor $colors.sub
   $btnNative.TextAlign = "MiddleLeft"
-  $btnNative.Add_Click({ Start-Install $selection "native" })
+  $btnNative.Tag = $selection
+  $btnNative.Add_Click({ Start-Install $this.Tag "native" })
   $panelMain.Controls.Add($btnNative); $y += 75
 
   $btnBack = New-Object System.Windows.Forms.Button
@@ -463,6 +447,29 @@ function Show-MethodMenu($selection) {
   $btnBack.BackColor = HexColor $colors.card; $btnBack.ForeColor = HexColor $colors.sub
   $btnBack.FlatStyle = "Flat"
   $btnBack.Add_Click({ Show-Menu })
+  $panelMain.Controls.Add($btnBack)
+}
+
+# ════════════════════════════════════════════
+#  BOTÃO VOLTAR (exibe erro + volta)
+# ════════════════════════════════════════════
+
+function Add-ErrorAndBack($text, $backAction) {
+  $nextY = Get-NextY
+  $l = New-Object System.Windows.Forms.Label
+  $l.Text = $text
+  $l.Font = $fonts.body; $l.ForeColor = HexColor $colors.white
+  $l.Size = New-Object System.Drawing.Size(560, 22)
+  $l.Location = New-Object System.Drawing.Point(60, $nextY)
+  $panelMain.Controls.Add($l)
+
+  $btnBack = New-Object System.Windows.Forms.Button
+  $btnBack.Text = "  Voltar"
+  $btnBack.Font = $fonts.body; $btnBack.Size = New-Object System.Drawing.Size(200, 40)
+  $btnBack.Location = New-Object System.Drawing.Point(80, $nextY + 35)
+  $btnBack.BackColor = HexColor $colors.card; $btnBack.ForeColor = HexColor $colors.sub
+  $btnBack.FlatStyle = "Flat"
+  $btnBack.Add_Click($backAction)
   $panelMain.Controls.Add($btnBack)
 }
 
@@ -494,6 +501,10 @@ function Start-Install($selection, $method) {
   $form.Refresh()
   if (Test-Path $REPO_DIR) { Remove-Item -Recurse -Force $REPO_DIR -ErrorAction SilentlyContinue }
   git clone $REPO_URL $REPO_DIR 2>&1 | Out-Null
+  if (-not (Test-Path $REPO_DIR)) {
+    Add-ErrorAndBack "Erro ao clonar repositorio. Verifique se o git esta instalado." { Show-MethodMenu $selection }
+    return
+  }
   $stepClone.Set("OK repositorio pronto", $colors.success)
   $form.Refresh()
 
@@ -513,23 +524,20 @@ function Start-Install($selection, $method) {
   if (-not (Test-Path $DB_PATH)) {
     $sqlScript = "$INST_DIR\init_db.sql"
     if (Test-Path $sqlScript) {
-      $sql = Get-Content $sqlScript -Raw
-      # Usar ADO.NET para criar o banco
-      $conn = New-Object System.Data.SQLite.SQLiteConnection("Data Source=$DB_PATH")
-      # Se SQLite não estiver disponível, tentar via PowerShell
       try {
+        Add-Type -AssemblyName System.Data.SQLite -ErrorAction Stop
+        $conn = New-Object System.Data.SQLite.SQLiteConnection("Data Source=$DB_PATH")
         $conn.Open()
+        $sql = Get-Content $sqlScript -Raw
         $cmd = $conn.CreateCommand()
         $cmd.CommandText = $sql
         $cmd.ExecuteNonQuery() | Out-Null
         $conn.Close()
       } catch {
-        # Fallback: criar via sqlite3 se disponível
         $sqliteOk = Get-Command "sqlite3" -ErrorAction SilentlyContinue
         if ($sqliteOk) {
-          sqlite3 $DB_PATH < $sqlScript 2>$null
+          & (Get-Command sqlite3).Source $DB_PATH ".read '$sqlScript'" 2>$null
         } else {
-          # Criar via Python
           python -c @"
 import sqlite3, os
 os.makedirs(os.path.dirname('$DB_PATH'), exist_ok=True)
@@ -551,18 +559,12 @@ conn.close()
     if (-not $dockerOk) {
       $stepFinal.Set("Docker Desktop nao encontrado!", $colors.warning)
       $form.Refresh()
-      $msg = "Docker Desktop nao esta instalado.`n`nDeseja baixar o instalador do Docker Desktop?`n`n(Se ja tiver instalado, reinicie o instalador apos a instalacao.)"
+      $msg = "Docker Desktop nao esta instalado.`n`nDeseja baixar o instalador do Docker Desktop?"
       $resp = [System.Windows.Forms.MessageBox]::Show($msg, "Docker nao encontrado", "YesNo", "Question")
       if ($resp -eq "Yes") {
         Start-Process "https://docs.docker.com/desktop/setup/install/windows-install/"
       }
-      Add-Spacer
-      $l = New-Object System.Windows.Forms.Label
-      $l.Text = "Instale o Docker Desktop e execute o instalador novamente."
-      $l.Font = $fonts.body; $l.ForeColor = HexColor $colors.white
-      $l.Size = New-Object System.Drawing.Size(560, 22)
-      $l.Location = New-Object System.Drawing.Point(60, 350)
-      $panelMain.Controls.Add($l)
+      Add-ErrorAndBack "Instale o Docker Desktop e tente novamente." { Show-MethodMenu $selection }
       return
     }
 
@@ -593,23 +595,15 @@ conn.close()
         if ($resp -eq "Yes") {
           Start-Process "https://www.python.org/downloads/"
         }
-        Add-Spacer
-        $l = New-Object System.Windows.Forms.Label
-        $l.Text = "Instale Python 3.10+ e execute o instalador novamente."
-        $l.Font = $fonts.body; $l.ForeColor = HexColor $colors.white
-        $l.Size = New-Object System.Drawing.Size(560, 22)
-        $l.Location = New-Object System.Drawing.Point(60, 350)
-        $panelMain.Controls.Add($l)
+        Add-ErrorAndBack "Instale Python 3.10+ e tente novamente." { Show-MethodMenu $selection }
         return
       }
       $stepCrm.Set("Instalando dependencias Python...", $colors.warning); $form.Refresh()
 
-      # Criar venv
       $venvDir = "$CRM_DIR\backend\.venv"
       if (-not (Test-Path $venvDir)) {
         python -m venv $venvDir 2>$null
       }
-      # Instalar dependências
       & "$venvDir\Scripts\pip" install --quiet --upgrade pip 2>$null
       & "$venvDir\Scripts\pip" install --quiet flask flask-cors 2>$null
       $stepCrm.Set("OK CRM instalado", $colors.success)
@@ -627,13 +621,7 @@ conn.close()
         if ($resp -eq "Yes") {
           Start-Process "https://nodejs.org/"
         }
-        Add-Spacer
-        $l = New-Object System.Windows.Forms.Label
-        $l.Text = "Instale Node.js LTS e execute o instalador novamente."
-        $l.Font = $fonts.body; $l.ForeColor = HexColor $colors.white
-        $l.Size = New-Object System.Drawing.Size(560, 22)
-        $l.Location = New-Object System.Drawing.Point(60, 350)
-        $panelMain.Controls.Add($l)
+        Add-ErrorAndBack "Instale Node.js LTS e tente novamente." { Show-MethodMenu $selection }
         return
       }
       $stepAgenda.Set("Instalando dependencias npm...", $colors.warning); $form.Refresh()
@@ -644,11 +632,6 @@ conn.close()
       $form.Refresh()
     }
   }
-
-  # Perguntar se deseja iniciar
-  $stepFinal.Set("Concluido!", $colors.success)
-  $form.Refresh()
-  Start-Sleep -Milliseconds 300
 
   $urls = @()
   if ($selection -eq "crm" -or $selection -eq "ambos") { $urls += "CRM: http://localhost:3001" }
@@ -663,8 +646,6 @@ conn.close()
 
       if ($selection -eq "crm" -or $selection -eq "ambos") {
         $venvDir = "$CRM_DIR\backend\.venv"
-        $env:BEAUTYFLOW_DB_PATH = $DB_PATH
-        $env:BEAUTYFLOW_NO_SEED = "true"
         $psi = New-Object System.Diagnostics.ProcessStartInfo
         $psi.FileName = "$venvDir\Scripts\python.exe"
         $psi.Arguments = "$CRM_DIR\backend\server.py"
@@ -688,7 +669,6 @@ conn.close()
 
   $stepFinal.Set("Concluido!", $colors.success)
   $form.Refresh()
-  Start-Sleep -Milliseconds 300
 
   Show-Final $urls
 }
@@ -717,17 +697,17 @@ function Show-Final($urls) {
   $title.TextAlign = "MiddleCenter"
   $panelMain.Controls.Add($title)
 
-  Add-Spacer
+  $y = 130
 
   $l = New-Object System.Windows.Forms.Label
   $l.Text = "Acesse os aplicativos:"
   $l.Font = $fonts.body; $l.ForeColor = HexColor $colors.sub
   $l.Size = New-Object System.Drawing.Size(560, 22)
-  $l.Location = New-Object System.Drawing.Point(60, ($panelMain.Controls | % { $_.Location.Y + $_.Size.Height } | Measure -Max | % { $_.Maximum + 10 }))
+  $l.Location = New-Object System.Drawing.Point(60, $y)
   $l.TextAlign = "MiddleCenter"
   $panelMain.Controls.Add($l)
 
-  $y = $l.Location.Y + 35
+  $y += 35
   foreach ($url in $urls) {
     $parts = $url -split ": "
     $appName = $parts[0]
@@ -756,23 +736,31 @@ function Show-Final($urls) {
     $btnOpen.Location = New-Object System.Drawing.Point(550, $y)
     $btnOpen.BackColor = HexColor $colors.success; $btnOpen.ForeColor = "White"
     $btnOpen.FlatStyle = "Flat"
-    $script:targetUrl = $appUrl
-    $btnOpen.Add_Click({ [System.Diagnostics.Process]::Start($script:targetUrl) })
+    $btnOpen.Tag = $appUrl
+    $btnOpen.Add_Click({ [System.Diagnostics.Process]::Start($this.Tag) })
     $panelMain.Controls.Add($btnOpen)
 
     $y += 38
   }
 
-  Add-Spacer
-  $endY = ($panelMain.Controls | % { $_.Location.Y + $_.Size.Height } | Measure -Max | % { $_.Maximum + 10 })
-
+  $y += 20
   $l2 = New-Object System.Windows.Forms.Label
   $l2.Text = "Pressione Sair para fechar."
   $l2.Font = $fonts.small; $l2.ForeColor = HexColor $colors.sub
   $l2.Size = New-Object System.Drawing.Size(560, 20)
-  $l2.Location = New-Object System.Drawing.Point(60, $endY)
+  $l2.Location = New-Object System.Drawing.Point(60, $y)
   $l2.TextAlign = "MiddleCenter"
   $panelMain.Controls.Add($l2)
+
+  $y += 30
+  $btnSair = New-Object System.Windows.Forms.Button
+  $btnSair.Text = "  Sair"
+  $btnSair.Font = $fonts.body; $btnSair.Size = New-Object System.Drawing.Size(200, 40)
+  $btnSair.Location = New-Object System.Drawing.Point(240, $y)
+  $btnSair.BackColor = HexColor $colors.primary; $btnSair.ForeColor = "White"
+  $btnSair.FlatStyle = "Flat"
+  $btnSair.Add_Click({ $form.Close() })
+  $panelMain.Controls.Add($btnSair)
 }
 
 # ════════════════════════════════════════════
@@ -788,21 +776,15 @@ function Add-Title($text) {
 }
 
 function Add-Spacer {
-  $top = 0
-  if ($panelMain.Controls.Count -gt 0) {
-    $top = ($panelMain.Controls | % { $_.Location.Y + $_.Size.Height } | Measure -Max | % { $_.Maximum })
-  }
+  $top = Get-NextY
   $l = New-Object System.Windows.Forms.Label
-  $l.Text = ""; $l.Size = New-Object System.Drawing.Size(10, 10)
+  $l.Text = ""; $l.Size = New-Object System.Drawing.Size(10, 5)
   $l.Location = New-Object System.Drawing.Point(40, $top)
   $panelMain.Controls.Add($l)
 }
 
 function Add-Step($text) {
-  $top = 0
-  if ($panelMain.Controls.Count -gt 0) {
-    $top = ($panelMain.Controls | % { $_.Location.Y + $_.Size.Height } | Measure -Max | % { $_.Maximum + 8 })
-  }
+  $top = Get-NextY
   $box = New-Object System.Windows.Forms.Panel
   $box.Size = New-Object System.Drawing.Size(540, 38)
   $box.Location = New-Object System.Drawing.Point(50, $top)
@@ -810,7 +792,7 @@ function Add-Step($text) {
   $panelMain.Controls.Add($box)
 
   $dot = New-Object System.Windows.Forms.Label
-  $dot.Name = "dot"; $dot.Text = "○"
+  $dot.Text = "○"
   $dot.Font = $fonts.body; $dot.ForeColor = HexColor $colors.sub
   $dot.Size = New-Object System.Drawing.Size(20, 38)
   $dot.Location = New-Object System.Drawing.Point(10, 0)
@@ -818,22 +800,25 @@ function Add-Step($text) {
   $box.Controls.Add($dot)
 
   $label = New-Object System.Windows.Forms.Label
-  $label.Name = "label"; $label.Text = $text
+  $label.Text = $text
   $label.Font = $fonts.body; $label.ForeColor = HexColor $colors.white
   $label.Size = New-Object System.Drawing.Size(500, 38)
   $label.Location = New-Object System.Drawing.Point(30, 0)
   $label.TextAlign = "MiddleLeft"
   $box.Controls.Add($label)
 
-  return New-Object PSObject -Property @{
-    Box = $box; Dot = $dot; Label = $label
-    Set = { param($newText, $color)
-      $this.Label.Text = $newText
-      $this.Dot.Text = "●"
-      $this.Dot.ForeColor = HexColor $color
-      $this.Box.Refresh()
-    }.GetNewClosure()
+  $obj = New-Object PSObject
+  $obj | Add-Member -MemberType NoteProperty -Name "Box" -Value $box
+  $obj | Add-Member -MemberType NoteProperty -Name "Dot" -Value $dot
+  $obj | Add-Member -MemberType NoteProperty -Name "Label" -Value $label
+  $obj | Add-Member -MemberType ScriptMethod -Name "Set" -Value {
+    param($newText, $color)
+    $this.Label.Text = $newText
+    $this.Dot.Text = "●"
+    $this.Dot.ForeColor = HexColor $color
+    $this.Box.Refresh()
   }
+  return $obj
 }
 
 # ════════════════════════════════════════════
@@ -842,26 +827,37 @@ function Add-Step($text) {
 
 $form = New-Object System.Windows.Forms.Form
 $form.Text = "BeautyFlow - Instalador Unificado Windows"
-$form.Size = New-Object System.Drawing.Size(680, 600)
+$form.Size = New-Object System.Drawing.Size(680, 640)
 $form.StartPosition = "CenterScreen"
 $form.FormBorderStyle = "FixedSingle"
 $form.MaximizeBox = $false
 $form.BackColor = HexColor $colors.bg
 
 $panelMain = New-Object System.Windows.Forms.Panel
-$panelMain.Size = New-Object System.Drawing.Size(680, 560)
+$panelMain.Size = New-Object System.Drawing.Size(680, 620)
 $panelMain.Location = New-Object System.Drawing.Point(0, 0)
 $panelMain.BackColor = HexColor $colors.bg
+$panelMain.AutoScroll = $true
 $form.Controls.Add($panelMain)
 
-$winVer = (Get-CimInstance Win32_OperatingSystem).Caption
 $footer = New-Object System.Windows.Forms.Label
-$footer.Text = "$winVer  |  BeautyFlow v1.0"
+$footer.Text = "BeautyFlow v1.0"
 $footer.Font = $fonts.small; $footer.ForeColor = HexColor $colors.sub
 $footer.Size = New-Object System.Drawing.Size(660, 20)
-$footer.Location = New-Object System.Drawing.Point(10, 565)
+$footer.Location = New-Object System.Drawing.Point(10, 620)
 $form.Controls.Add($footer)
 
 Show-Menu
 $form.Add_Shown({ $form.Activate() })
 [void]$form.ShowDialog()
+
+} catch {
+  $startErr = $_.Exception.Message
+  try {
+    [System.Windows.Forms.MessageBox]::Show("Erro ao iniciar o instalador:`n$startErr", "Erro", "OK", "Error")
+  } catch {
+    Write-Host "ERRO: $startErr"
+    Write-Host "Pressione qualquer tecla para sair."
+    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
+  }
+}
