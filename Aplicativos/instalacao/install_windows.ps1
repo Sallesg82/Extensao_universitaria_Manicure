@@ -1,7 +1,5 @@
-<#
-╔══════════════════════════════════════════════╗
-║   BeautyFlow — Instalador Unificado Windows ║
-╚══════════════════════════════════════════════╝
+﻿<#
+   BeautyFlow - Instalador Unificado Windows
 #>
 
 $ErrorActionPreference = "Stop"
@@ -157,10 +155,10 @@ function Show-ManageMenu {
 
   $y = 110
   $btnData = @(
-    @("  Instalacao Nativa — Ambos (CRM + Agendamento)", "nativo-ambos", $colors.primary),
-    @("  Instalacao Nativa — CRM", "nativo-crm", $colors.primary),
-    @("  Instalacao Nativa — Agendamento", "nativo-agenda", $colors.primary),
-    @("  Instalacao Docker — Ambos", "docker", $colors.warning)
+    @("  Instalacao Nativa - Ambos (CRM + Agendamento)", "nativo-ambos", $colors.primary),
+    @("  Instalacao Nativa - CRM", "nativo-crm", $colors.primary),
+    @("  Instalacao Nativa - Agendamento", "nativo-agenda", $colors.primary),
+    @("  Instalacao Docker - Ambos", "docker", $colors.warning)
   )
   foreach ($item in $btnData) {
     $b = New-Object System.Windows.Forms.Button
@@ -714,7 +712,7 @@ function Show-Final($urls) {
     $appUrl = $parts[1]
 
     $u = New-Object System.Windows.Forms.Label
-    $u.Text = "$appName:"
+    $u.Text = "$($appName):"
     $u.Font = $fonts.body; $u.ForeColor = HexColor $colors.white
     $u.Size = New-Object System.Drawing.Size(130, 28)
     $u.Location = New-Object System.Drawing.Point(120, $y)
@@ -792,7 +790,7 @@ function Add-Step($text) {
   $panelMain.Controls.Add($box)
 
   $dot = New-Object System.Windows.Forms.Label
-  $dot.Text = "○"
+  $dot.Text = "o"
   $dot.Font = $fonts.body; $dot.ForeColor = HexColor $colors.sub
   $dot.Size = New-Object System.Drawing.Size(20, 38)
   $dot.Location = New-Object System.Drawing.Point(10, 0)
@@ -814,7 +812,7 @@ function Add-Step($text) {
   $obj | Add-Member -MemberType ScriptMethod -Name "Set" -Value {
     param($newText, $color)
     $this.Label.Text = $newText
-    $this.Dot.Text = "●"
+    $this.Dot.Text = "*"
     $this.Dot.ForeColor = HexColor $color
     $this.Box.Refresh()
   }
