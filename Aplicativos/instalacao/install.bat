@@ -16,7 +16,7 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-echo  Iniciando instalador grafico...
+echo  Iniciando instalador...
 echo.
 
 powershell -ExecutionPolicy Bypass -File "%~dp0install_windows.ps1"
