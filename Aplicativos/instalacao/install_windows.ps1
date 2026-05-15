@@ -62,12 +62,8 @@ function InstalarSQLite {
     Ok "System.Data.SQLite disponivel"
     return $true
   } catch {
-    Aviso "sqlite3 nao encontrado"
-    if (Confirmar "Deseja baixar o sqlite3? (baixar sqlite-tools.zip)"){
-      Start-Process "https://www.sqlite.org/download.html"
-    }
-    Erro "sqlite3 obrigatorio. Instale manualmente."
-    exit 1
+    Aviso "sqlite3 nao encontrado — vamos usar Python como fallback"
+    return $false
   }
 }
 
@@ -125,6 +121,7 @@ function CriarBanco {
 function ExecutarSQL($path) {
   $sqlScript = "$DIR\init_db.sql"
   if (-not (Test-Path $sqlScript)) { Erro "init_db.sql nao encontrado em $DIR"; return }
+
   try {
     Add-Type -AssemblyName System.Data.SQLite -ErrorAction Stop
     $conn = New-Object System.Data.SQLite.SQLiteConnection("Data Source=$path")
@@ -143,14 +140,23 @@ function ExecutarSQL($path) {
     return
   }
 
-  python -c @"
+  try {
+    $r = python -c @"
 import sqlite3, os
 os.makedirs(os.path.dirname('$path'), exist_ok=True)
 conn = sqlite3.connect('$path')
-conn.executescript(open('$sqlScript', encoding='utf-8').read())
+with open('$sqlScript', encoding='utf-8') as f:
+    conn.executescript(f.read())
 conn.commit()
 conn.close()
-"@ 2>$null
+print('OK')
+"@ 2>&1
+    if ($r -eq "OK") { return }
+  } catch {}
+
+  Erro "Nao foi possivel criar o banco de dados."
+  Erro "Instale sqlite3 ou Python e tente novamente."
+  exit 1
 }
 
 # ══════════════════════════════════════════
@@ -457,9 +463,9 @@ function Instalar($selection, $method) {
   if ($method -eq "native") {
     InstalarGit
     InstalarSQLite
-    CriarBanco
     if ($selection -eq "crm" -or $selection -eq "ambos") { InstalarCrm }
     if ($selection -eq "agenda" -or $selection -eq "ambos") { InstalarAgendamento }
+    CriarBanco
   } else {
     InstalarGit
     ModoDocker $selection
