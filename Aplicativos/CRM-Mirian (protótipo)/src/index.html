@@ -358,174 +358,37 @@
       <section class="page" id="page-agenda">
         <div class="agenda-toolbar">
           <div class="agenda-nav">
-            <button class="agenda-nav-btn">
+            <button class="agenda-nav-btn" onclick="agendaNavPrev()">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 2L4 6l3.5 4" stroke="#4a90d9" stroke-width="1.4" stroke-linecap="round"/></svg>
             </button>
-            <span class="agenda-period">28 abr – 4 mai 2026</span>
-            <button class="agenda-nav-btn">
+            <span class="agenda-period" id="agenda-period">28 abr – 4 mai 2026</span>
+            <button class="agenda-nav-btn" onclick="agendaNavNext()">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 2L8 6l-3.5 4" stroke="#4a90d9" stroke-width="1.4" stroke-linecap="round"/></svg>
             </button>
-            <button class="btn-outline agenda-today-btn">Hoje</button>
+            <button class="btn-outline agenda-today-btn" onclick="agendaNavToday()">Hoje</button>
           </div>
-          <div class="view-tabs">
-            <div class="view-tab">Dia</div>
-            <div class="view-tab active">Semana</div>
-            <div class="view-tab">Mês</div>
+          <div class="view-tabs" id="agenda-view-tabs">
+            <div class="view-tab" onclick="setAgendaView('day', this)">Dia</div>
+            <div class="view-tab active" onclick="setAgendaView('week', this)">Semana</div>
+            <div class="view-tab" onclick="setAgendaView('month', this)">Mês</div>
+            <div class="view-tab" onclick="setAgendaView('year', this)">Ano</div>
           </div>
         </div>
 
-        <div class="week-grid">
-          <div class="time-col">
-            <div class="time-col-header"></div>
-            <div class="time-slot-label">08h</div>
-            <div class="time-slot-label">09h</div>
-            <div class="time-slot-label">10h</div>
-            <div class="time-slot-label">11h</div>
-            <div class="time-slot-label">12h</div>
-            <div class="time-slot-label">13h</div>
-            <div class="time-slot-label">14h</div>
-            <div class="time-slot-label">15h</div>
-            <div class="time-slot-label">16h</div>
-            <div class="time-slot-label">17h</div>
+        <!-- week grid (populated by loadAgenda) -->
+        <div id="agenda-week-grid" class="week-grid">
+          <div class="time-col" id="agenda-time-col">
+            <!-- populated by JS -->
           </div>
-
-          <div class="days-grid">
-            <div class="day-col">
-              <div class="day-header"><div class="day-name">Seg</div><div class="day-num">28</div></div>
-              <div class="day-slots">
-                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
-                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
-                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
-                <div class="cal-event done" style="top:10px;height:84px;">
-                  <div class="ev-name">Bruna Alves</div>
-                  <div class="ev-svc">Manicure + Gel</div>
-                </div>
-                <div class="cal-event confirmed" style="top:218px;height:52px;">
-                  <div class="ev-name">Luciana P.</div>
-                  <div class="ev-svc">Sobrancelha</div>
-                </div>
-              </div>
-            </div>
-            <div class="day-col">
-              <div class="day-header"><div class="day-name">Ter</div><div class="day-num">29</div></div>
-              <div class="day-slots">
-                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
-                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
-                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
-                <div class="cal-event done" style="top:62px;height:52px;">
-                  <div class="ev-name">Talita M.</div>
-                  <div class="ev-svc">Pedicure</div>
-                </div>
-                <div class="cal-event done" style="top:166px;height:52px;">
-                  <div class="ev-name">Simone R.</div>
-                  <div class="ev-svc">Sobrancelha</div>
-                </div>
-                <div class="cal-event done" style="top:374px;height:84px;">
-                  <div class="ev-name">Vanessa K.</div>
-                  <div class="ev-svc">Alongamento</div>
-                </div>
-              </div>
-            </div>
-            <div class="day-col">
-              <div class="day-header"><div class="day-name">Qua</div><div class="day-num">30</div></div>
-              <div class="day-slots">
-                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
-                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
-                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
-                <div class="cal-event done" style="top:10px;height:52px;">
-                  <div class="ev-name">Cris Moura</div>
-                  <div class="ev-svc">Manicure</div>
-                </div>
-                <div class="cal-event done" style="top:114px;height:84px;">
-                  <div class="ev-name">Débora F.</div>
-                  <div class="ev-svc">Unhas em Gel</div>
-                </div>
-                <div class="cal-event done" style="top:270px;height:52px;">
-                  <div class="ev-name">Helena S.</div>
-                  <div class="ev-svc">Sobrancelha</div>
-                </div>
-              </div>
-            </div>
-            <div class="day-col">
-              <div class="day-header"><div class="day-name">Qui</div><div class="day-num today">1</div></div>
-              <div class="day-slots">
-                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
-                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
-                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
-                <div class="cal-event done" style="top:10px;height:84px;">
-                  <div class="ev-name">Ana Paula S.</div>
-                  <div class="ev-svc">Manicure + Ped.</div>
-                </div>
-                <div class="cal-event done" style="top:114px;height:52px;">
-                  <div class="ev-name">Carla M.</div>
-                  <div class="ev-svc">Sobrancelha</div>
-                </div>
-                <div class="cal-event confirmed" style="top:166px;height:52px;">
-                  <div class="ev-name">Fernanda C.</div>
-                  <div class="ev-svc">Gel</div>
-                </div>
-                <div class="cal-event pending" style="top:270px;height:52px;">
-                  <div class="ev-name">Juliana R.</div>
-                  <div class="ev-svc">Sob.+Manicure</div>
-                </div>
-                <div class="cal-event pending" style="top:374px;height:52px;">
-                  <div class="ev-name">Mariana T.</div>
-                  <div class="ev-svc">Blindagem</div>
-                </div>
-              </div>
-            </div>
-            <div class="day-col">
-              <div class="day-header"><div class="day-name">Sex</div><div class="day-num">2</div></div>
-              <div class="day-slots">
-                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
-                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
-                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
-                <div class="cal-event confirmed" style="top:10px;height:52px;">
-                  <div class="ev-name">Raquel A.</div>
-                  <div class="ev-svc">Manicure</div>
-                </div>
-                <div class="cal-event confirmed" style="top:114px;height:52px;">
-                  <div class="ev-name">Aline C.</div>
-                  <div class="ev-svc">Pedicure</div>
-                </div>
-                <div class="cal-event confirmed" style="top:270px;height:84px;">
-                  <div class="ev-name">Beatriz N.</div>
-                  <div class="ev-svc">Alongamento</div>
-                </div>
-              </div>
-            </div>
-            <div class="day-col">
-              <div class="day-header"><div class="day-name">Sáb</div><div class="day-num">3</div></div>
-              <div class="day-slots">
-                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
-                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
-                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
-                <div class="cal-event confirmed" style="top:10px;height:52px;">
-                  <div class="ev-name">Sandra B.</div>
-                  <div class="ev-svc">Manicure + Ped.</div>
-                </div>
-                <div class="cal-event confirmed" style="top:166px;height:52px;">
-                  <div class="ev-name">Lúcia F.</div>
-                  <div class="ev-svc">Gel</div>
-                </div>
-                <div class="cal-event confirmed" style="top:322px;height:52px;">
-                  <div class="ev-name">Priscila M.</div>
-                  <div class="ev-svc">Sobrancelha</div>
-                </div>
-              </div>
-            </div>
-            <div class="day-col">
-              <div class="day-header"><div class="day-name">Dom</div><div class="day-num">4</div></div>
-              <div class="day-slots">
-                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
-                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
-                <div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div><div class="hour-line"></div>
-                <div class="folga-overlay"></div>
-                <div class="folga-label">Folga</div>
-              </div>
-            </div>
+          <div class="days-grid" id="agenda-days-grid">
+            <!-- populated by JS -->
           </div>
         </div>
+
+        <!-- day / month / year views (hidden by default) -->
+        <div id="agenda-day-view" class="agenda-alt-view" style="display:none;"></div>
+        <div id="agenda-month-view" class="agenda-alt-view" style="display:none;"></div>
+        <div id="agenda-year-view" class="agenda-alt-view" style="display:none;"></div>
 
         <div class="agenda-legend">
           <div class="legend-item">
@@ -537,7 +400,7 @@
           <div class="legend-item">
             <div class="legend-swatch" style="background:var(--warning-bg);border:1px solid var(--warning);"></div>Pendente
           </div>
-          <div class="agenda-summary">22 atendimentos esta semana</div>
+          <div class="agenda-summary" id="agenda-summary">22 atendimentos esta semana</div>
         </div>
       </section>
 
@@ -1458,6 +1321,8 @@
   animation: toast-in .3s ease, toast-out .3s ease 4.7s forwards;
   text-align: center; max-width: 420px;
 }
+.toast.toast-success { background: #2e7d32; }
+.toast.toast-info { background: #1565c0; }
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(-16px) scale(.95); }
   to { opacity: 1; transform: translateY(0) scale(1); }

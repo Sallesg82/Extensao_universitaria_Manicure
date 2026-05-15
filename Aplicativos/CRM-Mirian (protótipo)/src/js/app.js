@@ -526,91 +526,10 @@ async function updateMetaPreview(meta) {
   } catch (e) {}
 }
 
-let apptsWeekCache = []
-
 async function loadAgenda() {
-  const today = new Date()
-  const monday = new Date(today)
-  monday.setDate(today.getDate() - (today.getDay() === 0 ? 6 : today.getDay() - 1))
-  const sunday = new Date(monday)
-  sunday.setDate(monday.getDate() + 6)
-  const fmt = d => d.toISOString().split('T')[0]
-  const formatBR = d => d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '')
-
-  pageConfig.agenda.sub = formatBR(monday) + ' – ' + formatBR(sunday) + ' ' + sunday.getFullYear()
-  document.getElementById('page-sub').textContent = pageConfig.agenda.sub
-
-  try {
-    const mondayStr = fmt(monday)
-    const sundayStr = fmt(sunday)
-    const res = await fetch(API + '/appointments/?date_from=' + mondayStr + '&date_to=' + sundayStr)
-    const appts = await res.json()
-    apptsWeekCache = appts
-
-    if (!servicesCache.length) await loadServices()
-
-    const scheduleEl = document.querySelector('.agenda-toolbar .agenda-period')
-    if (scheduleEl) scheduleEl.textContent = pageConfig.agenda.sub
-
-    const dayCols = document.querySelectorAll('.day-col')
-    for (let i = 0; i < 7 && i < dayCols.length; i++) {
-      const day = new Date(monday)
-      day.setDate(monday.getDate() + i)
-      const slots = dayCols[i]?.querySelector('.day-slots')
-      if (!slots) continue
-
-      if (day.getDay() === 0) {
-        slots.querySelectorAll('.cal-event, .folga-overlay, .folga-label').forEach(el => el.remove())
-        if (!slots.querySelector('.folga-overlay')) {
-          slots.insertAdjacentHTML('beforeend', '<div class="folga-overlay"></div><div class="folga-label">Folga</div>')
-        }
-        continue
-      }
-
-      slots.querySelectorAll('.cal-event').forEach(el => el.remove())
-
-      const dayAppts = appts.filter(a => a.appointment_date === fmt(day))
-      const statusClassMap = { done: 'done', confirmed: 'confirmed', pending: 'pending', cancelled: 'cancelled' }
-
-      dayAppts.forEach(a => {
-        const timeParts = a.appointment_time.split(':')
-        const hour = parseInt(timeParts[0])
-        const min = parseInt(timeParts[1])
-        const topPx = (hour - 8) * 52 + (min / 60) * 52
-        const heightPx = Math.max(52, (a.duration / 60) * 52)
-
-        const calEl = document.createElement('div')
-        calEl.className = 'cal-event ' + (statusClassMap[a.status] || 'pending')
-        calEl.style.cssText = `top:${topPx}px;height:${heightPx}px;cursor:pointer;`
-        calEl.dataset.apptId = a.id
-        calEl.addEventListener('click', e => {
-          e.stopPropagation()
-          openAppointmentDetail(a.id)
-        })
-        calEl.innerHTML = `<div class="ev-name">${a.client_name}</div><div class="ev-svc">${a.service}</div>`
-        slots.insertAdjacentElement('beforeend', calEl)
-      })
-
-      const hourLines = slots.querySelectorAll('.hour-line')
-      hourLines.forEach((hl, hi) => {
-        hl.style.cursor = 'pointer'
-        hl.addEventListener('click', () => {
-          const hour = hi + 8
-          openAppointmentModal(fmt(day), String(hour).padStart(2, '0') + ':00')
-        })
-      })
-    }
-
-    const summary = document.querySelector('.agenda-summary')
-    if (summary) {
-      summary.textContent = appts.filter(a => {
-        const d = new Date(a.appointment_date)
-        return d >= monday && d <= sunday
-      }).length + ' atendimentos esta semana'
-    }
-  } catch (e) {
-    console.error('Erro ao carregar agenda:', e)
-  }
+  agendaDate = new Date()
+  agendaView = 'week'
+  showAgendaView()
 }
 
 // ── MODAL AGENDAMENTO (criar/editar) ──────────────
@@ -1046,12 +965,300 @@ document.querySelectorAll('.period-btn').forEach(t => {
   })
 })
 
-document.querySelectorAll('.view-tab').forEach(t => {
-  t.addEventListener('click', () => {
-    document.querySelectorAll('.view-tab').forEach(x => x.classList.remove('active'))
-    t.classList.add('active')
+// ── AGENDA VIEW STATE ─────────────────────────────
+
+const _dayNames = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado']
+const _dayShort = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
+const _monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
+
+let agendaView = 'week'
+let agendaDate = new Date()
+
+function setAgendaView(view, el) {
+  agendaView = view
+  document.querySelectorAll('#agenda-view-tabs .view-tab').forEach(x => x.classList.remove('active'))
+  if (el) el.classList.add('active')
+  showAgendaView()
+}
+
+function agendaNavPrev() {
+  switch (agendaView) {
+    case 'day': agendaDate.setDate(agendaDate.getDate() - 1); break
+    case 'week': agendaDate.setDate(agendaDate.getDate() - 7); break
+    case 'month': agendaDate.setMonth(agendaDate.getMonth() - 1); break
+    case 'year': agendaDate.setFullYear(agendaDate.getFullYear() - 1); break
+  }
+  showAgendaView()
+}
+
+function agendaNavNext() {
+  switch (agendaView) {
+    case 'day': agendaDate.setDate(agendaDate.getDate() + 1); break
+    case 'week': agendaDate.setDate(agendaDate.getDate() + 7); break
+    case 'month': agendaDate.setMonth(agendaDate.getMonth() + 1); break
+    case 'year': agendaDate.setFullYear(agendaDate.getFullYear() + 1); break
+  }
+  showAgendaView()
+}
+
+function agendaNavToday() {
+  agendaDate = new Date()
+  showAgendaView()
+}
+
+function _fmt(d) { return d.toISOString().split('T')[0] }
+
+function _fmtBR(d) {
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '')
+}
+
+function showAgendaView() {
+  document.getElementById('agenda-week-grid').style.display = 'none'
+  document.getElementById('agenda-day-view').style.display = 'none'
+  document.getElementById('agenda-month-view').style.display = 'none'
+  document.getElementById('agenda-year-view').style.display = 'none'
+
+  switch (agendaView) {
+    case 'day': renderDayView(); break
+    case 'week': populateWeekGrid(7); break
+    case 'month': renderMonthView(); break
+    case 'year': renderYearView(); break
+  }
+}
+
+// ── POPULATE WEEK GRID ────────────────────────────
+
+// ── RENDER DAY VIEW (horizontal list) ─────────────
+
+async function renderDayView() {
+  const dayStr = _fmt(agendaDate)
+  updateSub(_dayNames[agendaDate.getDay()] + ', ' + agendaDate.getDate() + ' de ' + _monthNames[agendaDate.getMonth()] + ' de ' + agendaDate.getFullYear())
+
+  const appts = await fetchAppts(dayStr, dayStr)
+
+  const sc = { done: 'done', confirmed: 'confirmed', pending: 'pending', cancelled: 'cancelled' }
+  const statusLabels = { done: 'Concluído', confirmed: 'Confirmado', pending: 'Pendente', cancelled: 'Cancelado' }
+  const statusColors = { done: '#4e8f6a', confirmed: '#4a90d9', pending: '#c9894a', cancelled: '#c05050' }
+
+  let html = '<div class="day-view-panel">'
+  if (agendaDate.getDay() === 0) {
+    html += '<div class="day-view-empty"><div class="day-view-off">Folga</div><div class="day-view-off-sub">Você não atende aos domingos</div></div>'
+  } else if (appts.length === 0) {
+    html += '<div class="day-view-empty">Nenhum agendamento neste dia</div>'
+  } else {
+    appts.sort((a, b) => a.appointment_time.localeCompare(b.appointment_time))
+    appts.forEach(a => {
+      const cls = sc[a.status] || 'pending'
+      const color = statusColors[a.status] || '#999'
+      html += '<div class="day-view-card" onclick="openAppointmentDetail(' + a.id + ')">'
+      html += '<div class="dvc-time">' + a.appointment_time + '</div>'
+      html += '<div class="dvc-dot" style="background:' + color + '"></div>'
+      html += '<div class="dvc-body">'
+      html += '<div class="dvc-name">' + a.client_name + '</div>'
+      html += '<div class="dvc-service">' + a.service + '</div>'
+      html += '</div>'
+      html += '<div class="dvc-price">R$ ' + Number(a.price).toFixed(2) + '</div>'
+      html += '<span class="appt-status status-' + cls + '">' + (statusLabels[a.status] || a.status) + '</span>'
+      html += '</div>'
+    })
+  }
+  html += '</div>'
+
+  document.getElementById('agenda-day-view').innerHTML = html
+  document.getElementById('agenda-day-view').style.display = ''
+  document.getElementById('agenda-summary').textContent = appts.length + ' atendimento' + (appts.length !== 1 ? 's' : '') + ' neste dia'
+}
+
+async function populateWeekGrid(numDays) {
+  const monday = new Date(agendaDate)
+  if (numDays === 7) {
+    monday.setDate(agendaDate.getDate() - (agendaDate.getDay() === 0 ? 6 : agendaDate.getDay() - 1))
+  }
+  const sunday = new Date(monday)
+  sunday.setDate(monday.getDate() + numDays - 1)
+
+  const isDayView = numDays === 1
+  if (isDayView) {
+    updateSub(_dayNames[agendaDate.getDay()] + ', ' + agendaDate.getDate() + ' de ' + _monthNames[agendaDate.getMonth()] + ' de ' + agendaDate.getFullYear())
+  } else {
+    updateSub(_fmtBR(monday) + ' – ' + _fmtBR(sunday) + ' ' + sunday.getFullYear())
+  }
+
+  const weekGrid = document.getElementById('agenda-week-grid')
+  weekGrid.classList.toggle('day-view', isDayView)
+
+  const appts = await fetchAppts(_fmt(monday), _fmt(sunday))
+  if (!servicesCache.length) await loadServices()
+  const todayStr = _fmt(new Date())
+
+  const hourStep = isDayView ? 30 : 60
+  const slotHeight = isDayView ? 26 : 52
+
+  let timeHtml = '<div class="time-col-header"></div>'
+  for (let t = 8 * 60; t <= 17 * 60; t += hourStep) {
+    const hh = Math.floor(t / 60)
+    const mm = t % 60
+    const label = mm === 0 ? hh + 'h' : hh + ':' + String(mm).padStart(2, '0')
+    timeHtml += '<div class="time-slot-label" style="height:' + slotHeight + 'px;">' + label + '</div>'
+  }
+  document.getElementById('agenda-time-col').innerHTML = timeHtml
+
+  let dayHtml = ''
+  for (let i = 0; i < numDays; i++) {
+    const day = new Date(monday)
+    day.setDate(monday.getDate() + i)
+    if (isDayView && i === 0) { const d2 = new Date(agendaDate); d2.setHours(12); day.setTime(d2.getTime()) }
+    const dayStr = _fmt(day)
+    const isToday = dayStr === todayStr
+    const dow = day.getDay()
+
+    dayHtml += '<div class="day-col" style="' + (isDayView ? 'flex:1;' : '') + '">'
+    dayHtml += '<div class="day-header"><div class="day-name">' + _dayShort[dow] + '</div><div class="day-num' + (isToday ? ' today' : '') + '">' + day.getDate() + '</div></div>'
+    dayHtml += '<div class="day-slots">'
+    for (let t = 8 * 60; t <= 17 * 60; t += hourStep) {
+      const hh = Math.floor(t / 60)
+      dayHtml += '<div class="hour-line" style="height:' + slotHeight + 'px;" data-date="' + dayStr + '" data-hour="' + hh + '"></div>'
+    }
+
+    if (dow === 0) {
+      dayHtml += '<div class="folga-overlay"></div><div class="folga-label">Folga</div>'
+    } else {
+      const dayAppts = appts.filter(a => a.appointment_date === dayStr)
+      const sc = { done: 'done', confirmed: 'confirmed', pending: 'pending', cancelled: 'cancelled' }
+      dayAppts.forEach(a => {
+        const [h, m] = a.appointment_time.split(':').map(Number)
+        const top = (h - 8) * 52 + (m / 60) * 52
+        const height = Math.max(slotHeight, (a.duration / 60) * 52)
+        dayHtml += '<div class="cal-event ' + (sc[a.status] || 'pending') + '" style="top:' + top + 'px;height:' + height + 'px;cursor:pointer;" data-id="' + a.id + '">'
+        dayHtml += '<div class="ev-name">' + a.client_name + '</div><div class="ev-svc">' + a.service + '</div></div>'
+      })
+    }
+    dayHtml += '</div></div>'
+  }
+
+  const grid = document.getElementById('agenda-days-grid')
+  grid.innerHTML = dayHtml
+  grid.style.gridTemplateColumns = isDayView ? '1fr' : 'repeat(7, 1fr)'
+  weekGrid.style.display = ''
+  document.getElementById('agenda-summary').textContent = appts.length + ' atendimento' + (appts.length !== 1 ? 's' : '')
+
+  document.querySelectorAll('#agenda-days-grid .cal-event').forEach(el => {
+    el.addEventListener('click', function(e) { e.stopPropagation(); openAppointmentDetail(+this.dataset.id) })
   })
-})
+  document.querySelectorAll('#agenda-days-grid .hour-line').forEach(el => {
+    el.style.cursor = 'pointer'
+    el.addEventListener('click', function() { openAppointmentModal(this.dataset.date, String(+this.dataset.hour).padStart(2,'0')+':00') })
+  })
+}
+
+async function fetchAppts(from, to) {
+  try {
+    const r = await fetch(API + '/appointments/?date_from=' + from + '&date_to=' + to)
+    return await r.json()
+  } catch (e) { return [] }
+}
+
+function updateSub(label) {
+  document.getElementById('agenda-period').textContent = label
+  document.getElementById('page-sub').textContent = label
+  pageConfig.agenda.sub = label
+}
+
+// ── RENDER MONTH VIEW ─────────────────────────────
+
+async function renderMonthView() {
+  const year = agendaDate.getFullYear()
+  const month = agendaDate.getMonth()
+  updateSub(_monthNames[month] + ' ' + year)
+
+  const firstDay = new Date(year, month, 1)
+  const lastDay = new Date(year, month + 1, 0)
+  const daysInMonth = lastDay.getDate()
+  const startOffset = firstDay.getDay()
+  const todayStr = _fmt(new Date())
+  const appts = await fetchAppts(_fmt(firstDay), _fmt(lastDay))
+
+  const byDay = {}
+  appts.forEach(a => { byDay[a.appointment_date] = (byDay[a.appointment_date] || 0) + 1 })
+
+  let html = '<div class="month-grid"><div class="month-grid-header">'
+  _dayShort.forEach(d => { html += '<div class="month-grid-header-cell">' + d + '</div>' })
+  html += '</div><div class="month-grid-body">'
+  for (let i = 0; i < startOffset; i++) html += '<div class="month-grid-cell empty"></div>'
+  for (let d = 1; d <= daysInMonth; d++) {
+    const ds = _fmt(new Date(year, month, d))
+    const isToday = ds === todayStr
+    const cnt = byDay[ds] || 0
+    html += '<div class="month-grid-cell' + (isToday ? ' today' : '') + '" data-date="' + ds + '">'
+    html += '<div class="month-grid-day">' + d + '</div>'
+    if (cnt) html += '<div class="month-grid-count">' + cnt + ' agend.</div>'
+    html += '</div>'
+  }
+  html += '</div></div>'
+
+  document.getElementById('agenda-month-view').innerHTML = html
+  document.getElementById('agenda-month-view').style.display = ''
+
+  document.querySelectorAll('#agenda-month-view .month-grid-cell:not(.empty)').forEach(el => {
+    el.style.cursor = 'pointer'
+    el.addEventListener('click', function() {
+      agendaDate = new Date(this.dataset.date + 'T12:00:00')
+      agendaView = 'day'
+      document.querySelectorAll('#agenda-view-tabs .view-tab').forEach(x => x.classList.remove('active'))
+      document.querySelector('#agenda-view-tabs .view-tab:first-child').classList.add('active')
+      showAgendaView()
+    })
+  })
+
+  document.getElementById('agenda-summary').textContent = appts.length + ' atendimento' + (appts.length !== 1 ? 's' : '') + ' no mês'
+}
+
+// ── RENDER YEAR VIEW ──────────────────────────────
+
+async function renderYearView() {
+  const year = agendaDate.getFullYear()
+  updateSub('' + year)
+
+  const panels = []
+  for (let m = 0; m < 12; m++) {
+    const first = new Date(year, m, 1)
+    const last = new Date(year, m + 1, 0)
+    const appts = await fetchAppts(_fmt(first), _fmt(last))
+    const total = appts.reduce((s, a) => s + a.price, 0)
+    const startOff = first.getDay()
+
+    let cellHtml = ''
+    for (let i = 0; i < startOff; i++) cellHtml += '<div class="year-month-cell empty"></div>'
+    for (let d = 1; d <= last.getDate(); d++) cellHtml += '<div class="year-month-cell">' + d + '</div>'
+
+    panels.push({
+      month: m,
+      html: '<div class="year-month-panel" data-month="' + m + '">'
+        + '<div class="year-month-name">' + _monthNames[m] + '</div>'
+        + '<div class="year-month-grid">'
+        + _dayShort.map(d => '<div class="year-month-header-cell">' + d + '</div>').join('')
+        + cellHtml + '</div>'
+        + '<div class="year-month-summary">' + appts.length + ' atend. · R$ ' + total.toFixed(0) + '</div>'
+        + '</div>'
+    })
+  }
+
+  document.getElementById('agenda-year-view').innerHTML = '<div class="year-grid">' + panels.map(p => p.html).join('') + '</div>'
+  document.getElementById('agenda-year-view').style.display = ''
+
+  document.querySelectorAll('#agenda-year-view .year-month-panel').forEach(el => {
+    el.style.cursor = 'pointer'
+    el.addEventListener('click', function() {
+      agendaDate = new Date(year, +this.dataset.month, 1)
+      agendaView = 'month'
+      document.querySelectorAll('#agenda-view-tabs .view-tab').forEach(x => x.classList.remove('active'))
+      document.querySelectorAll('#agenda-view-tabs .view-tab')[2].classList.add('active')
+      showAgendaView()
+    })
+  })
+
+  document.getElementById('agenda-summary').textContent = '' + year
+}
 
 // Botão "+ Nova Cliente" no toolbar
 document.querySelector('.clients-toolbar .btn-primary')?.addEventListener('click', openClientModal)

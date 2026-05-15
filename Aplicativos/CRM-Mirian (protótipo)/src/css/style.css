@@ -4359,3 +4359,208 @@ body {
     padding: 4px 8px;
   }
 }
+
+/* ═══════════════ MONTH GRID ═══════════════ */
+.month-grid {
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.month-grid-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  background: var(--primary-50);
+  border-bottom: 1px solid var(--border);
+}
+.month-grid-header-cell {
+  padding: 10px 6px;
+  text-align: center;
+  font-size: var(--text-12);
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.month-grid-body {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+.month-grid-cell {
+  min-height: 80px;
+  border-right: 1px solid var(--border-lighter);
+  border-bottom: 1px solid var(--border-lighter);
+  padding: 6px 8px;
+  transition: background var(--transition-fast);
+}
+.month-grid-cell:hover {
+  background: var(--primary-50);
+}
+.month-grid-cell.empty {
+  background: var(--primary-50);
+}
+.month-grid-cell.today {
+  background: var(--info-bg);
+  border-color: var(--primary-300);
+}
+.month-grid-day {
+  font-size: var(--text-14);
+  font-weight: 600;
+  color: var(--text-dark);
+  margin-bottom: 4px;
+}
+.month-grid-cell.today .month-grid-day {
+  color: var(--info);
+}
+.month-grid-count {
+  font-size: var(--text-11);
+  color: var(--text-muted);
+  background: var(--primary-100);
+  padding: 2px 6px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+/* ═══════════════ YEAR GRID ═══════════════ */
+.year-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+.year-month-panel {
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+}
+.year-month-panel:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-300);
+  transform: translateY(-2px);
+}
+.year-month-name {
+  font-family: var(--font-serif);
+  font-size: var(--text-16);
+  color: var(--text-dark);
+  margin-bottom: 10px;
+  text-align: center;
+}
+.year-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+.year-month-header-cell {
+  font-size: var(--text-10);
+  color: var(--text-faint);
+  text-align: center;
+  padding: 2px 0;
+  font-weight: 500;
+}
+.year-month-cell {
+  font-size: var(--text-10);
+  color: var(--text-medium);
+  text-align: center;
+  padding: 3px 0;
+  border-radius: 3px;
+}
+.year-month-cell.empty {
+  visibility: hidden;
+}
+.year-month-summary {
+  font-size: var(--text-11);
+  color: var(--text-muted);
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-lighter);
+  text-align: center;
+}
+
+[data-color-scheme="dark"] .month-grid { background: var(--bg-white); }
+[data-color-scheme="dark"] .month-grid-header { background: var(--dark-bg-raised); }
+[data-color-scheme="dark"] .month-grid-cell:hover { background: var(--dark-hover-bg); }
+[data-color-scheme="dark"] .month-grid-cell.empty { background: var(--dark-bg-screen); }
+[data-color-scheme="dark"] .month-grid-cell.today { background: var(--dark-info-bg); }
+[data-color-scheme="dark"] .month-grid-count { background: var(--dark-bg-raised); }
+[data-color-scheme="dark"] .year-month-panel { background: var(--bg-white); }
+[data-color-scheme="dark"] .year-month-panel:hover { border-color: var(--primary-400); }
+
+/* ═══════════════ DAY VIEW (horizontal list) ═══════════════ */
+.day-view-panel {
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.day-view-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border-lighter);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+.day-view-card:hover {
+  background: var(--primary-50);
+}
+.day-view-card:last-child {
+  border-bottom: none;
+}
+.dvc-time {
+  font-size: var(--text-15);
+  font-weight: 600;
+  color: var(--text-dark);
+  width: 52px;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+.dvc-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dvc-body {
+  flex: 1;
+  min-width: 0;
+}
+.dvc-name {
+  font-size: var(--text-15);
+  font-weight: 500;
+  color: var(--text-dark);
+}
+.dvc-service {
+  font-size: var(--text-13);
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+.dvc-price {
+  font-size: var(--text-15);
+  font-weight: 600;
+  color: var(--text-dark);
+  white-space: nowrap;
+}
+.day-view-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: var(--text-15);
+}
+.day-view-off {
+  font-size: var(--text-19);
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.day-view-off-sub {
+  font-size: var(--text-13);
+  color: var(--text-faint);
+}
+
+[data-color-scheme="dark"] .day-view-card:hover { background: var(--dark-hover-bg); }
+[data-color-scheme="dark"] .day-view-panel { background: var(--bg-white); }

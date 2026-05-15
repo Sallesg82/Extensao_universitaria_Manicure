@@ -1,5 +1,5 @@
 import os
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify, send_from_directory, request
 from flask_cors import CORS
 from db.database import get_db
 from routes.clients import clients_bp
@@ -14,6 +14,24 @@ CORS(app)
 app.register_blueprint(clients_bp, url_prefix='/api/clients')
 app.register_blueprint(appointments_bp, url_prefix='/api/appointments')
 app.register_blueprint(services_bp, url_prefix='/api/services')
+
+
+@app.route('/api/settings/', methods=['GET', 'PUT'])
+def handle_settings():
+    conn = get_db()
+    if request.method == 'PUT':
+        data = request.get_json()
+        for key, value in data.items():
+            conn.execute(
+                "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                (key, str(value))
+            )
+        conn.commit()
+    rows = conn.execute("SELECT key, value FROM settings").fetchall()
+    result = {r['key']: r['value'] for r in rows}
+    if 'meta_mensal' in result:
+        result['meta_mensal'] = float(result['meta_mensal'])
+    return jsonify(result)
 
 
 @app.route('/')
@@ -87,7 +105,8 @@ def stats():
         SELECT COALESCE(SUM(price), 0) as total FROM appointments WHERE status != 'cancelled'
     """).fetchone()['total']
 
-    meta_mensal = 7000
+    row = conn.execute("SELECT value FROM settings WHERE key = 'meta_mensal'").fetchone()
+    meta_mensal = float(row['value']) if row else 7000
     meta_pct = round((month_revenue / meta_mensal) * 100, 1) if meta_mensal > 0 else 0
 
     top_clients = conn.execute("""
@@ -253,4 +272,4 @@ def server_error(e):
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=3001, debug=False)
+    app.run(host='0.0.0.0', port=3001, debug=True)
