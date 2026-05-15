@@ -137,25 +137,27 @@ function ExecutarSQL($path) {
   $sqliteOk = Get-Command sqlite3 -ErrorAction SilentlyContinue
   if ($sqliteOk) {
     & (Get-Command sqlite3).Source $path ".read '$sqlScript'" 2>$null
-    return
+    if ($LASTEXITCODE -eq 0) { return }
   }
 
   try {
-    $r = python -c @"
+    python -c @"
 import sqlite3, os
-os.makedirs(os.path.dirname('$path'), exist_ok=True)
-conn = sqlite3.connect('$path')
-with open('$sqlScript', encoding='utf-8') as f:
+p = r'$path'
+s = r'$sqlScript'
+os.makedirs(os.path.dirname(p), exist_ok=True)
+conn = sqlite3.connect(p)
+with open(s, encoding='utf-8') as f:
     conn.executescript(f.read())
 conn.commit()
 conn.close()
-print('OK')
-"@ 2>&1
-    if ($r -eq "OK") { return }
+"@ 2>$null
+    if ($LASTEXITCODE -eq 0) { return }
   } catch {}
 
   Erro "Nao foi possivel criar o banco de dados."
-  Erro "Instale sqlite3 ou Python e tente novamente."
+  Erro "Verifique se Python esta instalado e funcionando."
+  Erro "Tente executar: python --version"
   exit 1
 }
 
