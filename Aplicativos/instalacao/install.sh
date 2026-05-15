@@ -299,6 +299,14 @@ modo_docker() {
   # Remove containers antigos para aplicar nova config
   $SUDO docker compose down 2>/dev/null || true
 
+  # Mata processos nativos nas mesmas portas (3001 e 5173)
+  echo ""
+  echo "  Verificando portas conflitantes..."
+  pkill -f "backend/server.py" 2>/dev/null || true
+  pkill -f "npm run dev" 2>/dev/null || true
+  pkill -f "vite" 2>/dev/null || true
+  sleep 1
+
   local UP=""
   if [ "$1" = "crm" ] || [ "$1" = "ambos" ]; then
     echo ""
@@ -315,7 +323,10 @@ modo_docker() {
 
   echo ""
   echo "  Iniciando containers: $UP"
-  $SUDO docker compose up -d $UP
+  $SUDO docker compose up -d $UP || {
+    echo "  ⚠ Falha ao subir containers. Portas 3001/5173 podem estar ocupadas."
+    echo "  Execute: lsof -i :3001 -i :5173"
+  }
   echo "  ✓ Containers rodando"
 }
 
@@ -427,9 +438,16 @@ atualizar_docker() {
   echo ""
   echo "── Atualizando Docker ──"
   if command -v docker >/dev/null 2>&1; then
+    $SUDO docker compose down 2>/dev/null || true
+    pkill -f "backend/server.py" 2>/dev/null || true
+    pkill -f "npm run dev" 2>/dev/null || true
+    pkill -f "vite" 2>/dev/null || true
+    sleep 1
     $SUDO docker compose pull 2>/dev/null || true
     $SUDO docker compose build --no-cache 2>/dev/null || true
-    $SUDO docker compose up -d
+    $SUDO docker compose up -d || {
+      echo "  ⚠ Falha ao subir containers. Portas 3001/5173 podem estar ocupadas."
+    }
     echo "  ✓ Containers atualizados e reiniciados"
   else
     echo "  ⚠ Docker não disponível"

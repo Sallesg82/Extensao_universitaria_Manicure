@@ -26,6 +26,9 @@ iniciar_crm() {
     echo "  CRM não instalado. Execute install.sh"
     exit 1
   fi
+  echo "  Parando instância anterior do CRM..."
+  pkill -f "backend/server.py" 2>/dev/null || true
+  sleep 1
   echo "  Iniciando CRM (http://localhost:3001)..."
   export BEAUTYFLOW_DB_PATH="$DB_PATH"
   export BEAUTYFLOW_NO_SEED="true"
@@ -41,6 +44,10 @@ iniciar_agenda() {
     echo "  Agendamento não instalado. Execute install.sh"
     exit 1
   fi
+  echo "  Parando instância anterior do Agendamento..."
+  pkill -f "npm run dev" 2>/dev/null || true
+  pkill -f "vite" 2>/dev/null || true
+  sleep 1
   echo "  Iniciando Agendamento (http://localhost:5173)..."
   rm -f /tmp/beautyflow_agenda.log
   cd "$APP_DIR"
