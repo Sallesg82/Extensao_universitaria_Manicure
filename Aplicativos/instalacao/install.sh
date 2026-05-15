@@ -53,6 +53,20 @@ MODE="${1:-menu}"
 # ══════════════════════════════════════════
 #  FUNÇÕES
 # ══════════════════════════════════════════
+#  FUNÇÕES AUXILIARES
+# ══════════════════════════════════════════
+
+kill_port() {
+  local port=$1
+  if command -v fuser >/dev/null 2>&1; then
+    fuser -k "${port}/tcp" 2>/dev/null || true
+  elif command -v lsof >/dev/null 2>&1; then
+    local pids
+    pids=$(lsof -t -i :"$port" 2>/dev/null) || true
+    [ -n "$pids" ] && kill $pids 2>/dev/null || true
+  fi
+  sleep 0.5
+}
 
 instalar_dependencias_base() {
   echo ""
@@ -302,9 +316,8 @@ modo_docker() {
   # Mata processos nativos nas mesmas portas (3001 e 5173)
   echo ""
   echo "  Verificando portas conflitantes..."
-  pkill -f "backend/server.py" 2>/dev/null || true
-  pkill -f "npm run dev" 2>/dev/null || true
-  pkill -f "vite" 2>/dev/null || true
+  kill_port 3001
+  kill_port 5173
   sleep 1
 
   local UP=""
@@ -439,10 +452,8 @@ atualizar_docker() {
   echo "── Atualizando Docker ──"
   if command -v docker >/dev/null 2>&1; then
     $SUDO docker compose down 2>/dev/null || true
-    pkill -f "backend/server.py" 2>/dev/null || true
-    pkill -f "npm run dev" 2>/dev/null || true
-    pkill -f "vite" 2>/dev/null || true
-    sleep 1
+    kill_port 3001
+    kill_port 5173
     $SUDO docker compose pull 2>/dev/null || true
     $SUDO docker compose build --no-cache 2>/dev/null || true
     $SUDO docker compose up -d || {
@@ -524,20 +535,18 @@ gestor_atualizacao() {
 
       case "$target" in
         nativo-crm)
-          pkill -f "backend/server.py" 2>/dev/null || true
+          kill_port 3001
           rm -rf "$VENV_DIR"
           echo "  ✓ CRM desinstalado (processo encerrado, venv removido)"
           ;;
         nativo-agenda)
-          pkill -f "npm run dev" 2>/dev/null || true
-          pkill -f "vite" 2>/dev/null || true
+          kill_port 5173
           rm -rf "$APP_DIR/node_modules"
           echo "  ✓ Agendamento desinstalado (processo encerrado, node_modules removido)"
           ;;
         nativo-ambos)
-          pkill -f "backend/server.py" 2>/dev/null || true
-          pkill -f "npm run dev" 2>/dev/null || true
-          pkill -f "vite" 2>/dev/null || true
+          kill_port 3001
+          kill_port 5173
           rm -rf "$VENV_DIR" "$APP_DIR/node_modules"
           echo "  ✓ CRM e Agendamento desinstalados (processos encerrados)"
           ;;

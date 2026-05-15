@@ -9,6 +9,18 @@ APP_DIR="$BASE/agendamento Vinicius"
 
 MODO="${1:-ambos}"
 
+kill_port() {
+  local port=$1
+  if command -v fuser >/dev/null 2>&1; then
+    fuser -k "${port}/tcp" 2>/dev/null || true
+  elif command -v lsof >/dev/null 2>&1; then
+    local pids
+    pids=$(lsof -t -i :"$port" 2>/dev/null) || true
+    [ -n "$pids" ] && kill $pids 2>/dev/null || true
+  fi
+  sleep 0.5
+}
+
 echo "╔══════════════════════════════════════════════╗"
 echo "║        BeautyFlow — Iniciar                  ║"
 echo "╚══════════════════════════════════════════════╝"
@@ -27,8 +39,7 @@ iniciar_crm() {
     exit 1
   fi
   echo "  Parando instância anterior do CRM..."
-  pkill -f "backend/server.py" 2>/dev/null || true
-  sleep 1
+  kill_port 3001
   echo "  Iniciando CRM (http://localhost:3001)..."
   export BEAUTYFLOW_DB_PATH="$DB_PATH"
   export BEAUTYFLOW_NO_SEED="true"
@@ -45,9 +56,7 @@ iniciar_agenda() {
     exit 1
   fi
   echo "  Parando instância anterior do Agendamento..."
-  pkill -f "npm run dev" 2>/dev/null || true
-  pkill -f "vite" 2>/dev/null || true
-  sleep 1
+  kill_port 5173
   echo "  Iniciando Agendamento (http://localhost:5173)..."
   rm -f /tmp/beautyflow_agenda.log
   cd "$APP_DIR"
