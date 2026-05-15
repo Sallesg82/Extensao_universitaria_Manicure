@@ -269,30 +269,41 @@ function ModoDocker($selection) {
 
 function IniciarCrm {
   $venvDir = "$CRM_DIR\backend\.venv"
-  if (-not (Test-Path "$venvDir\Scripts\python.exe")) { Aviso "CRM nao instalado"; return }
+  $pythonExe = "$venvDir\Scripts\python.exe"
+  if (-not (Test-Path $pythonExe)) { Aviso "CRM nao instalado (venv nao encontrado)"; return }
+  Ok "Iniciando CRM (backend Python)..."
   $env:BEAUTYFLOW_DB_PATH = $DB_PATH
   $env:BEAUTYFLOW_NO_SEED = "true"
-  $psi = New-Object System.Diagnostics.ProcessStartInfo
-  $psi.FileName = "$venvDir\Scripts\python.exe"
-  $psi.Arguments = "$CRM_DIR\backend\server.py"
-  $psi.EnvironmentVariables["BEAUTYFLOW_DB_PATH"] = $DB_PATH
-  $psi.EnvironmentVariables["BEAUTYFLOW_NO_SEED"] = "true"
-  $psi.WorkingDirectory = "$CRM_DIR\backend"
-  $psi.UseShellExecute = $false
-  $psi.CreateNoWindow = $true
-  [System.Diagnostics.Process]::Start($psi) | Out-Null
-  Ok "CRM iniciado em http://localhost:3001"
+  try {
+    $p = Start-Process -FilePath $pythonExe -ArgumentList "$CRM_DIR\backend\server.py" -WorkingDirectory "$CRM_DIR\backend" -NoNewWindow -PassThru
+    Start-Sleep -Seconds 3
+    if ($p.HasExited) {
+      Aviso "CRM parece ter fechado. Verifique se ha erros acima."
+    } else {
+      Ok "CRM rodando (PID $($p.Id)) em http://localhost:3001"
+    }
+  } catch {
+    Aviso "Falha ao iniciar CRM: $_"
+    Aviso "Tente manualmente: cd '$CRM_DIR\backend' && .venv\Scripts\python server.py"
+  }
 }
 
 function IniciarAgendamento {
-  if (-not (Test-Path "$APP_DIR\node_modules")) { Aviso "Agendamento nao instalado"; return }
-  $psi = New-Object System.Diagnostics.ProcessStartInfo
-  $psi.FileName = "cmd.exe"
-  $psi.Arguments = "/c cd /d $APP_DIR && npm run dev"
-  $psi.UseShellExecute = $false
-  $psi.CreateNoWindow = $true
-  [System.Diagnostics.Process]::Start($psi) | Out-Null
-  Ok "Agendamento iniciado em http://localhost:5173"
+  $nmDir = "$APP_DIR\node_modules"
+  if (-not (Test-Path $nmDir)) { Aviso "Agendamento nao instalado (node_modules nao encontrado)"; return }
+  Ok "Iniciando Agendamento (Vite)..."
+  try {
+    $p = Start-Process -FilePath "cmd.exe" -ArgumentList "/c cd /d $APP_DIR && npm run dev" -NoNewWindow -PassThru
+    Start-Sleep -Seconds 3
+    if ($p.HasExited) {
+      Aviso "Agendamento parece ter fechado. Verifique se ha erros acima."
+    } else {
+      Ok "Agendamento rodando (PID $($p.Id)) em http://localhost:5173"
+    }
+  } catch {
+    Aviso "Falha ao iniciar Agendamento: $_"
+    Aviso "Tente manualmente: cd '$APP_DIR' && npm run dev"
+  }
 }
 
 # ══════════════════════════════════════════
@@ -494,8 +505,9 @@ function PerguntarIniciar {
   if ($selection -eq "crm" -or $selection -eq "ambos") { IniciarCrm }
   if ($selection -eq "agenda" -or $selection -eq "ambos") { IniciarAgendamento }
   Write-Host ""
-  Write-Host "  Aplicativos iniciados em segundo plano." -ForegroundColor Green
-  Write-Host "  Feche este terminal para para-los." -ForegroundColor Yellow
+  Write-Host "  Para testar manualmente:" -ForegroundColor Cyan
+  Write-Host "    CRM:        .venv\Scripts\python server.py" -ForegroundColor Gray
+  Write-Host "    Agendamento: npm run dev" -ForegroundColor Gray
 }
 
 # ══════════════════════════════════════════
