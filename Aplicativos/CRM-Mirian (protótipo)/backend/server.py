@@ -14,7 +14,7 @@ STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src')
 # Substitua pelo valor real após criar o workflow no n8n
 N8N_WEBHOOK_URL = os.environ.get(
     "N8N_WEBHOOK_URL",
-    "https://seu-n8n.com/webhook/agendamento"  # <-- troque aqui
+    "https://mirianfiorini.app.n8n.cloud/webhook/calendar-webhook"  # <-- troque aqui
 )
 # ───────────────────────────────────────────────────────────────────────────────
 
