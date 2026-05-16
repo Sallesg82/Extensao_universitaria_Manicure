@@ -211,6 +211,92 @@ function Show-DockerCheck {
   $step3.Set("OK repositorio clonado", $colors.success)
   $form.Refresh()
 
+  # ── Coletar credenciais do Supabase ──
+  $supabaseUrl = ""
+  $supabaseAnonKey = ""
+  $supabaseKey = ""
+  $supabaseJwtSecret = ""
+
+  $credDialog = New-Object System.Windows.Forms.Form
+  $credDialog.Text = "Credenciais Supabase"
+  $credDialog.Size = New-Object System.Drawing.Size(540, 340)
+  $credDialog.StartPosition = "CenterParent"
+  $credDialog.FormBorderStyle = "FixedDialog"
+  $credDialog.MaximizeBox = $false
+  $credDialog.BackColor = HexColor $colors.bg
+
+  $title = New-Object System.Windows.Forms.Label
+  $title.Text = "Configuracao do Supabase"
+  $title.Font = $fonts.header
+  $title.ForeColor = HexColor $colors.white
+  $title.Size = New-Object System.Drawing.Size(500, 30)
+  $title.Location = New-Object System.Drawing.Point(20, 15)
+  $credDialog.Controls.Add($title)
+
+  $info = New-Object System.Windows.Forms.Label
+  $info.Text = "Crie um projeto em supabase.com e cole as 4 credenciais (Project Settings > API):"
+  $info.Font = $fonts.small
+  $info.ForeColor = HexColor $colors.sub
+  $info.Size = New-Object System.Drawing.Size(500, 35)
+  $info.Location = New-Object System.Drawing.Point(20, 50)
+  $credDialog.Controls.Add($info)
+
+  $labels = @("SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_KEY (service_role)", "SUPABASE_JWT_SECRET")
+  $textboxes = @()
+  $y = 95
+  for ($i = 0; $i -lt 4; $i++) {
+    $l = New-Object System.Windows.Forms.Label
+    $l.Text = $labels[$i]
+    $l.Font = $fonts.small
+    $l.ForeColor = HexColor $colors.white
+    $l.Size = New-Object System.Drawing.Size(490, 18)
+    $l.Location = New-Object System.Drawing.Point(22, $y)
+    $credDialog.Controls.Add($l)
+
+    $tb = New-Object System.Windows.Forms.TextBox
+    $tb.Font = $fonts.mono
+    $tb.Size = New-Object System.Drawing.Size(490, 22)
+    $tb.Location = New-Object System.Drawing.Point(22, $y + 19)
+    $tb.BackColor = HexColor $colors.card
+    $tb.ForeColor = HexColor $colors.white
+    $tb.BorderStyle = "FixedSingle"
+    $credDialog.Controls.Add($tb)
+    $textboxes += $tb
+
+    $y += 48
+  }
+
+  $btnOk = New-Object System.Windows.Forms.Button
+  $btnOk.Text = "Salvar e Continuar"
+  $btnOk.Font = $fonts.body
+  $btnOk.Size = New-Object System.Drawing.Size(200, 35)
+  $btnOk.Location = New-Object System.Drawing.Point(150, $y + 10)
+  $btnOk.BackColor = HexColor $colors.success
+  $btnOk.ForeColor = "White"
+  $btnOk.FlatStyle = "Flat"
+  $btnOk.Add_Click({
+    $credDialog.Tag = @($textboxes[0].Text, $textboxes[1].Text, $textboxes[2].Text, $textboxes[3].Text)
+    $credDialog.Close()
+  })
+  $credDialog.Controls.Add($btnOk)
+
+  [void]$credDialog.ShowDialog()
+  $creds = $credDialog.Tag
+  if ($creds -and $creds[0]) {
+    $supabaseUrl = $creds[0]
+    $supabaseAnonKey = $creds[1]
+    $supabaseKey = $creds[2]
+    $supabaseJwtSecret = $creds[3]
+    $envContent = @"
+SUPABASE_URL=$supabaseUrl
+SUPABASE_ANON_KEY=$supabaseAnonKey
+SUPABASE_KEY=$supabaseKey
+SUPABASE_JWT_SECRET=$supabaseJwtSecret
+"@
+    $envFilePath = "$REPO_DIR\Aplicativos\CRM-Mirian (protótipo)\backend\.env"
+    [System.IO.File]::WriteAllText($envFilePath, $envContent)
+  }
+
   # Build Docker
   $step4.Set("Build da imagem...", $colors.warning)
   $form.Refresh()
@@ -321,16 +407,106 @@ function Show-WslCheck {
   $step3.Set("OK dependencias instaladas", $colors.success)
   $form.Refresh()
 
+  # ── Coletar credenciais do Supabase ──
+  $supabaseUrl = ""
+  $supabaseAnonKey = ""
+  $supabaseKey = ""
+  $supabaseJwtSecret = ""
+  $credsOk = $false
+
+  $credDialog = New-Object System.Windows.Forms.Form
+  $credDialog.Text = "Credenciais Supabase"
+  $credDialog.Size = New-Object System.Drawing.Size(540, 340)
+  $credDialog.StartPosition = "CenterParent"
+  $credDialog.FormBorderStyle = "FixedDialog"
+  $credDialog.MaximizeBox = $false
+  $credDialog.BackColor = HexColor $colors.bg
+
+  $title = New-Object System.Windows.Forms.Label
+  $title.Text = "Configuracao do Supabase"
+  $title.Font = $fonts.header
+  $title.ForeColor = HexColor $colors.white
+  $title.Size = New-Object System.Drawing.Size(500, 30)
+  $title.Location = New-Object System.Drawing.Point(20, 15)
+  $credDialog.Controls.Add($title)
+
+  $info = New-Object System.Windows.Forms.Label
+  $info.Text = "Crie um projeto em supabase.com e cole as 4 credenciais (Project Settings > API):"
+  $info.Font = $fonts.small
+  $info.ForeColor = HexColor $colors.sub
+  $info.Size = New-Object System.Drawing.Size(500, 35)
+  $info.Location = New-Object System.Drawing.Point(20, 50)
+  $credDialog.Controls.Add($info)
+
+  $labels = @("SUPABASE_URL", "SUPABASE_ANON_KEY", "SUPABASE_KEY (service_role)", "SUPABASE_JWT_SECRET")
+  $textboxes = @()
+  $y = 95
+  for ($i = 0; $i -lt 4; $i++) {
+    $l = New-Object System.Windows.Forms.Label
+    $l.Text = $labels[$i]
+    $l.Font = $fonts.small
+    $l.ForeColor = HexColor $colors.white
+    $l.Size = New-Object System.Drawing.Size(490, 18)
+    $l.Location = New-Object System.Drawing.Point(22, $y)
+    $credDialog.Controls.Add($l)
+
+    $tb = New-Object System.Windows.Forms.TextBox
+    $tb.Font = $fonts.mono
+    $tb.Size = New-Object System.Drawing.Size(490, 22)
+    $tb.Location = New-Object System.Drawing.Point(22, $y + 19)
+    $tb.BackColor = HexColor $colors.card
+    $tb.ForeColor = HexColor $colors.white
+    $tb.BorderStyle = "FixedSingle"
+    $credDialog.Controls.Add($tb)
+    $textboxes += $tb
+
+    $y += 48
+  }
+
+  $btnOk = New-Object System.Windows.Forms.Button
+  $btnOk.Text = "Salvar e Continuar"
+  $btnOk.Font = $fonts.body
+  $btnOk.Size = New-Object System.Drawing.Size(200, 35)
+  $btnOk.Location = New-Object System.Drawing.Point(150, $y + 10)
+  $btnOk.BackColor = HexColor $colors.success
+  $btnOk.ForeColor = "White"
+  $btnOk.FlatStyle = "Flat"
+  $btnOk.Add_Click({
+    $credDialog.Tag = @($textboxes[0].Text, $textboxes[1].Text, $textboxes[2].Text, $textboxes[3].Text)
+    $credDialog.Close()
+  })
+  $credDialog.Controls.Add($btnOk)
+
+  [void]$credDialog.ShowDialog()
+  $creds = $credDialog.Tag
+  if ($creds -and $creds[0]) {
+    $supabaseUrl = $creds[0]
+    $supabaseAnonKey = $creds[1]
+    $supabaseKey = $creds[2]
+    $supabaseJwtSecret = $creds[3]
+    $credsOk = $true
+  }
+
   # Clonar e configurar via WSL
   $step4.Set("Clonando repositorio e configurando...", $colors.warning)
   $form.Refresh()
+  $envContent = @"
+SUPABASE_URL=$supabaseUrl
+SUPABASE_ANON_KEY=$supabaseAnonKey
+SUPABASE_KEY=$supabaseKey
+SUPABASE_JWT_SECRET=$supabaseJwtSecret
+"@
+
   wsl -d Ubuntu -- bash -c "
     set -e
     rm -rf /tmp/Extensao_universitaria_Manicure
     git clone https://github.com/Sallesg82/Extensao_universitaria_Manicure.git /tmp/Extensao_universitaria_Manicure
     cd '/tmp/Extensao_universitaria_Manicure/Aplicativos/CRM-Mirian (protótipo)'
     python3 -m venv backend/.venv
-    backend/.venv/bin/pip install -q flask flask-cors
+    backend/.venv/bin/pip install -q flask flask-cors requests supabase werkzeug google-auth google-auth-oauthlib google-api-python-client python-dateutil postgrest
+    cat > backend/.env << 'WSL_ENV'
+$envContent
+WSL_ENV
     backend/.venv/bin/python -c '
 import sys; sys.path.insert(0, \"backend\")
 from db.database import get_db; get_db().close()

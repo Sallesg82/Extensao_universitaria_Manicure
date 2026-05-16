@@ -60,7 +60,34 @@ if [ "$MODE" = "docker" ]; then
     cd "$(dirname "$0")"
   fi
 
+  # Diretório backend (para o .env)
+  if [ "$INSIDE_REPO" = false ]; then
+    ENV_DIR="/tmp/Extensao_universitaria_Manicure/Aplicativos/CRM-Mirian (protótipo)/backend"
+  else
+    ENV_DIR="$(cd "$(dirname "$0")/../backend" && pwd)"
+  fi
+  ENV_FILE="$ENV_DIR/.env"
+
+  # Credenciais Supabase
   echo ""
+  echo "── Configuração do Supabase ──"
+  echo "  Crie um projeto em https://supabase.com"
+  echo "  E copie as 4 credenciais (Project Settings > API)"
+  echo ""
+  read -r -p "  SUPABASE_URL (ex: https://xxxxx.supabase.co): " SUPABASE_URL
+  read -r -p "  SUPABASE_ANON_KEY (anon public): " SUPABASE_ANON_KEY
+  read -r -p "  SUPABASE_KEY (service_role secret): " SUPABASE_KEY
+  read -r -p "  SUPABASE_JWT_SECRET (JWT Secret): " SUPABASE_JWT_SECRET
+  cat > "$ENV_FILE" <<EOF
+SUPABASE_URL=$SUPABASE_URL
+SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+SUPABASE_KEY=$SUPABASE_KEY
+SUPABASE_JWT_SECRET=$SUPABASE_JWT_SECRET
+EOF
+  echo "  ✓ .env salvo em $ENV_FILE"
+  echo "  ⚠ Execute o script SQL em backend/db/supabase_schema.sql no SQL Editor do Supabase"
+  echo ""
+
   echo "  Build da imagem..."
   docker compose build
   echo "  ✓ Imagem criada"
@@ -88,7 +115,7 @@ fi
 # ══════════════════════════════════════════
 
 # ────────── Verificar / Instalar dependências do sistema ──────────
-echo "[1/5] Verificando dependências do sistema..."
+echo "[1/6] Verificando dependências do sistema..."
 
 MISSING=()
 NEED_VENV=false
@@ -196,7 +223,7 @@ else
 fi
 
 # ────────── Ambiente virtual ──────────
-echo "[2/5] Criando ambiente virtual..."
+echo "[2/6] Criando ambiente virtual..."
 if [ -d "$VENV_DIR" ]; then
   echo "  ✓ Ambiente virtual já existe em $VENV_DIR"
 else
@@ -206,25 +233,68 @@ fi
 echo ""
 
 # ────────── Dependências Python ──────────
-echo "[3/5] Instalando dependências Python..."
+echo "[3/6] Instalando dependências Python..."
 "$VENV_DIR/bin/pip" install --quiet --upgrade pip
-"$VENV_DIR/bin/pip" install --quiet flask flask-cors
-echo "  ✓ Flask e Flask-CORS instalados"
+"$VENV_DIR/bin/pip" install --quiet flask flask-cors requests supabase werkzeug google-auth google-auth-oauthlib google-api-python-client python-dateutil postgrest
+echo "  ✓ Dependências Python instaladas (Flask, Supabase, Google API, etc.)"
 echo ""
 
+# ────────── Credenciais Supabase ──────────
+echo "[4/6] Configurando credenciais do Supabase..."
+ENV_FILE="$DIR/backend/.env"
+DO_SETUP=true
+if [ -f "$ENV_FILE" ]; then
+  echo "  ✓ .env já existe em $ENV_FILE"
+  read -r -p "  Deseja sobrescrever? [s/N] " RESP
+  [ "$RESP" != "s" ] && [ "$RESP" != "S" ] && DO_SETUP=false
+fi
+
+if [ "$DO_SETUP" = true ]; then
+  echo ""
+  echo "── Configuração do Supabase (banco de dados) ──"
+  echo "  Crie um projeto em https://supabase.com"
+  echo "  E copie as credenciais em Project Settings → API"
+  echo ""
+  echo "  São 4 credenciais:"
+  echo "    1. Project URL"
+  echo "    2. anon public key"
+  echo "    3. service_role key (secret)"
+  echo "    4. JWT Secret"
+  echo ""
+  read -r -p "  SUPABASE_URL (ex: https://xxxxx.supabase.co): " SUPABASE_URL
+  read -r -p "  SUPABASE_ANON_KEY (anon public): " SUPABASE_ANON_KEY
+  read -r -p "  SUPABASE_KEY (service_role secret): " SUPABASE_KEY
+  read -r -p "  SUPABASE_JWT_SECRET (JWT Secret): " SUPABASE_JWT_SECRET
+
+  cat > "$ENV_FILE" <<EOF
+SUPABASE_URL=$SUPABASE_URL
+SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+SUPABASE_KEY=$SUPABASE_KEY
+SUPABASE_JWT_SECRET=$SUPABASE_JWT_SECRET
+EOF
+  echo "  ✓ .env salvo em $ENV_FILE"
+  echo "  ⚠ Lembre-se de executar o script SQL em:"
+  echo "    $DIR/backend/db/supabase_schema.sql"
+  echo "    no SQL Editor do seu projeto Supabase"
+  echo ""
+fi
+
 # ────────── Verificar Supabase ──────────
-echo "[4/5] Verificando conexão com Supabase..."
+echo "[5/6] Verificando conexão com Supabase..."
+set -a
+[ -f "$ENV_FILE" ] && source "$ENV_FILE"
+set +a
 "$VENV_DIR/bin/python" -c "
-import sys
+import sys, os
 sys.path.insert(0, '$DIR/backend')
 from db.database import get_db
 db = get_db()
 print('  ✓ Conexão com Supabase OK')
-" 2>&1 || echo "  ⚠ Não foi possível conectar ao Supabase. Verifique as credenciais no código."
+" 2>&1 || echo "  ⚠ Não foi possível conectar ao Supabase. Verifique as credenciais."
 echo ""
 
 # ────────── Resumo final ──────────
-echo "[5/5] Concluído!"
+echo "[6/6] Concluído!"
 echo ""
 echo "============================================"
 echo "  Instalação concluída!"

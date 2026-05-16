@@ -67,8 +67,9 @@ O script `install.sh` faz automaticamente:
 
 1. **Verifica** se Python 3 está instalado
 2. **Cria** um ambiente virtual Python em `backend/.venv/`
-3. **Instala** as dependências (Flask, Flask-CORS)
-4. **Verifica** a conexão com o Supabase (banco de dados na nuvem)
+3. **Instala** as dependências (Flask, Flask-CORS, Supabase, Google API, etc.)
+4. **Solicita** as 4 credenciais do Supabase (URL, anon key, service_role, JWT secret) e salva em `backend/.env`
+5. **Verifica** a conexão com o Supabase (banco de dados na nuvem)
 
 #### 2.1.3. Instalação manual passo a passo
 
@@ -82,7 +83,7 @@ python3 -m venv backend/.venv
 source backend/.venv/bin/activate
 
 # 3. Instalar dependências
-pip install flask flask-cors
+pip install flask flask-cors requests supabase werkzeug google-auth google-auth-oauthlib google-api-python-client python-dateutil postgrest
 
 # 4. Verificar conexão com Supabase
 python -c "
@@ -95,7 +96,7 @@ print('✓ Conexão com Supabase OK')
 > **Windows (PowerShell, sem WSL):**
 > ```powershell
 > python -m venv backend\.venv
-> backend\.venv\Scripts\pip install flask flask-cors
+> backend\.venv\Scripts\pip install flask flask-cors requests supabase werkzeug google-auth google-auth-oauthlib google-api-python-client python-dateutil postgrest
 > backend\.venv\Scripts\python -c "import sys; sys.path.insert(0, 'backend'); from db.database import get_db"
 > backend\.venv\Scripts\python backend\server.py
 > ```
@@ -307,7 +308,14 @@ CRM-Mirian (protótipo)/
 │   ├── routes/
 │   │   ├── clients.py      # CRUD de clientes
 │   │   ├── appointments.py # CRUD de agendamentos
-│   │   └── services.py     # CRUD de serviços
+│   │   ├── services.py     # CRUD de serviços
+│   │   ├── finance.py      # Receitas e despesas
+│   │   ├── expenses.py     # CRUD de despesas
+│   │   ├── users.py        # CRUD de usuários
+│   │   ├── settings.py     # Configurações do sistema
+│   │   ├── integrations.py # Integrações dinâmicas (n8n, webhook, Google)
+│   │   ├── notifications.py# Notificações in-app
+│   │   └── google.py       # Google Calendar OAuth + eventos
 │   └── middleware/
 │       └── validation.py   # Validação de dados de entrada
 │
@@ -426,6 +434,87 @@ Resposta:
 }
 ```
 
+### 6.5. Integrações
+
+| Método | Rota                           | Descrição                               |
+|--------|--------------------------------|-----------------------------------------|
+| GET    | `/api/integrations/`           | Lista todas as integrações              |
+| POST   | `/api/integrations/`           | Criar nova integração                   |
+| PUT    | `/api/integrations/<id>`       | Atualizar integração                    |
+| DELETE | `/api/integrations/<id>`       | Remover integração                      |
+| POST   | `/api/integrations/<id>/test`  | Testar integração (webhook/n8n)         |
+
+**POST /api/integrations/** — corpo:
+
+```json
+{
+  "type": "webhook",
+  "name": "Meu Webhook",
+  "config": {
+    "url": "https://hooks.example.com/trigger",
+    "events": ["appointment.created", "appointment.updated"],
+    "timeout": 30,
+    "headers": {"Authorization": "Bearer xxx"}
+  },
+  "enabled": true
+}
+```
+
+Tipos suportados: `webhook`, `n8n`, `google_calendar`.
+
+### 6.6. Google Calendar
+
+| Método | Rota                        | Descrição                               |
+|--------|-----------------------------|-----------------------------------------|
+| GET    | `/api/google/auth_url`      | URL de autenticação OAuth               |
+| GET    | `/api/google/callback`      | Callback OAuth (redirect URI)           |
+| GET    | `/api/google/status`        | Status da conexão Google Calendar       |
+| DELETE | `/api/google/disconnect`    | Desconectar Google Calendar             |
+
+### 6.7. Notificações
+
+| Método | Rota                                  | Descrição                        |
+|--------|---------------------------------------|----------------------------------|
+| GET    | `/api/notifications/`                 | Listar notificações              |
+| POST   | `/api/notifications/`                 | Criar notificação                |
+| PUT    | `/api/notifications/<id>`             | Marcar como lida                 |
+| DELETE | `/api/notifications/<id>`             | Remover notificação              |
+| GET    | `/api/notifications/unread/count`     | Contagem de não lidas            |
+| POST   | `/api/notifications/mark-all-read`    | Marcar todas como lidas          |
+
+### 6.8. Financeiro
+
+| Método | Rota                  | Descrição                     |
+|--------|-----------------------|-------------------------------|
+| GET    | `/api/finance/`       | Listar transações financeiras |
+| POST   | `/api/finance/`       | Criar transação               |
+| DELETE | `/api/finance/<id>`   | Remover transação             |
+
+### 6.9. Despesas
+
+| Método | Rota                  | Descrição                     |
+|--------|-----------------------|-------------------------------|
+| GET    | `/api/expenses/`      | Listar despesas               |
+| POST   | `/api/expenses/`      | Criar despesa                 |
+| PUT    | `/api/expenses/<id>`  | Atualizar despesa             |
+| DELETE | `/api/expenses/<id>`  | Remover despesa               |
+
+### 6.10. Usuários (admin apenas)
+
+| Método | Rota                | Descrição                     |
+|--------|---------------------|-------------------------------|
+| GET    | `/api/users/`       | Listar usuários               |
+| POST   | `/api/users/`       | Criar usuário                 |
+| PUT    | `/api/users/<id>`   | Atualizar usuário (role etc.) |
+| DELETE | `/api/users/<id>`   | Remover usuário               |
+
+### 6.11. Configurações
+
+| Método | Rota                  | Descrição                          |
+|--------|-----------------------|------------------------------------|
+| GET    | `/api/settings/`      | Obter configurações do usuário     |
+| PUT    | `/api/settings/`      | Atualizar configurações            |
+
 ---
 
 ## 7. Funcionalidades
@@ -437,7 +526,10 @@ Resposta:
 - **Clientes:** listagem com busca, detalhes com histórico de atendimentos
 - **Financeiro:** receitas vs despesas, gráficos, lançamentos recentes
 - **Relatórios:** tendência de receita, top clientes, serviços populares
-- **Configurações:** perfil, horários, serviços, notificações, aparência
+- **Integrações:** criar/editar/excluir integrações dinâmicas (Webhook, n8n, Google Calendar) com teste, ativação e configuração via modal
+- **Notificações:** painel in-app com dot de não lidas, notificações automáticas em agendamentos e metas
+- **Google Calendar:** conexão OAuth, criação/deleção de eventos sincronizados com agendamentos
+- **Configurações:** perfil, horários, serviços, notificações, aparência, integrações
 
 ### 7.2. Personalização
 
