@@ -1,152 +1,274 @@
-import sqlite3
 import os
 from datetime import datetime
+from supabase import create_client
+from postgrest import APIError
 
-_DEFAULT_DB = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'DB', 'beautyflow.db'))
-DB_PATH = os.environ.get('BEAUTYFLOW_DB_PATH') or _DEFAULT_DB
+SUPABASE_URL = os.environ.get('SUPABASE_URL', 'https://omtqedkinvyslsucryze.supabase.co')
+SUPABASE_KEY = os.environ.get('SUPABASE_KEY',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdHFlZGtpbnZ5c2xzdWNyeXplIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODg3MjEwNywiZXhwIjoyMDk0NDQ4MTA3fQ.9-oTfqWZQKIil_9N_zddYm6-VvA9rOLDyfPZ0HpTAis'
+)
+
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+TABLE_CLIENTS = 'clients'
+TABLE_APPOINTMENTS = 'appointments'
+TABLE_SERVICES = 'services'
+TABLE_TRANSACTIONS = 'transactions'
+TABLE_SETTINGS = 'settings'
 
 
 def get_db():
-    conn = sqlite3.connect(DB_PATH, timeout=30)
-    conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA busy_timeout=30000")
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA foreign_keys=ON")
-    init_tables(conn)
-    if not os.environ.get('BEAUTYFLOW_NO_SEED'):
-        seed_if_empty(conn)
-    return conn
+    return supabase
 
 
-def init_tables(conn):
-    conn.executescript("""
-        CREATE TABLE IF NOT EXISTS clients (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            phone TEXT NOT NULL,
-            email TEXT DEFAULT '',
-            avatar_initials TEXT NOT NULL,
-            avatar_bg TEXT NOT NULL DEFAULT '#daeaf8',
-            avatar_color TEXT NOT NULL DEFAULT '#1a5fab',
-            notes TEXT DEFAULT '',
-            status TEXT DEFAULT 'regular',
-            created_at TEXT DEFAULT (datetime('now', 'localtime')),
-            updated_at TEXT DEFAULT (datetime('now', 'localtime'))
-        );
-
-        CREATE TABLE IF NOT EXISTS appointments (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            client_id INTEGER NOT NULL,
-            service TEXT NOT NULL,
-            appointment_date TEXT NOT NULL,
-            appointment_time TEXT NOT NULL,
-            status TEXT NOT NULL DEFAULT 'pending',
-            price REAL NOT NULL DEFAULT 0,
-            duration INTEGER DEFAULT 60,
-            notes TEXT DEFAULT '',
-            created_at TEXT DEFAULT (datetime('now', 'localtime')),
-            updated_at TEXT DEFAULT (datetime('now', 'localtime')),
-            FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
-        );
-
-        CREATE TABLE IF NOT EXISTS services (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL UNIQUE,
-            duration INTEGER NOT NULL DEFAULT 60,
-            price REAL NOT NULL DEFAULT 0,
-            color TEXT DEFAULT '#4a90d9',
-            created_at TEXT DEFAULT (datetime('now', 'localtime'))
-        );
-
-        CREATE TABLE IF NOT EXISTS transactions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            type TEXT NOT NULL CHECK(type IN ('income','expense')),
-            description TEXT NOT NULL,
-            amount REAL NOT NULL,
-            category TEXT DEFAULT '',
-            payment_method TEXT DEFAULT '',
-            date TEXT NOT NULL,
-            appointment_id INTEGER,
-            created_at TEXT DEFAULT (datetime('now', 'localtime')),
-            FOREIGN KEY (appointment_id) REFERENCES appointments(id) ON DELETE SET NULL
-        );
-
-        CREATE TABLE IF NOT EXISTS settings (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL
-        );
-    """)
-    conn.commit()
+def all_clients():
+    r = supabase.table(TABLE_CLIENTS).select('*').order('name').execute()
+    rows = r.data
+    for c in rows:
+        a = supabase.table(TABLE_APPOINTMENTS).select(
+            'id', count='exact'
+        ).eq('client_id', c['id']).execute()
+        c['visits'] = a.count or 0
+        fin = supabase.table(TABLE_APPOINTMENTS).select(
+            'price'
+        ).eq('client_id', c['id']).neq('status', 'cancelled').execute()
+        c['total_spent'] = sum(row.get('price', 0) or 0 for row in fin.data)
+        last = supabase.table(TABLE_APPOINTMENTS).select(
+            'appointment_date'
+        ).eq('client_id', c['id']).order('appointment_date', desc=True).limit(1).execute()
+        c['last_visit'] = last.data[0]['appointment_date'] if last.data else None
+    return rows
 
 
-def seed_if_empty(conn):
-    count = conn.execute("SELECT COUNT(*) as c FROM clients").fetchone()['c']
-    if count > 0:
-        return
+def get_client(client_id):
+    r = supabase.table(TABLE_CLIENTS).select('*').eq('id', client_id).single().execute()
+    c = r.data
+    a = supabase.table(TABLE_APPOINTMENTS).select('*').eq('client_id', client_id).order('appointment_date', desc=True).order('appointment_time', desc=True).execute()
+    visit_count = supabase.table(TABLE_APPOINTMENTS).select('id', count='exact').eq('client_id', client_id).execute()
+    fin = supabase.table(TABLE_APPOINTMENTS).select('price').eq('client_id', client_id).neq('status', 'cancelled').execute()
+    last = supabase.table(TABLE_APPOINTMENTS).select('appointment_date').eq('client_id', client_id).order('appointment_date', desc=True).limit(1).execute()
+    c['visits'] = visit_count.count or 0
+    c['total_spent'] = sum(row.get('price', 0) or 0 for row in fin.data)
+    c['last_visit'] = last.data[0]['appointment_date'] if last.data else None
+    c['appointments'] = a.data
+    return c
 
-    clients = [
-        ('Ana Paula Silva', '(11) 98765-4321', 'ana@email.com', 'AP', '#daeaf8', '#1a5fab', 'frequente', '2024-01-15'),
-        ('Carla Mendes', '(11) 97654-3210', 'carla@email.com', 'CM', '#f0e8f8', '#6a2e8a', 'regular', '2024-03-10'),
-        ('Fernanda Costa', '(11) 96543-2109', 'fernanda@email.com', 'FC', '#e8f8ee', '#2e8a5a', 'regular', '2024-05-20'),
-        ('Juliana Rocha', '(11) 95432-1098', 'juliana@email.com', 'JR', '#fdf3dc', '#8c5e10', 'regular', '2024-06-05'),
-        ('Mariana Torres', '(11) 94321-0987', 'mariana@email.com', 'MT', '#fce8e8', '#8a2e2e', 'novo', '2025-02-01'),
-        ('Patricia Lima', '(11) 93210-9876', 'patricia@email.com', 'PL', '#e8f0fc', '#2e5e8a', 'novo', '2026-04-01'),
-        ('Rafaela Nunes', '(11) 92109-8765', 'rafaela@email.com', 'RN', '#f0f8e8', '#4a8a2e', 'frequente', '2023-11-10'),
-        ('Beatriz Neves', '(11) 91098-7654', 'beatriz@email.com', 'BN', '#f8e8f4', '#8a2e6e', 'frequente', '2023-12-05'),
-        ('Lúcia Ferreira', '(11) 90987-6543', 'lucia@email.com', 'LF', '#e8fcf8', '#2e8a7a', 'novo', '2026-04-15'),
+
+def create_client(name, phone, email='', avatar_initials='', avatar_bg='#daeaf8',
+                  avatar_color='#1a5fab', notes='', status='regular'):
+    ini = avatar_initials or ''.join(w[0] for w in name.split())[:2].upper()
+    r = supabase.table(TABLE_CLIENTS).insert({
+        'name': name,
+        'phone': phone,
+        'email': email,
+        'avatar_initials': ini,
+        'avatar_bg': avatar_bg,
+        'avatar_color': avatar_color,
+        'notes': notes,
+        'status': status,
+    }).execute()
+    return r.data[0]
+
+
+def update_client(client_id, data):
+    supabase.table(TABLE_CLIENTS).update(data).eq('id', client_id).execute()
+    return get_client(client_id)
+
+
+def delete_client(client_id):
+    supabase.table(TABLE_APPOINTMENTS).delete().eq('client_id', client_id).execute()
+    supabase.table(TABLE_CLIENTS).delete().eq('id', client_id).execute()
+
+
+def get_settings():
+    r = supabase.table(TABLE_SETTINGS).select('*').execute()
+    return {row['key']: row['value'] for row in r.data}
+
+
+def update_setting(key, value):
+    supabase.table(TABLE_SETTINGS).upsert({'key': key, 'value': str(value)}).execute()
+
+
+def get_stats():
+    now = datetime.now()
+    today = now.strftime('%Y-%m-%d')
+    month_start = now.strftime('%Y-%m-01')
+    prev_month = now.replace(day=1)
+    if prev_month.month == 1:
+        prev_month = prev_month.replace(year=prev_month.year - 1, month=12)
+    else:
+        prev_month = prev_month.replace(month=prev_month.month - 1)
+    prev_month_start = prev_month.strftime('%Y-%m-01')
+    prev_month_end = now.strftime('%Y-%m-01')
+
+    # Today
+    today_appts = supabase.table(TABLE_APPOINTMENTS).select('*').eq('appointment_date', today).order('appointment_time').execute()
+    today_count = len(today_appts.data)
+    today_revenue = sum(a['price'] for a in today_appts.data if a['status'] != 'cancelled')
+    today_pending = sum(1 for a in today_appts.data if a['status'] == 'pending')
+
+    # Month
+    month_appts = supabase.table(TABLE_APPOINTMENTS).select('*').gte('appointment_date', month_start).lte('appointment_date', today).execute()
+    month_revenue = sum(a['price'] for a in month_appts.data if a['status'] != 'cancelled')
+    month_appointments_count = len(month_appts.data)
+
+    month_trans = supabase.table(TABLE_TRANSACTIONS).select('*').gte('date', month_start).lte('date', today).execute()
+    month_expenses = sum(t['amount'] for t in month_trans.data if t['type'] == 'expense')
+
+    month_clients = supabase.table(TABLE_APPOINTMENTS).select('client_id').gte('appointment_date', month_start).execute()
+    month_clients_count = len(set(a['client_id'] for a in month_clients.data))
+
+    # All time
+    total_revenue = supabase.table(TABLE_APPOINTMENTS).select('price').neq('status', 'cancelled').execute()
+    total_revenue_all = sum(a['price'] for a in total_revenue.data)
+
+    all_appts = supabase.table(TABLE_APPOINTMENTS).select('price').neq('status', 'cancelled').execute()
+    avg_ticket = round(sum(a['price'] for a in all_appts.data) / len(all_appts.data), 2) if all_appts.data else 0
+
+    # Active clients
+    active = supabase.table(TABLE_CLIENTS).select('id', count='exact').execute()
+    active_clients = active.count or 0
+
+    # Meta
+    meta_row = supabase.table(TABLE_SETTINGS).select('value').eq('key', 'meta_mensal').single().execute()
+    meta_mensal = float(meta_row.data['value']) if meta_row.data else 7000
+    meta_pct = round((month_revenue / meta_mensal) * 100, 1) if meta_mensal > 0 else 0
+
+    # Top clients
+    all_clients_data = supabase.table(TABLE_CLIENTS).select('id,name,avatar_initials,avatar_bg,avatar_color').execute()
+    top_clients = []
+    for cl in all_clients_data.data:
+        ca = supabase.table(TABLE_APPOINTMENTS).select('price', 'appointment_date', count='exact').eq('client_id', cl['id']).neq('status', 'cancelled').execute()
+        visits = ca.count or 0
+        total_spent = sum(a['price'] for a in ca.data)
+        last_visit = max((a['appointment_date'] for a in ca.data if a.get('appointment_date')), default=None)
+        top_clients.append({**cl, 'visits': visits, 'total_spent': total_spent, 'last_visit': last_visit})
+    top_clients.sort(key=lambda x: -x['total_spent'])
+    top_clients = top_clients[:5]
+
+    # Today appointments with client names
+    today_full = []
+    for a in today_appts.data:
+        cl = supabase.table(TABLE_CLIENTS).select('name,phone').eq('id', a['client_id']).single().execute()
+        today_full.append({**a, 'client_name': cl.data['name'], 'client_phone': cl.data.get('phone', '')})
+
+    # Service breakdown
+    svc_counts = {}
+    svc_revenue = {}
+    for a in month_appts.data:
+        if a['status'] == 'cancelled':
+            continue
+        svc_counts[a['service']] = svc_counts.get(a['service'], 0) + 1
+        svc_revenue[a['service']] = svc_revenue.get(a['service'], 0) + a['price']
+    total_svc = sum(svc_counts.values()) or 1
+    total_svc_rev = sum(svc_revenue.values()) or 1
+    service_breakdown = sorted([
+        {'name': k, 'count': v, 'pct': round(v / total_svc * 100, 1)}
+        for k, v in svc_counts.items()
+    ], key=lambda x: -x['count'])[:5]
+    service_revenue_breakdown = sorted([
+        {'name': k, 'revenue': v, 'pct': round(v / total_svc_rev * 100, 1)}
+        for k, v in svc_revenue.items()
+    ], key=lambda x: -x['revenue'])[:5]
+
+    # Weekly revenue
+    weekly_rev = {}
+    for a in month_appts.data:
+        if a['status'] == 'cancelled':
+            continue
+        try:
+            d = datetime.strptime(a['appointment_date'], '%Y-%m-%d')
+            week = (d.day - 1) // 7
+            weekly_rev[week] = weekly_rev.get(week, 0) + a['price']
+        except (ValueError, TypeError):
+            pass
+    weekly_revenue = [weekly_rev.get(i, 0) for i in range(max(weekly_rev.keys()) + 1)] if weekly_rev else []
+
+    # Daily breakdown
+    day_names_pt = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab']
+    daily_rev = {}
+    daily_exp = {}
+    for a in month_appts.data:
+        if a['status'] != 'cancelled':
+            daily_rev[a['appointment_date']] = daily_rev.get(a['appointment_date'], 0) + a['price']
+    for t in month_trans.data:
+        if t['type'] == 'expense':
+            daily_exp[t['date']] = daily_exp.get(t['date'], 0) + t['amount']
+        else:
+            daily_rev[t['date']] = daily_rev.get(t['date'], 0) + t['amount']
+    all_days = sorted(set(list(daily_rev.keys()) + list(daily_exp.keys())))
+    daily_breakdown = []
+    for d in all_days:
+        try:
+            dt = datetime.strptime(d, '%Y-%m-%d')
+            day_label = day_names_pt[dt.weekday()]
+        except (ValueError, IndexError):
+            day_label = d
+        daily_breakdown.append({
+            'day': day_label,
+            'date': d,
+            'revenue': daily_rev.get(d, 0),
+            'expense': daily_exp.get(d, 0),
+        })
+
+    # Pix pending
+    pix = supabase.table(TABLE_TRANSACTIONS).select('id', count='exact').eq('type', 'income').eq('payment_method', 'Pix').gte('date', month_start).execute()
+    pix_pending = pix.count or 0
+
+    # Recent transactions
+    recent_tx = supabase.table(TABLE_TRANSACTIONS).select('*').gte('date', month_start).order('date', desc=True).order('id', desc=True).limit(10).execute()
+    recent_transactions = []
+    for t in recent_tx.data:
+        if t.get('appointment_id'):
+            a = supabase.table(TABLE_APPOINTMENTS).select('client_id').eq('id', t['appointment_id']).single().execute()
+            if a.data:
+                cl = supabase.table(TABLE_CLIENTS).select('name').eq('id', a.data['client_id']).single().execute()
+                t['client_name'] = cl.data['name'] if cl.data else None
+        recent_transactions.append(t)
+
+    # Expenses by category
+    exp_cat = supabase.table(TABLE_TRANSACTIONS).select('category, amount').eq('type', 'expense').gte('date', month_start).execute()
+    cat_totals = {}
+    for t in exp_cat.data:
+        cat_totals[t['category'] or 'Outros'] = cat_totals.get(t['category'] or 'Outros', 0) + t['amount']
+    total_exp = sum(cat_totals.values()) or 1
+    expenses_by_category = [
+        {'category': cat, 'amount': val, 'pct': round(val / total_exp * 100, 1)}
+        for cat, val in sorted(cat_totals.items(), key=lambda x: -x[1])
     ]
-    conn.executemany(
-        "INSERT INTO clients (name, phone, email, avatar_initials, avatar_bg, avatar_color, status, created_at) VALUES (?,?,?,?,?,?,?,?)",
-        clients
-    )
 
-    services = [
-        ('Manicure Simples', 40, 35, '#4a90d9'),
-        ('Pedicure Simples', 50, 40, '#2563a8'),
-        ('Manicure + Pedicure', 80, 70, '#4a90d9'),
-        ('Unhas em Gel', 90, 90, '#3a7abf'),
-        ('Alongamento de Unhas', 120, 120, '#1a5fab'),
-        ('Blindagem de Unhas', 60, 65, '#0f2340'),
-        ('Design de Sobrancelha', 30, 45, '#8aaccb'),
-        ('Sobrancelha + Manicure', 70, 80, '#4e8f6a'),
-    ]
-    conn.executemany(
-        "INSERT INTO services (name, duration, price, color) VALUES (?,?,?,?)",
-        services
-    )
+    # Previous month revenue
+    prev_appts = supabase.table(TABLE_APPOINTMENTS).select('price').gte('appointment_date', prev_month_start).lt('appointment_date', prev_month_end).neq('status', 'cancelled').execute()
+    month_revenue_prev = sum(a['price'] for a in prev_appts.data)
 
-    appointments = [
-        (1, 'Manicure + Pedicure', '2026-05-01', '08:30', 'done', 70, 80),
-        (2, 'Design de Sobrancelha', '2026-05-01', '09:45', 'done', 45, 30),
-        (3, 'Unhas em Gel', '2026-05-01', '11:00', 'confirmed', 90, 90),
-        (4, 'Sobrancelha + Manicure', '2026-05-01', '13:30', 'pending', 80, 70),
-        (5, 'Blindagem de Unhas', '2026-05-01', '15:00', 'pending', 65, 60),
-        (6, 'Manicure Simples', '2026-05-01', '16:15', 'pending', 35, 40),
-        (7, 'Alongamento de Unhas', '2026-05-01', '17:30', 'confirmed', 120, 120),
-        (1, 'Unhas em Gel', '2026-04-17', '10:00', 'done', 90, 90),
-        (2, 'Sobrancelha + Manicure', '2026-04-18', '14:00', 'done', 80, 70),
-        (3, 'Unhas em Gel', '2026-04-15', '09:00', 'done', 90, 90),
-        (4, 'Sobrancelha + Manicure', '2026-04-14', '11:00', 'done', 80, 70),
-        (5, 'Blindagem de Unhas', '2026-04-10', '15:00', 'done', 65, 60),
-        (7, 'Alongamento de Unhas', '2026-04-17', '10:00', 'done', 120, 120),
-        (8, 'Manicure + Pedicure', '2026-04-29', '09:00', 'done', 70, 80),
-        (9, 'Unhas em Gel', '2026-04-25', '14:00', 'done', 90, 90),
-    ]
-    conn.executemany(
-        "INSERT INTO appointments (client_id, service, appointment_date, appointment_time, status, price, duration) VALUES (?,?,?,?,?,?,?)",
-        appointments
-    )
+    month_label_pt = {
+        1: 'Janeiro', 2: 'Fevereiro', 3: 'Marco', 4: 'Abril',
+        5: 'Maio', 6: 'Junho', 7: 'Julho', 8: 'Agosto',
+        9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'
+    }
 
-    transactions = [
-        ('income', 'Ana Paula Silva — Manicure+Ped', 70, 'Manicure', 'Pix', '2026-05-01', 1),
-        ('income', 'Carla Mendes — Sobrancelha', 45, 'Sobrancelha', 'Pix', '2026-05-01', 2),
-        ('expense', 'Compra esmaltes e materiais', 180, 'Materiais', 'Débito', '2026-04-30', None),
-        ('income', 'Rafaela Nunes — Alongamento', 120, 'Alongamento', 'Pix', '2026-04-30', 7),
-        ('expense', 'Aluguel da sala (maio)', 650, 'Aluguel', 'TED', '2026-05-01', None),
-    ]
-    conn.executemany(
-        "INSERT INTO transactions (type, description, amount, category, payment_method, date, appointment_id) VALUES (?,?,?,?,?,?,?)",
-        transactions
-    )
-
-    conn.commit()
+    return {
+        'today_revenue': today_revenue,
+        'today_count': today_count,
+        'today_pending': today_pending,
+        'active_clients': active_clients,
+        'avg_ticket': avg_ticket,
+        'month_revenue': month_revenue,
+        'month_expenses': month_expenses,
+        'month_label': month_label_pt.get(now.month, ''),
+        'month_year': now.year,
+        'month_clients': month_clients_count,
+        'weekly_revenue': weekly_revenue,
+        'service_breakdown': service_breakdown,
+        'service_revenue_breakdown': service_revenue_breakdown,
+        'meta_mensal': meta_mensal,
+        'meta_pct': meta_pct,
+        'pix_pending': pix_pending,
+        'total_revenue_all': total_revenue_all,
+        'top_clients': top_clients,
+        'today_appointments': today_full,
+        'daily_breakdown': daily_breakdown,
+        'recent_transactions': recent_transactions,
+        'expenses_by_category': expenses_by_category,
+        'month_revenue_prev': month_revenue_prev,
+    }
