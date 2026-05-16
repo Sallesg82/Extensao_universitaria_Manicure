@@ -130,9 +130,12 @@ def get_stats():
     active_clients = active.count or 0
 
     # Meta
-    meta_row = supabase.table(TABLE_SETTINGS).select('value').eq('key', 'meta_mensal').single().execute()
-    meta_mensal = float(meta_row.data['value']) if meta_row.data else 7000
-    meta_pct = round((month_revenue / meta_mensal) * 100, 1) if meta_mensal > 0 else 0
+    meta_result = supabase.table(TABLE_SETTINGS).select('value').eq('key', 'meta_mensal').limit(1).execute()
+    meta_mensal = 7000
+    meta_pct = 0
+    if meta_result.data:
+        meta_mensal = float(meta_result.data[0]['value'])
+        meta_pct = round((month_revenue / meta_mensal) * 100, 1) if meta_mensal > 0 else 0
 
     # Top clients
     all_clients_data = supabase.table(TABLE_CLIENTS).select('id,name,avatar_initials,avatar_bg,avatar_color').execute()

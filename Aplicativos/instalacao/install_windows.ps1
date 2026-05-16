@@ -115,6 +115,37 @@ function AtualizarRepo {
 #  Instalacao Nativa
 # ══════════════════════════════════════════
 
+function ConfigurarSupabase {
+  $envFile = "$CRM_DIR\backend\.env"
+  if (Test-Path $envFile) {
+    Ok "Supabase ja configurado (.env encontrado)"
+    return
+  }
+  Write-Host ""
+  Write-Host "── Configuracao do Supabase (banco de dados) ──" -ForegroundColor White
+  Write-Host "  Precisa de uma conta em https://supabase.com" -ForegroundColor Yellow
+  Write-Host "  Crie um projeto e copie as credenciais em" -ForegroundColor Yellow
+  Write-Host "  Project Settings -> API" -ForegroundColor Yellow
+  Write-Host ""
+  $url      = Read-Host "  SUPABASE_URL (ex: https://xxxxx.supabase.co)"
+  $anonKey  = Read-Host "  SUPABASE_ANON_KEY (anon public)"
+  $svcKey   = Read-Host "  SUPABASE_KEY (service_role secret)"
+  if ([string]::IsNullOrWhiteSpace($url) -or [string]::IsNullOrWhiteSpace($anonKey) -or [string]::IsNullOrWhiteSpace($svcKey)) {
+    Aviso "Credenciais vazias — pode editar manualmente em:"
+    Aviso "  $envFile"
+  }
+  New-Item -ItemType Directory -Force -Path "$CRM_DIR\backend" -ErrorAction SilentlyContinue | Out-Null
+  @"
+SUPABASE_URL=$url
+SUPABASE_ANON_KEY=$anonKey
+SUPABASE_KEY=$svcKey
+"@ | Set-Content -Path $envFile
+  Ok ".env criado em $envFile"
+  Aviso "Lembre-se de executar o script SQL em:"
+  Aviso "  $CRM_DIR\backend\db\supabase_schema.sql"
+  Aviso "  no SQL Editor do seu projeto Supabase"
+}
+
 function InstalarCrm {
   Write-Host ""
   Write-Host "── Instalando BeautyFlow CRM ──" -ForegroundColor White
@@ -125,8 +156,9 @@ function InstalarCrm {
     Ok "venv criado"
   }
   & "$venvDir\Scripts\pip" install --quiet --upgrade pip 2>$null
-  & "$venvDir\Scripts\pip" install --quiet flask flask-cors 2>$null
+  & "$venvDir\Scripts\pip" install --quiet flask flask-cors supabase httpx 2>$null
   Ok "Dependencias Python instaladas"
+  ConfigurarSupabase
 }
 
 function InstalarAgendamento {
@@ -304,7 +336,7 @@ function GestorUpdate($target) {
   if ($target -eq "nativo-crm" -or $target -eq "nativo-ambos") {
     $venvDir = "$CRM_DIR\backend\.venv"
     if (Test-Path $venvDir) {
-      & "$venvDir\Scripts\pip" install --quiet --upgrade pip flask flask-cors 2>$null
+      & "$venvDir\Scripts\pip" install --quiet --upgrade pip flask flask-cors supabase httpx 2>$null
       Ok "CRM atualizado"
     } else {
       InstalarCrm

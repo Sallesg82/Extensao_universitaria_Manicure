@@ -111,6 +111,43 @@ PERGUNTAR_INSTALACAO() {
   fi
 }
 
+configurar_supabase() {
+  local CRM_DIR="$BASE/CRM-Mirian (protótipo)"
+  local ENV_FILE="$CRM_DIR/backend/.env"
+
+  if [ -f "$ENV_FILE" ]; then
+    echo "  ✓ Supabase já configurado (.env encontrado)"
+    return
+  fi
+
+  echo ""
+  echo "── Configuração do Supabase (banco de dados) ──"
+  echo "  Precisa de uma conta em https://supabase.com"
+  echo "  Crie um projeto e copie as credenciais em"
+  echo "  Project Settings → API"
+  echo ""
+
+  read -r -p "  SUPABASE_URL (ex: https://xxxxx.supabase.co): " SUPABASE_URL
+  read -r -p "  SUPABASE_ANON_KEY (anon public): " SUPABASE_ANON_KEY
+  read -r -p "  SUPABASE_KEY (service_role secret): " SUPABASE_KEY
+
+  if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ] || [ -z "$SUPABASE_KEY" ]; then
+    echo "  ⚠ Credenciais vazias — pode editar manualmente em:"
+    echo "    $ENV_FILE"
+  fi
+
+  mkdir -p "$CRM_DIR/backend"
+  cat > "$ENV_FILE" <<EOF
+SUPABASE_URL=$SUPABASE_URL
+SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+SUPABASE_KEY=$SUPABASE_KEY
+EOF
+  echo "  ✓ .env criado em $ENV_FILE"
+  echo "  ⚠ Lembre-se de executar o script SQL em:"
+  echo "    $CRM_DIR/backend/db/supabase_schema.sql"
+  echo "    no SQL Editor do seu projeto Supabase"
+}
+
 instalar_crm() {
   echo ""
   echo "── Instalando BeautyFlow CRM ──"
@@ -131,8 +168,10 @@ instalar_crm() {
 
   # pip
   "$VENV_DIR/bin/pip" install --quiet --upgrade pip
-  "$VENV_DIR/bin/pip" install --quiet flask flask-cors
+  "$VENV_DIR/bin/pip" install --quiet flask flask-cors supabase httpx
   echo "  ✓ Dependências Python instaladas"
+
+  configurar_supabase
 
   echo "  ✓ CRM pronto (use start.sh para iniciar)"
 }

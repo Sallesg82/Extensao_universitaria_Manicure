@@ -35,6 +35,9 @@ iniciar_crm() {
   echo "  Iniciando CRM (http://localhost:3001)..."
   rm -f /tmp/beautyflow_crm.log
   cd "$CRM_DIR"
+  if [ -f backend/.env ]; then
+    set -a; source backend/.env; set +a
+  fi
   nohup backend/.venv/bin/python backend/server.py > /tmp/beautyflow_crm.log 2>&1 &
   echo "  ✓ CRM rodando (PID $!)"
   cd "$DIR"
