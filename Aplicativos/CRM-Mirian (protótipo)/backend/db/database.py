@@ -15,6 +15,7 @@ TABLE_APPOINTMENTS = 'appointments'
 TABLE_SERVICES = 'services'
 TABLE_TRANSACTIONS = 'transactions'
 TABLE_SETTINGS = 'settings'
+TABLE_USERS = 'users'
 
 
 def get_db():
@@ -50,7 +51,10 @@ def get_client(client_id):
     c['visits'] = visit_count.count or 0
     c['total_spent'] = sum(row.get('price', 0) or 0 for row in fin.data)
     c['last_visit'] = last.data[0]['appointment_date'] if last.data else None
-    c['appointments'] = a.data
+    c['appointments'] = [
+        {**row, 'appointment_time': row['appointment_time'][:5] if row.get('appointment_time') and len(row['appointment_time']) >= 5 else (row.get('appointment_time') or '')}
+        for row in a.data
+    ]
     return c
 
 
@@ -153,6 +157,7 @@ def get_stats():
     today_full = []
     for a in today_appts.data:
         cl = supabase.table(TABLE_CLIENTS).select('name,phone').eq('id', a['client_id']).single().execute()
+        a['appointment_time'] = a['appointment_time'][:5] if a.get('appointment_time') and len(a['appointment_time']) >= 5 else (a.get('appointment_time') or '')
         today_full.append({**a, 'client_name': cl.data['name'], 'client_phone': cl.data.get('phone', '')})
 
     # Service breakdown
@@ -275,3 +280,100 @@ def get_stats():
         'expenses_by_category': expenses_by_category,
         'month_revenue_prev': month_revenue_prev,
     }
+
+
+def _table_exists(name):
+    try:
+        supabase.table(name).select('id').limit(1).execute()
+        return True
+    except APIError:
+        return False
+
+
+def _ensure_users_table():
+    if _table_exists(TABLE_USERS):
+        return True
+    import warnings
+    warnings.warn(
+        "Tabela 'users' não encontrada no Supabase.\n"
+        "Execute o SQL abaixo no SQL Editor do seu projeto Supabase:\n\n"
+        "CREATE TABLE IF NOT EXISTS users (\n"
+        "    id SERIAL PRIMARY KEY,\n"
+        "    name TEXT NOT NULL,\n"
+        "    email TEXT NOT NULL UNIQUE,\n"
+        "    phone TEXT DEFAULT '',\n"
+        "    password_hash TEXT NOT NULL,\n"
+        "    role TEXT NOT NULL DEFAULT 'admin',\n"
+        "    created_at TIMESTAMPTZ DEFAULT NOW()\n"
+        ");\n"
+    )
+    return False
+
+
+_USERS_TABLE_OK = _ensure_users_table()
+
+
+def all_users():
+    if not _USERS_TABLE_OK:
+        return []
+    try:
+        r = supabase.table(TABLE_USERS).select('id,name,email,phone,role,created_at').order('name').execute()
+        return r.data
+    except APIError:
+        return []
+
+
+def get_user(user_id):
+    if not _USERS_TABLE_OK:
+        return None
+    try:
+        r = supabase.table(TABLE_USERS).select('*').eq('id', user_id).limit(1).execute()
+        return r.data[0] if r.data else None
+    except APIError:
+        return None
+
+
+def get_user_by_email(email):
+    if not _USERS_TABLE_OK:
+        return None
+    try:
+        r = supabase.table(TABLE_USERS).select('*').eq('email', email).limit(1).execute()
+        return r.data[0] if r.data else None
+    except APIError:
+        return None
+
+
+def create_user(name, email, password_hash, phone='', role='admin'):
+    if not _USERS_TABLE_OK:
+        return None
+    try:
+        r = supabase.table(TABLE_USERS).insert({
+            'name': name,
+            'email': email,
+            'phone': phone,
+            'password_hash': password_hash,
+            'role': role,
+        }).execute()
+        return r.data[0] if r.data else None
+    except APIError:
+        return None
+
+
+def update_user(user_id, data):
+    if not _USERS_TABLE_OK:
+        return None
+    try:
+        supabase.table(TABLE_USERS).update(data).eq('id', user_id).execute()
+        r = supabase.table(TABLE_USERS).select('id,name,email,phone,role,created_at').eq('id', user_id).single().execute()
+        return r.data
+    except APIError:
+        return None
+
+
+def delete_user(user_id):
+    if not _USERS_TABLE_OK:
+        return
+    try:
+        supabase.table(TABLE_USERS).delete().eq('id', user_id).execute()
+    except APIError:
+        pass

@@ -1,5 +1,177 @@
 const API = window.location.origin + '/api'
 
+let currentUser = null
+
+function renderLoginForm() {
+  const form = document.getElementById('auth-form')
+  form.innerHTML = `
+    <div class="auth-field">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="seu@email.com" autocomplete="email">
+    </div>
+    <div class="auth-field">
+      <label>Senha</label>
+      <input type="password" id="login-password" placeholder="••••••" autocomplete="current-password">
+    </div>
+    <button class="auth-btn" id="auth-btn" onclick="handleLogin()">Entrar</button>
+  `
+  document.getElementById('auth-msg').textContent = ''
+  document.getElementById('auth-msg').className = 'auth-msg'
+  document.getElementById('auth-link').innerHTML = '<a onclick="renderRegisterForm()">Não tem conta? Registre-se</a>'
+  document.getElementById('login-email').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin() })
+  document.getElementById('login-password').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin() })
+  document.getElementById('login-email').focus()
+}
+
+function renderRegisterForm() {
+  const form = document.getElementById('auth-form')
+  form.innerHTML = `
+    <div class="auth-name-row">
+      <div class="auth-field">
+        <label>Nome</label>
+        <input type="text" id="reg-name" placeholder="Seu nome" autocomplete="name">
+      </div>
+      <div class="auth-field">
+        <label>Telefone</label>
+        <input type="text" id="reg-phone" placeholder="(11) 99999-8888" autocomplete="tel">
+      </div>
+    </div>
+    <div class="auth-field">
+      <label>Email</label>
+      <input type="email" id="reg-email" placeholder="seu@email.com" autocomplete="email">
+    </div>
+    <div class="auth-field">
+      <label>Senha</label>
+      <input type="password" id="reg-password" placeholder="••••••" autocomplete="new-password">
+    </div>
+    <button class="auth-btn" id="auth-btn" onclick="handleRegister()">Criar Conta</button>
+  `
+  document.getElementById('auth-msg').textContent = ''
+  document.getElementById('auth-msg').className = 'auth-msg'
+  document.getElementById('auth-link').innerHTML = '<a onclick="renderLoginForm()">Já tem conta? Faça login</a>'
+  document.getElementById('reg-name').focus()
+}
+
+function showAuthMessage(msg, type) {
+  const el = document.getElementById('auth-msg')
+  el.textContent = msg
+  el.className = 'auth-msg ' + type
+}
+
+async function handleLogin() {
+  const email = document.getElementById('login-email').value.trim()
+  const password = document.getElementById('login-password').value
+  if (!email || !password) { showAuthMessage('Preencha todos os campos.', 'error'); return }
+  const btn = document.getElementById('auth-btn')
+  btn.disabled = true; btn.textContent = 'Entrando...'
+  try {
+    const r = await fetch(API + '/users/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    })
+    const data = await r.json()
+    if (!r.ok) { showAuthMessage(data.error || 'Erro ao entrar.', 'error'); btn.disabled = false; btn.textContent = 'Entrar'; return }
+    currentUser = data
+    localStorage.setItem('bf_user', JSON.stringify(data))
+    showApp()
+  } catch (e) { showAuthMessage('Erro de conexão.', 'error'); btn.disabled = false; btn.textContent = 'Entrar' }
+}
+
+async function handleRegister() {
+  const name = document.getElementById('reg-name').value.trim()
+  const phone = document.getElementById('reg-phone').value.trim()
+  const email = document.getElementById('reg-email').value.trim()
+  const password = document.getElementById('reg-password').value
+  if (!name || !email || !password) { showAuthMessage('Preencha nome, email e senha.', 'error'); return }
+  const btn = document.getElementById('auth-btn')
+  btn.disabled = true; btn.textContent = 'Criando...'
+  try {
+    const r = await fetch(API + '/users/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password, phone })
+    })
+    const data = await r.json()
+    if (!r.ok) { showAuthMessage(data.error || 'Erro ao criar conta.', 'error'); btn.disabled = false; btn.textContent = 'Criar Conta'; return }
+    currentUser = data
+    localStorage.setItem('bf_user', JSON.stringify(data))
+    showApp()
+  } catch (e) { showAuthMessage('Erro de conexão.', 'error'); btn.disabled = false; btn.textContent = 'Criar Conta' }
+}
+
+function logout() {
+  currentUser = null
+  localStorage.removeItem('bf_user')
+  const ls = document.getElementById('loadingScreen')
+  if (ls) ls.classList.remove('hide')
+  setTimeout(() => {
+    if (ls) ls.classList.add('hide')
+    document.getElementById('auth-page').classList.remove('hide')
+    document.querySelector('.screen').style.display = 'none'
+    renderLoginForm()
+  }, 100)
+}
+
+function showApp() {
+  document.getElementById('auth-page').classList.add('hide')
+  document.querySelector('.screen').style.display = 'flex'
+  navigateFromHash()
+  updateUserCard()
+}
+
+function updateUserCard() {
+  const card = document.querySelector('.user-card')
+  if (!card || !currentUser) return
+  const ini = (currentUser.name || '').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+  card.querySelector('.avatar').textContent = ini || '?'
+  card.querySelector('.user-name').textContent = currentUser.name || ''
+  card.querySelector('.user-role').textContent = currentUser.role === 'admin' ? 'Administradora' : 'Usuário'
+}
+
+async function checkAuth() {
+  const saved = localStorage.getItem('bf_user')
+  if (saved) {
+    try {
+      currentUser = JSON.parse(saved)
+      showApp()
+      return
+    } catch (e) { localStorage.removeItem('bf_user') }
+  }
+  renderLoginForm()
+}
+let ignoreHash = false
+let refreshTimer = null
+
+function startPageRefresh(pageId) {
+  stopPageRefresh()
+  const map = {
+    dashboard: { ms: 15000, fn: loadDashboard },
+    agenda:    { ms: 10000, fn: loadAgenda },
+    clientes:  { ms: 30000, fn: loadClients },
+  }
+  const c = map[pageId]
+  if (!c) return
+  refreshTimer = setInterval(() => {
+    if (!document.hidden) c.fn()
+  }, c.ms)
+}
+
+function stopPageRefresh() {
+  if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null }
+}
+
+function navigateFromHash() {
+  const pageId = location.hash.slice(1) || 'dashboard'
+  const navEl = document.querySelector(`.nav-item[onclick*="'${pageId}'"]`)
+  showPage(pageId, navEl)
+}
+
+window.addEventListener('hashchange', () => {
+  if (ignoreHash) { ignoreHash = false; return }
+  navigateFromHash()
+})
+
 const pageConfig = {
   dashboard:      { title: 'Painel Geral',    sub: '',      btn: '+ Novo Agendamento' },
   agenda:         { title: 'Agenda',          sub: '',      btn: '+ Novo Agendamento' },
@@ -12,6 +184,13 @@ const pageConfig = {
 }
 
 function showPage(pageId, navEl) {
+  stopPageRefresh()
+
+  if (location.hash !== '#' + pageId) {
+    ignoreHash = true
+    location.hash = pageId
+  }
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'))
   document.getElementById('page-' + pageId).classList.add('active')
 
@@ -33,6 +212,9 @@ function showPage(pageId, navEl) {
   else if (pageId === 'metas') loadMetas()
   else if (pageId === 'agenda') loadAgenda()
   else if (pageId === 'financeiro') loadFinanceiro()
+  else if (pageId === 'configuracoes') updateProfileTab()
+
+  startPageRefresh(pageId)
 }
 
 function handleTopbarBtn() {
@@ -57,9 +239,122 @@ function handleTopbarBtn() {
 function showSettingsTab(navEl, tabId) {
   document.querySelectorAll('.settings-nav-item').forEach(n => n.classList.remove('active'))
   navEl.classList.add('active')
-  ;['tab-perfil','tab-horarios','tab-notif','tab-integ','tab-aparencia'].forEach(id => {
+  ;['tab-perfil','tab-notif','tab-integ','tab-aparencia'].forEach(id => {
     document.getElementById(id).style.display = id === tabId ? '' : 'none'
   })
+  if (tabId === 'tab-perfil') updateProfileTab()
+  if (tabId === 'tab-integ') loadN8nConfig()
+}
+
+function updateProfileTab() {
+  if (!currentUser) return
+  const avatar = document.getElementById('profile-avatar')
+  const name = document.getElementById('profile-name')
+  const role = document.getElementById('profile-role')
+  const ini = (currentUser.name || '').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+  if (avatar) avatar.textContent = ini || '?'
+  if (name) name.textContent = currentUser.name || ''
+  if (role) role.textContent = currentUser.role === 'admin' ? 'Administradora' : 'Usuário'
+  const inputName = document.getElementById('profile-input-name')
+  const inputEmail = document.getElementById('profile-input-email')
+  const inputPhone = document.getElementById('profile-input-phone')
+  const inputRole = document.getElementById('profile-input-role')
+  if (inputName) inputName.value = currentUser.name || ''
+  if (inputEmail) inputEmail.value = currentUser.email || ''
+  if (inputPhone) inputPhone.value = currentUser.phone || ''
+  if (inputRole) inputRole.value = currentUser.role === 'admin' ? 'Administradora' : 'Usuário'
+}
+
+async function saveProfile() {
+  if (!currentUser || !currentUser.id) return
+  const name = document.getElementById('profile-input-name').value.trim()
+  const phone = document.getElementById('profile-input-phone').value.trim()
+  if (!name) return
+  try {
+    const r = await fetch(API + '/users/' + currentUser.id, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, phone })
+    })
+    const data = await r.json()
+    if (r.ok) {
+      currentUser = data
+      localStorage.setItem('bf_user', JSON.stringify(data))
+      updateProfileTab()
+      updateUserCard()
+    }
+  } catch (e) {}
+}
+
+// ── N8N INTEGRAÇÃO ─────────────────────────────────
+
+async function loadN8nConfig() {
+  const input = document.getElementById('n8n-url')
+  const status = document.getElementById('n8n-status')
+  if (!input) return
+  try {
+    const r = await fetch(API + '/n8n/config')
+    const data = await r.json()
+    input.value = data.webhook_url || ''
+    if (status) { status.textContent = data.webhook_url ? 'URL carregada.' : 'Nenhuma URL configurada.'; status.className = 'integ-status' }
+  } catch (e) {
+    if (status) { status.textContent = 'Erro ao carregar config.'; status.className = 'integ-status err' }
+  }
+}
+
+async function saveN8nConfig() {
+  const input = document.getElementById('n8n-url')
+  const status = document.getElementById('n8n-status')
+  const url = (input.value || '').trim()
+  input.value = url
+  if (!status) return
+  status.textContent = 'Salvando...'
+  status.className = 'integ-status wait'
+  try {
+    const r = await fetch(API + '/n8n/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ webhook_url: url })
+    })
+    const data = await r.json()
+    if (r.ok) {
+      status.textContent = url ? 'URL salva com sucesso!' : 'URL removida.'
+      status.className = 'integ-status ok'
+    } else {
+      status.textContent = data.error || 'Erro ao salvar.'
+      status.className = 'integ-status err'
+    }
+  } catch (e) {
+    status.textContent = 'Erro de conexão.'
+    status.className = 'integ-status err'
+  }
+}
+
+async function testN8n() {
+  const status = document.getElementById('n8n-status')
+  const input = document.getElementById('n8n-url')
+  if (!status) return
+  const url = (input ? input.value : '').trim()
+  status.textContent = 'Enviando webhook de teste...'
+  status.className = 'integ-status wait'
+  try {
+    const r = await fetch(API + '/n8n/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ webhook_url: url || undefined })
+    })
+    const data = await r.json()
+    if (r.ok) {
+      status.textContent = '✓ ' + (data.message || 'Webhook funcionando!')
+      status.className = 'integ-status ok'
+    } else {
+      status.textContent = '✗ ' + (data.error || 'Falha no teste.')
+      status.className = 'integ-status err'
+    }
+  } catch (e) {
+    status.textContent = '✗ Erro de conexão com o servidor.'
+    status.className = 'integ-status err'
+  }
 }
 
 // ── CLIENTES ──────────────────────────────────────
@@ -83,13 +378,20 @@ async function loadClients() {
 function renderClientList(clients) {
   const list = document.getElementById('client-list')
   if (!list) return
+
+  if (clients.length === 0) {
+    list.innerHTML = ''
+    clearClientDetail()
+    return
+  }
+
   list.innerHTML = clients.map((c, i) => {
     const lastDate = c.last_visit ? c.last_visit.split('T')[0].split('-').reverse().join('/') : '—'
     const statusMap = { frequente: 'Frequente', regular: 'Regular', novo: 'Novo', inativo: 'Inativo' }
     const statusClassMap = { frequente: 'status-done', regular: 'status-confirmed', novo: 'status-pending', inativo: 'status-pending' }
     const label = statusMap[c.status] || c.status
     const cls = statusClassMap[c.status] || 'status-pending'
-    const spent = 'R$ ' + Number(c.total_spent).toLocaleString('pt-BR', {minimumFractionDigits:0})
+    const spent = 'R$ ' + Number(c.total_spent).toLocaleString('pt-BR', {minimumFractionDigits: 0})
     return `
       <div class="client-row${i === 0 ? ' selected' : ''}" onclick="selectClient(this, ${c.id})">
         <div class="client-info-cell">
@@ -114,6 +416,8 @@ function renderClientList(clients) {
 
 async function selectClient(row, clientId) {
   selectedClientId = clientId
+  const detail = document.getElementById('client-detail')
+  if (detail) detail.style.display = ''
   document.querySelectorAll('.client-row').forEach(r => r.classList.remove('selected'))
   if (row) row.classList.add('selected')
 
@@ -151,6 +455,21 @@ async function selectClient(row, clientId) {
   } catch (e) {
     console.error('Erro ao carregar detalhes do cliente:', e)
   }
+}
+
+function clearClientDetail() {
+  const el = id => document.getElementById(id)
+  const detail = el('client-detail')
+  if (detail) detail.style.display = 'none'
+  if (el('cd-av')) { el('cd-av').textContent = '—'; el('cd-av').style.background = '#e8e8e8'; el('cd-av').style.color = '#999' }
+  if (el('cd-name')) el('cd-name').textContent = 'Nenhum cliente selecionado'
+  if (el('cd-phone')) el('cd-phone').textContent = ''
+  if (el('cd-visits')) el('cd-visits').textContent = '0'
+  if (el('cd-total')) el('cd-total').textContent = 'R$ 0'
+  if (el('cd-ticket')) el('cd-ticket').textContent = 'R$ 0'
+  if (el('cd-last')) el('cd-last').textContent = '—'
+  if (el('cd-history')) el('cd-history').innerHTML = ''
+  selectedClientId = null
 }
 
 // ── DASHBOARD ─────────────────────────────────────
@@ -1006,7 +1325,12 @@ function agendaNavToday() {
   showAgendaView()
 }
 
-function _fmt(d) { return d.toISOString().split('T')[0] }
+function _fmt(d) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return y + '-' + m + '-' + day
+}
 
 function _fmtBR(d) {
   return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '')
@@ -1227,9 +1551,16 @@ async function renderYearView() {
     const total = appts.reduce((s, a) => s + a.price, 0)
     const startOff = first.getDay()
 
+    const byDay = {}
+    appts.forEach(a => { byDay[a.appointment_date] = (byDay[a.appointment_date] || 0) + 1 })
+
     let cellHtml = ''
     for (let i = 0; i < startOff; i++) cellHtml += '<div class="year-month-cell empty"></div>'
-    for (let d = 1; d <= last.getDate(); d++) cellHtml += '<div class="year-month-cell">' + d + '</div>'
+    for (let d = 1; d <= last.getDate(); d++) {
+      const ds = _fmt(new Date(year, m, d))
+      const hasAppt = !!byDay[ds]
+      cellHtml += '<div class="year-month-cell' + (hasAppt ? ' has-appt' : '') + '"><span>' + d + '</span></div>'
+    }
 
     panels.push({
       month: m,
@@ -1321,7 +1652,7 @@ function setColorScheme(scheme, el) {
   localStorage.setItem('beautyflow-scheme', scheme)
 }
 
-;(function loadSavedSettings() {
+;(function init() {
   const screen = document.querySelector('.screen')
   const savedTheme = localStorage.getItem('beautyflow-theme') || 'default'
   screen.setAttribute('data-theme', savedTheme)
@@ -1350,11 +1681,13 @@ function setColorScheme(scheme, el) {
   const savedSidebar = localStorage.getItem('beautyflow-sidebar') || 'expanded'
   if (savedSidebar === 'collapsed') document.getElementById('sidebar').classList.add('collapsed')
 
+  screen.style.display = 'none'
+
   const ls = document.getElementById('loadingScreen')
   if (ls) setTimeout(() => ls.classList.add('hide'), 300)
 
   loadServices()
-  loadDashboard()
+  checkAuth()
 })()
 
 document.querySelectorAll('.btn-primary, .btn-outline').forEach(btn => {
@@ -1364,13 +1697,5 @@ document.querySelectorAll('.btn-primary, .btn-outline').forEach(btn => {
     const y = ((e.clientY - rect.top) / rect.height) * 100
     this.style.setProperty('--ripple-x', x + '%')
     this.style.setProperty('--ripple-y', y + '%')
-  })
-})
-
-document.querySelectorAll('.hour-toggle').forEach(t => {
-  t.addEventListener('click', () => {
-    const isOn = t.classList.contains('on')
-    t.classList.toggle('on', !isOn)
-    t.classList.toggle('off', isOn)
   })
 })

@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
-from db.database import get_db
+from db.database import get_db, get_settings
 from middleware.validation import validate_appointment
+import threading, requests, datetime
 
 appointments_bp = Blueprint('appointments', __name__)
 
@@ -22,6 +23,10 @@ def _get_appt(appt_id):
     return a
 
 
+def _fmt_time(t):
+    return t[:5] if t and len(t) >= 5 else (t or '')
+
+
 def format_appt(a):
     return {
         'id': a['id'],
@@ -30,7 +35,7 @@ def format_appt(a):
         'client_phone': a.get('client_phone') or '',
         'service': a['service'],
         'appointment_date': a['appointment_date'],
-        'appointment_time': a['appointment_time'],
+        'appointment_time': _fmt_time(a.get('appointment_time')),
         'status': a['status'],
         'price': a['price'],
         'duration': a['duration'],
@@ -40,10 +45,52 @@ def format_appt(a):
     }
 
 
+def _n8n_payload(a):
+    appt_date = a['appointment_date']
+    appt_time = a.get('appointment_time', '12:00')[:5]
+    duration  = int(a.get('duration', 60))
+    try:
+        start_dt = datetime.datetime.strptime(f"{appt_date} {appt_time}", "%Y-%m-%d %H:%M")
+        end_dt = start_dt + datetime.timedelta(minutes=duration)
+        tz = "-03:00"
+        start_iso = start_dt.strftime("%Y-%m-%dT%H:%M:%S") + tz
+        end_iso   = end_dt.strftime("%Y-%m-%dT%H:%M:%S") + tz
+    except Exception:
+        start_iso = appt_date + 'T' + appt_time + ':00-03:00'
+        end_iso   = start_iso
+    return {
+        'action': 'create',
+        'appointment_id': a['id'],
+        'client_name': a.get('client_name', ''),
+        'client_phone': a.get('client_phone', ''),
+        'service': a['service'],
+        'price': a['price'],
+        'status': a['status'],
+        'start_datetime': start_iso,
+        'end_datetime': end_iso,
+        'google_event_id': '',
+    }
+
+
+def _fire_n8n(a):
+    try:
+        settings = get_settings()
+        url = settings.get('n8n_webhook_url', '').strip()
+        if not url:
+            import os
+            url = os.environ.get('N8N_WEBHOOK_URL', '')
+        if not url:
+            return
+        payload = _n8n_payload(a)
+        threading.Thread(target=lambda: requests.post(url, json=payload, timeout=8), daemon=True).start()
+    except Exception:
+        pass
+
+
 @appointments_bp.route('/', methods=['GET'])
 def list_appointments():
     supabase = get_db()
-    query = supabase.table('appointments').select('appointments.*, clients!inner(name, phone)')
+    query = supabase.table('appointments').select('*, clients!inner(name, phone)')
     date = request.args.get('date')
     client_id = request.args.get('client_id')
     status = request.args.get('status')
@@ -100,6 +147,7 @@ def create_appointment():
     a = result.data[0]
     a['client_name'] = client.get('name', '')
     a['client_phone'] = client.get('phone', '')
+    _fire_n8n(a)
     return jsonify(format_appt(a)), 201
 
 

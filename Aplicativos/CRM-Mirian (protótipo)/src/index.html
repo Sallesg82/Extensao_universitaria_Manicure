@@ -41,6 +41,15 @@
     <div class="loading-spinner"><div class="spinner-ring"></div></div>
   </div>
 </div>
+<div class="auth-page" id="auth-page">
+  <div class="auth-box">
+    <div class="auth-logo">BeautyFlow</div>
+    <div class="auth-sub">CRM & Gestão</div>
+    <div id="auth-form"></div>
+    <div id="auth-msg" class="auth-msg"></div>
+    <div id="auth-link" class="auth-link"></div>
+  </div>
+</div>
 <div class="screen">
 
   <!-- overlay for mobile sidebar -->
@@ -134,12 +143,17 @@
 
     <div class="sidebar-footer">
       <div class="user-card">
-        <div class="avatar">MF</div>
+        <div class="avatar">?</div>
         <div>
-          <div class="user-name">Mirian F.</div>
-          <div class="user-role">Administradora</div>
+          <div class="user-name">Carregando...</div>
+          <div class="user-role">...</div>
         </div>
       </div>
+      <button class="logout-btn" onclick="logout()" title="Sair">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M6 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3M11 11l3-3-3-3M14 8H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
     </div>
   </aside>
 
@@ -436,11 +450,11 @@
             <div id="client-list"></div>
           </div>
 
-          <div class="panel client-detail" id="client-detail">
+          <div class="panel client-detail" id="client-detail" style="display:none;">
             <div class="client-detail-header">
-              <div class="client-detail-av" id="cd-av" style="background:#daeaf8;color:#1a5fab;">AP</div>
-              <div class="client-detail-name" id="cd-name">Ana Paula Silva</div>
-              <div class="client-detail-sub" id="cd-phone">(11) 98765-4321 · Cliente desde Jan 2024</div>
+              <div class="client-detail-av" id="cd-av">—</div>
+              <div class="client-detail-name" id="cd-name">Nenhum cliente selecionado</div>
+              <div class="client-detail-sub" id="cd-phone"></div>
               <div class="client-detail-actions">
                 <button class="btn-outline btn-icon" onclick="editClient()">
                   <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style="vertical-align:-1px;margin-right:3px;"><path d="M2 12v2h2l8-8-2-2-8 8z" stroke="currentColor" stroke-width="1.2"/><path d="M10 4l2 2" stroke="currentColor" stroke-width="1.2"/></svg>
@@ -456,31 +470,26 @@
             <div class="client-stats">
               <div class="client-stat">
                 <div class="client-stat-label">Visitas</div>
-                <div class="client-stat-value" id="cd-visits">28</div>
+                <div class="client-stat-value" id="cd-visits">0</div>
               </div>
               <div class="client-stat">
                 <div class="client-stat-label">Total Gasto</div>
-                <div class="client-stat-value" id="cd-total">R$ 1.820</div>
+                <div class="client-stat-value" id="cd-total">R$ 0</div>
               </div>
               <div class="client-stat">
                 <div class="client-stat-label">Ticket Médio</div>
-                <div class="client-stat-value" id="cd-ticket">R$ 65</div>
+                <div class="client-stat-value" id="cd-ticket">R$ 0</div>
               </div>
               <div class="client-stat">
                 <div class="client-stat-label">Última Visita</div>
-                <div class="client-stat-value" id="cd-last" style="font-size:14px;">1 mai</div>
+                <div class="client-stat-value" id="cd-last">—</div>
               </div>
             </div>
 
             <div class="history-header">
               <div class="history-header-title">Histórico de Atendimentos</div>
             </div>
-            <div class="history-list" id="cd-history">
-              <div class="history-item"><div class="history-date">01/05/2026</div><div class="history-svc">Manicure + Pedicure</div><div class="history-price">R$ 70</div></div>
-              <div class="history-item"><div class="history-date">17/04/2026</div><div class="history-svc">Unhas em Gel</div><div class="history-price">R$ 90</div></div>
-              <div class="history-item"><div class="history-date">03/04/2026</div><div class="history-svc">Manicure Simples</div><div class="history-price">R$ 35</div></div>
-              <div class="history-item"><div class="history-date">20/03/2026</div><div class="history-svc">Manicure + Pedicure</div><div class="history-price">R$ 70</div></div>
-            </div>
+            <div class="history-list" id="cd-history"></div>
           </div>
         </div>
       </section>
@@ -765,11 +774,6 @@
               <svg class="settings-nav-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="6" r="3.5" stroke="currentColor" stroke-width="1.2"/><path d="M2 13c0-2.5 2.7-4 6-4s6 1.5 6 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
               Perfil
             </div>
-            <div class="settings-nav-item" onclick="showSettingsTab(this,'tab-horarios')">
-              <svg class="settings-nav-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/><path d="M8 5v3l2 2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
-              Horários
-            </div>
-
             <div class="settings-nav-item" onclick="showSettingsTab(this,'tab-notif')">
               <svg class="settings-nav-icon" viewBox="0 0 16 16" fill="none"><path d="M8 1a5 5 0 0 1 5 5c0 3 1 4 1 4H2s1-1 1-4a5 5 0 0 1 5-5zM6.5 13.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
               Notificações
@@ -789,69 +793,31 @@
             <div id="tab-perfil">
               <div class="settings-section">
                 <div class="settings-section-header">
-                  <div class="settings-section-title">Informações do Negócio</div>
-                  <div class="settings-section-sub">Dados exibidos para os clientes</div>
+                  <div class="settings-section-title">Meu Perfil</div>
+                  <div class="settings-section-sub">Informações da sua conta</div>
                 </div>
                 <div class="settings-body">
                   <div class="profile-header">
-                    <div class="profile-avatar">MF</div>
+                    <div class="profile-avatar" id="profile-avatar">?</div>
                     <div>
-                      <div class="profile-info-name">Mirian Fontes</div>
-                      <div class="profile-info-role">Manicure & Design de Sobrancelhas</div>
-                      <button class="btn-outline btn-sm">Alterar foto</button>
+                      <div class="profile-info-name" id="profile-name">—</div>
+                      <div class="profile-info-role" id="profile-role">—</div>
                     </div>
                   </div>
                   <div class="form-row">
-                    <div class="form-field"><label class="form-label">Nome</label><input class="form-input" value="Mirian Fontes"></div>
-                    <div class="form-field"><label class="form-label">Nome do Studio</label><input class="form-input" value="Studio Mirian Fontes"></div>
+                    <div class="form-field"><label class="form-label">Nome</label><input class="form-input" id="profile-input-name"></div>
+                    <div class="form-field"><label class="form-label">Email</label><input class="form-input" id="profile-input-email" readonly style="background:var(--bg-screen);color:var(--text-muted);cursor:not-allowed"></div>
                   </div>
                   <div class="form-row">
-                    <div class="form-field"><label class="form-label">WhatsApp</label><input class="form-input" value="(11) 99999-8888"></div>
-                    <div class="form-field"><label class="form-label">Instagram</label><input class="form-input" value="@mirianstudionfls"></div>
-                  </div>
-                  <div class="form-row">
-                    <div class="form-field full"><label class="form-label">Endereço</label><input class="form-input" value="Rua das Flores, 128 — Vila Nova, São Paulo - SP"></div>
+                    <div class="form-field"><label class="form-label">Telefone / WhatsApp</label><input class="form-input" id="profile-input-phone"></div>
+                    <div class="form-field"><label class="form-label">Função</label><input class="form-input" id="profile-input-role" readonly style="background:var(--bg-screen);color:var(--text-muted);cursor:not-allowed"></div>
                   </div>
                   <div class="save-bar">
-                    <button class="btn-outline">Cancelar</button>
-                    <button class="btn-primary">Salvar Alterações</button>
+                    <button class="btn-primary" onclick="saveProfile()">Salvar Alterações</button>
                   </div>
                 </div>
               </div>
             </div>
-
-            <div id="tab-horarios" style="display:none;">
-              <div class="settings-section">
-                <div class="settings-section-header">
-                  <div class="settings-section-title">Horário de Funcionamento</div>
-                  <div class="settings-section-sub">Configure quais dias e horários você atende</div>
-                </div>
-                <div class="settings-body">
-                  <div class="hours-grid">
-                    <div class="hour-day"><div class="hour-day-name">Seg</div><div class="hour-toggle on"></div><div class="hour-times">8h–18h</div></div>
-                    <div class="hour-day"><div class="hour-day-name">Ter</div><div class="hour-toggle on"></div><div class="hour-times">8h–18h</div></div>
-                    <div class="hour-day"><div class="hour-day-name">Qua</div><div class="hour-toggle on"></div><div class="hour-times">8h–18h</div></div>
-                    <div class="hour-day"><div class="hour-day-name">Qui</div><div class="hour-toggle on"></div><div class="hour-times">8h–18h</div></div>
-                    <div class="hour-day"><div class="hour-day-name">Sex</div><div class="hour-toggle on"></div><div class="hour-times">8h–18h</div></div>
-                    <div class="hour-day"><div class="hour-day-name">Sáb</div><div class="hour-toggle on"></div><div class="hour-times">8h–14h</div></div>
-                    <div class="hour-day"><div class="hour-day-name">Dom</div><div class="hour-toggle off"></div><div class="hour-times">Fechado</div></div>
-                  </div>
-                  <div class="lunch-break-box">
-                    <div class="lunch-break-title">Intervalo de Almoço</div>
-                    <div class="form-row">
-                      <div class="form-field"><label class="form-label">Início</label><input class="form-input" value="12:00"></div>
-                      <div class="form-field"><label class="form-label">Fim</label><input class="form-input" value="13:30"></div>
-                    </div>
-                  </div>
-                  <div class="save-bar">
-                    <button class="btn-outline">Cancelar</button>
-                    <button class="btn-primary">Salvar Horários</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-
 
             <div id="tab-notif" style="display:none;">
               <div class="settings-section">
@@ -898,7 +864,28 @@
                   <div class="settings-section-sub">Conecte o BeautyFlow com outros serviços</div>
                 </div>
                 <div class="settings-body">
-                  <div class="settings-empty">Nenhuma integração disponível no momento.</div>
+                  <div class="integ-card">
+                    <div class="integ-header">
+                      <div class="integ-icon">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="5" cy="10" r="3" stroke="currentColor" stroke-width="1.5"/><circle cx="15" cy="5" r="3" stroke="currentColor" stroke-width="1.5"/><circle cx="15" cy="15" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M8 10h3l1.5-3M8 10h3l1.5 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+                      </div>
+                      <div>
+                        <div class="integ-name">n8n</div>
+                        <div class="integ-desc">Automação de workflows (Google Calendar, WhatsApp, etc.)</div>
+                      </div>
+                    </div>
+                    <div class="form-row">
+                      <div class="form-field full">
+                        <label class="form-label">URL do Webhook</label>
+                        <input class="form-input" id="n8n-url" placeholder="https://exemplo.app.n8n.cloud/webhook/...">
+                      </div>
+                    </div>
+                    <div id="n8n-status" class="integ-status"></div>
+                    <div class="integ-actions">
+                      <button class="btn-outline" onclick="testN8n()">Testar</button>
+                      <button class="btn-primary" onclick="saveN8nConfig()">Salvar</button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
