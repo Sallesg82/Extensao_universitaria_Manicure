@@ -131,6 +131,16 @@
 
       <div class="nav-section">Sistema</div>
 
+      <div class="nav-item usuarios-nav" onclick="showPage('usuarios', this)" data-tooltip="Usuários">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+          <circle cx="6" cy="5" r="3" stroke="currentColor" stroke-width="1.2"/>
+          <path d="M1 13c0-2.5 2-4 5-4s5 1.5 5 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+          <circle cx="12" cy="5" r="2" stroke="currentColor" stroke-width="1.2"/>
+          <path d="M15 14c0-1.8-1.3-2.5-3-2.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+        Usuários
+      </div>
+
       <div class="nav-item" onclick="showPage('configuracoes', this)" data-tooltip="Configurações">
         <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
           <circle cx="8" cy="8" r="5.8" stroke="currentColor" stroke-width="1.8" stroke-dasharray="1.5 1.7"/>
@@ -501,23 +511,23 @@
         <div class="metrics">
           <div class="metric-card c1">
             <div class="metric-label">Receita do Mês</div>
-            <div class="metric-value">R$ 6.840</div>
-            <div class="metric-change up"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 2v8M2 5l4-3 4 3" stroke="#4e8f6a" stroke-width="1.3" stroke-linecap="round"/></svg>+14% vs abril</div>
+            <div class="metric-value">R$ 0</div>
+            <div class="metric-change"></div>
           </div>
           <div class="metric-card cr">
             <div class="metric-label">Despesas do Mês</div>
-            <div class="metric-value">R$ 1.340</div>
-            <div class="metric-change down"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 10V2M2 7l4 3 4-3" stroke="#c05050" stroke-width="1.3" stroke-linecap="round"/></svg>+6% vs abril</div>
+            <div class="metric-value">R$ 0</div>
+            <div class="metric-change"></div>
           </div>
           <div class="metric-card cg">
             <div class="metric-label">Lucro Líquido</div>
-            <div class="metric-value">R$ 5.500</div>
-            <div class="metric-change up"><svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 2v8M2 5l4-3 4 3" stroke="#4e8f6a" stroke-width="1.3" stroke-linecap="round"/></svg>Margem 80%</div>
+            <div class="metric-value">R$ 0</div>
+            <div class="metric-change"></div>
           </div>
           <div class="metric-card c4">
             <div class="metric-label">Meta Mensal</div>
-            <div class="metric-value">R$ 7.000</div>
-            <div class="metric-change neutral">97% atingido</div>
+            <div class="metric-value">R$ 0</div>
+            <div class="metric-change neutral"></div>
           </div>
         </div>
 
@@ -525,7 +535,7 @@
           <div class="finance-left">
             <div class="panel big-chart">
               <div class="panel-header">
-                <div class="panel-title">Receita vs Despesas — Maio 2026</div>
+                <div class="panel-title">Receita vs Despesas</div>
                 <div class="chart-legend">
                   <div class="legend-item"><div class="legend-dot" style="background:#4a90d9;"></div>Receita</div>
                   <div class="legend-item"><div class="legend-dot" style="background:#b8d4f0;"></div>Despesa</div>
@@ -533,13 +543,13 @@
               </div>
               <div class="chart-area">
                 <div class="month-bars">
-                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:72px;"></div><div class="month-bar exp" style="height:24px;"></div></div><div class="month-label">Seg</div></div>
-                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:88px;"></div><div class="month-bar exp" style="height:18px;"></div></div><div class="month-label">Ter</div></div>
-                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:64px;"></div><div class="month-bar exp" style="height:30px;"></div></div><div class="month-label">Qua</div></div>
-                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:96px;"></div><div class="month-bar exp" style="height:20px;"></div></div><div class="month-label">Qui</div></div>
-                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:110px;"></div><div class="month-bar exp" style="height:28px;"></div></div><div class="month-label">Sex</div></div>
-                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:120px;"></div><div class="month-bar exp" style="height:0px;"></div></div><div class="month-label">Sáb</div></div>
-                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:0;background:#f0f5fb;"></div><div class="month-bar exp" style="height:0;"></div></div><div class="month-label">Dom</div></div>
+                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:1px;"></div><div class="month-bar exp" style="height:1px;"></div></div><div class="month-label">Seg</div></div>
+                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:1px;"></div><div class="month-bar exp" style="height:1px;"></div></div><div class="month-label">Ter</div></div>
+                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:1px;"></div><div class="month-bar exp" style="height:1px;"></div></div><div class="month-label">Qua</div></div>
+                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:1px;"></div><div class="month-bar exp" style="height:1px;"></div></div><div class="month-label">Qui</div></div>
+                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:1px;"></div><div class="month-bar exp" style="height:1px;"></div></div><div class="month-label">Sex</div></div>
+                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:1px;"></div><div class="month-bar exp" style="height:1px;"></div></div><div class="month-label">Sáb</div></div>
+                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:0;"></div><div class="month-bar exp" style="height:0;"></div></div><div class="month-label">Dom</div></div>
                 </div>
               </div>
             </div>
@@ -547,34 +557,10 @@
             <div class="panel">
               <div class="panel-header">
                 <div class="panel-title">Lançamentos Recentes</div>
-                <span class="panel-badge">Maio 2026</span>
+                <span class="panel-badge"></span>
               </div>
               <div class="transactions-table">
-                <div class="tx-row">
-                  <div class="tx-icon in"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 12V4M4 8l4-4 4 4" stroke="#4e8f6a" stroke-width="1.3" stroke-linecap="round"/></svg></div>
-                  <div class="tx-desc"><div class="tx-name">Ana Paula Silva — Manicure+Ped</div><div class="tx-date">01/05/2026 · Pix</div></div>
-                  <div class="tx-amount in">+R$ 70,00</div>
-                </div>
-                <div class="tx-row">
-                  <div class="tx-icon in"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 12V4M4 8l4-4 4 4" stroke="#4e8f6a" stroke-width="1.3" stroke-linecap="round"/></svg></div>
-                  <div class="tx-desc"><div class="tx-name">Carla Mendes — Sobrancelha</div><div class="tx-date">01/05/2026 · Pix</div></div>
-                  <div class="tx-amount in">+R$ 45,00</div>
-                </div>
-                <div class="tx-row">
-                  <div class="tx-icon out"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 4v8M4 8l4 4 4-4" stroke="#c05050" stroke-width="1.3" stroke-linecap="round"/></svg></div>
-                  <div class="tx-desc"><div class="tx-name">Compra esmaltes e materiais</div><div class="tx-date">30/04/2026 · Débito</div></div>
-                  <div class="tx-amount out">−R$ 180,00</div>
-                </div>
-                <div class="tx-row">
-                  <div class="tx-icon in"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 12V4M4 8l4-4 4 4" stroke="#4e8f6a" stroke-width="1.3" stroke-linecap="round"/></svg></div>
-                  <div class="tx-desc"><div class="tx-name">Rafaela Nunes — Alongamento</div><div class="tx-date">30/04/2026 · Pix</div></div>
-                  <div class="tx-amount in">+R$ 120,00</div>
-                </div>
-                <div class="tx-row">
-                  <div class="tx-icon out"><svg width="14" height="14" viewBox="0 0 16 16" fill="none"><path d="M8 4v8M4 8l4 4 4-4" stroke="#c05050" stroke-width="1.3" stroke-linecap="round"/></svg></div>
-                  <div class="tx-desc"><div class="tx-name">Aluguel da sala (maio)</div><div class="tx-date">01/05/2026 · TED</div></div>
-                  <div class="tx-amount out">−R$ 650,00</div>
-                </div>
+                <div style="padding:20px;text-align:center;color:var(--text-secondary);">Nenhum lançamento no mês</div>
               </div>
             </div>
           </div>
@@ -585,18 +571,10 @@
               <div class="donut-wrap">
                 <svg width="90" height="90" viewBox="0 0 90 90">
                   <circle cx="45" cy="45" r="32" fill="none" stroke="#e8f2fc" stroke-width="14"/>
-                  <circle cx="45" cy="45" r="32" fill="none" stroke="#4a90d9" stroke-width="14"
-                    stroke-dasharray="130.65 200.96" stroke-dashoffset="0" transform="rotate(-90 45 45)"/>
-                  <circle cx="45" cy="45" r="32" fill="none" stroke="#1a5fab" stroke-width="14"
-                    stroke-dasharray="44.2 200.96" stroke-dashoffset="-130.65" transform="rotate(-90 45 45)"/>
-                  <circle cx="45" cy="45" r="32" fill="none" stroke="#b8d4f0" stroke-width="14"
-                    stroke-dasharray="26.1 200.96" stroke-dashoffset="-174.85" transform="rotate(-90 45 45)"/>
-                  <text x="45" y="48" text-anchor="middle" font-family="DM Serif Display,serif" font-size="13" fill="#0f2340">65%</text>
+                  <text x="45" y="48" text-anchor="middle" font-family="DM Serif Display,serif" font-size="13" fill="#0f2340">0%</text>
                 </svg>
                 <div class="donut-legend">
-                  <div class="donut-legend-item"><div class="donut-legend-dot" style="background:#4a90d9;"></div>Manicure <span style="margin-left:auto;color:#0f2340;font-weight:500;">65%</span></div>
-                  <div class="donut-legend-item"><div class="donut-legend-dot" style="background:#1a5fab;"></div>Sobrancelha <span style="margin-left:auto;color:#0f2340;font-weight:500;">22%</span></div>
-                  <div class="donut-legend-item"><div class="donut-legend-dot" style="background:#b8d4f0;"></div>Gel/Outros <span style="margin-left:auto;color:#0f2340;font-weight:500;">13%</span></div>
+                  <div style="color:var(--text-secondary);font-size:12px;">Nenhum serviço no período</div>
                 </div>
               </div>
             </div>
@@ -604,24 +582,21 @@
             <div class="panel">
               <div class="panel-header"><div class="panel-title">Despesas por Categoria</div></div>
               <div class="expense-breakdown">
-                <div class="exp-row"><div class="service-dot" style="background:#c05050;"></div><div class="exp-name">Aluguel</div><div class="exp-bar-bg"><div class="exp-bar-fill" style="width:65%;background:#c05050;"></div></div><div class="exp-val">R$ 650</div></div>
-                <div class="exp-row"><div class="service-dot" style="background:#c9894a;"></div><div class="exp-name">Materiais</div><div class="exp-bar-bg"><div class="exp-bar-fill" style="width:28%;background:#c9894a;"></div></div><div class="exp-val">R$ 280</div></div>
-                <div class="exp-row"><div class="service-dot" style="background:#8aaccb;"></div><div class="exp-name">Marketing</div><div class="exp-bar-bg"><div class="exp-bar-fill" style="width:24%;background:#8aaccb;"></div></div><div class="exp-val">R$ 240</div></div>
-                <div class="exp-row"><div class="service-dot" style="background:#b8d4f0;"></div><div class="exp-name">Outros</div><div class="exp-bar-bg"><div class="exp-bar-fill" style="width:17%;background:#b8d4f0;"></div></div><div class="exp-val">R$ 170</div></div>
+                <div style="padding:10px 0;color:var(--text-secondary);font-size:13px;">Nenhuma despesa registrada</div>
               </div>
             </div>
 
             <div class="panel">
-              <div class="panel-header"><div class="panel-title">Meta do Mês</div><span class="panel-badge green">97%</span></div>
+              <div class="panel-header"><div class="panel-title">Meta do Mês</div><span class="panel-badge green">0%</span></div>
               <div class="meta-progress">
                 <div class="meta-progress-labels">
-                  <span class="meta-progress-label">R$ 6.840 arrecadado</span>
-                  <span class="meta-progress-target">Meta: R$ 7.000</span>
+                  <span class="meta-progress-label">R$ 0 arrecadado</span>
+                  <span class="meta-progress-target">Meta: R$ 0</span>
                 </div>
                 <div class="meta-progress-bar">
-                  <div class="meta-progress-fill" style="width:97%"></div>
+                  <div class="meta-progress-fill" style="width:0%"></div>
                 </div>
-                <div class="meta-progress-note">Faltam apenas R$ 160 para bater a meta!</div>
+                <div class="meta-progress-note"></div>
               </div>
             </div>
           </div>
@@ -634,10 +609,10 @@
       <section class="page" id="page-relatorios">
         <div class="period-selector">
           <span class="period-label">Período:</span>
-          <button class="period-btn">7 dias</button>
-          <button class="period-btn active">30 dias</button>
-          <button class="period-btn">3 meses</button>
-          <button class="period-btn">1 ano</button>
+          <button class="period-btn" onclick="loadRelatorios(7)">7 dias</button>
+          <button class="period-btn active" onclick="loadRelatorios(30)">30 dias</button>
+          <button class="period-btn" onclick="loadRelatorios(90)">3 meses</button>
+          <button class="period-btn" onclick="loadRelatorios(365)">1 ano</button>
           <button class="btn-outline" style="margin-left:auto;">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="vertical-align:-1px;margin-right:4px;"><path d="M3 8h10M3 4h10M3 12h6" stroke="#1a5fab" stroke-width="1.3" stroke-linecap="round"/></svg>
             Exportar PDF
@@ -646,18 +621,12 @@
 
         <div class="reports-grid">
           <div class="panel">
-            <div class="panel-header"><div class="panel-title">Tendência de Receita</div><span style="font-size:11px;color:#8aaccb;">Últimos 30 dias</span></div>
+            <div class="panel-header"><div class="panel-title">Tendência de Receita</div><span class="rpt-trend-sub" style="font-size:11px;color:#8aaccb;">—</span></div>
             <div class="trend-chart-wrap">
-              <svg width="100%" height="130" viewBox="0 0 450 130" preserveAspectRatio="none">
+              <svg width="100%" height="130" viewBox="0 0 450 130" preserveAspectRatio="none" id="rpt-trend-svg">
                 <line x1="0" y1="20" x2="450" y2="20" stroke="#f0f5fb" stroke-width="1"/>
                 <line x1="0" y1="55" x2="450" y2="55" stroke="#f0f5fb" stroke-width="1"/>
                 <line x1="0" y1="90" x2="450" y2="90" stroke="#f0f5fb" stroke-width="1"/>
-                <path d="M0 90 L30 85 L60 78 L90 82 L120 70 L150 65 L180 72 L210 60 L240 52 L270 55 L300 45 L330 38 L360 42 L390 30 L420 35 L450 25 L450 130 L0 130Z"
-                  fill="url(#grad1)" opacity="0.3"/>
-                <path d="M0 90 L30 85 L60 78 L90 82 L120 70 L150 65 L180 72 L210 60 L240 52 L270 55 L300 45 L330 38 L360 42 L390 30 L420 35 L450 25"
-                  fill="none" stroke="#4a90d9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                <circle cx="450" cy="25" r="4" fill="#4a90d9"/>
-                <circle cx="390" cy="30" r="3" fill="#4a90d9" opacity="0.6"/>
                 <defs>
                   <linearGradient id="grad1" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stop-color="#4a90d9"/>
@@ -665,102 +634,53 @@
                   </linearGradient>
                 </defs>
               </svg>
-              <div style="display:flex;justify-content:space-between;margin-top:4px;">
-                <span style="font-size:9px;color:#8aaccb;">1 abr</span>
-                <span style="font-size:9px;color:#8aaccb;">15 abr</span>
-                <span style="font-size:9px;color:#8aaccb;">30 abr</span>
+              <div style="display:flex;justify-content:space-between;margin-top:4px;" id="rpt-trend-labels">
+                <span style="font-size:9px;color:#8aaccb;">—</span>
+                <span style="font-size:9px;color:#8aaccb;">—</span>
               </div>
               <div class="chart-stats">
-                <div class="chart-stat"><div class="chart-stat-label">Total</div><div class="chart-stat-value">R$ 18.240</div></div>
-                <div class="chart-stat"><div class="chart-stat-label">Média/dia</div><div class="chart-stat-value">R$ 608</div></div>
-                <div class="chart-stat"><div class="chart-stat-label">Crescimento</div><div class="chart-stat-value green">+22%</div></div>
+                <div class="chart-stat"><div class="chart-stat-label">Total</div><div class="chart-stat-value">R$ 0</div></div>
+                <div class="chart-stat"><div class="chart-stat-label">Média/dia</div><div class="chart-stat-value">R$ 0</div></div>
+                <div class="chart-stat"><div class="chart-stat-label">Crescimento</div><div class="chart-stat-value">—</div></div>
               </div>
             </div>
           </div>
 
           <div class="panel top-clients">
             <div class="panel-header"><div class="panel-title">Top Clientes</div><span style="font-size:11px;color:#8aaccb;">Por receita gerada</span></div>
-            <div>
-              <div class="top-client-row">
-                <div class="rank-badge gold">1°</div>
-                <div class="client-av" style="width:28px;height:28px;font-size:11px;background:#f0f8e8;color:#4a8a2e;">RN</div>
-                <div style="flex:1;"><div style="font-size:13px;font-weight:500;color:#0f2340;">Rafaela Nunes</div><div style="font-size:11px;color:#8aaccb;">19 visitas · último: 01/05</div></div>
-                <div style="font-size:14px;font-weight:600;color:#1a5fab;">R$ 2.280</div>
-              </div>
-              <div class="top-client-row">
-                <div class="rank-badge gold" style="background:#f4f8ff;color:#4a6888;">2°</div>
-                <div class="client-av" style="width:28px;height:28px;font-size:11px;background:#daeaf8;color:#1a5fab;">AP</div>
-                <div style="flex:1;"><div style="font-size:13px;font-weight:500;color:#0f2340;">Ana Paula Silva</div><div style="font-size:11px;color:#8aaccb;">28 visitas · último: 01/05</div></div>
-                <div style="font-size:14px;font-weight:600;color:#1a5fab;">R$ 1.820</div>
-              </div>
-              <div class="top-client-row">
-                <div class="rank-badge silver">3°</div>
-                <div class="client-av" style="width:28px;height:28px;font-size:11px;background:#f8e8f4;color:#8a2e6e;">BN</div>
-                <div style="flex:1;"><div style="font-size:13px;font-weight:500;color:#0f2340;">Beatriz Neves</div><div style="font-size:11px;color:#8aaccb;">22 visitas · último: 29/04</div></div>
-                <div style="font-size:14px;font-weight:600;color:#1a5fab;">R$ 1.540</div>
-              </div>
-              <div class="top-client-row">
-                <div class="rank-badge silver" style="background:#f8f8f8;color:#888;">4°</div>
-                <div class="client-av" style="width:28px;height:28px;font-size:11px;background:#e8f8ee;color:#2e8a5a;">FC</div>
-                <div style="flex:1;"><div style="font-size:13px;font-weight:500;color:#0f2340;">Fernanda Costa</div><div style="font-size:11px;color:#8aaccb;">11 visitas · último: 01/05</div></div>
-                <div style="font-size:14px;font-weight:600;color:#1a5fab;">R$ 990</div>
-              </div>
-              <div class="top-client-row">
-                <div class="rank-badge" style="background:#f4f7fc;color:#8aaccb;">5°</div>
-                <div class="client-av" style="width:28px;height:28px;font-size:11px;background:#e8f0fc;color:#2e5e8a;">CM</div>
-                <div style="flex:1;"><div style="font-size:13px;font-weight:500;color:#0f2340;">Carla Mendes</div><div style="font-size:11px;color:#8aaccb;">15 visitas · último: 01/05</div></div>
-                <div style="font-size:14px;font-weight:600;color:#1a5fab;">R$ 675</div>
-              </div>
+            <div id="rpt-top-clients">
+              <div style="padding:16px;color:var(--text-secondary);font-size:13px;text-align:center;">Nenhum cliente no período</div>
             </div>
           </div>
 
           <div class="panel">
             <div class="panel-header"><div class="panel-title">Serviços Mais Populares</div><span style="font-size:11px;color:#8aaccb;">Últimos 30 dias</span></div>
-            <div style="padding:14px 18px;display:flex;flex-direction:column;gap:10px;">
-              <div><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:12px;font-weight:500;color:#0f2340;">Manicure Simples</span><span style="font-size:12px;color:#4a90d9;font-weight:600;">48x</span></div><div class="meta-progress-bar" style="height:8px;"><div class="meta-progress-fill" style="width:88%;border-radius:4px;height:8px;"></div></div></div>
-              <div><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:12px;font-weight:500;color:#0f2340;">Manicure + Pedicure</span><span style="font-size:12px;color:#4a90d9;font-weight:600;">31x</span></div><div class="meta-progress-bar" style="height:8px;"><div class="meta-progress-fill" style="width:58%;border-radius:4px;height:8px;"></div></div></div>
-              <div><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:12px;font-weight:500;color:#0f2340;">Design de Sobrancelha</span><span style="font-size:12px;color:#2563a8;font-weight:600;">27x</span></div><div class="meta-progress-bar" style="height:8px;"><div class="meta-progress-fill" style="width:50%;border-radius:4px;height:8px;"></div></div></div>
-              <div><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:12px;font-weight:500;color:#0f2340;">Unhas em Gel</span><span style="font-size:12px;color:#3a7abf;font-weight:600;">19x</span></div><div class="meta-progress-bar" style="height:8px;"><div class="meta-progress-fill" style="width:35%;border-radius:4px;height:8px;"></div></div></div>
-              <div><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:12px;font-weight:500;color:#0f2340;">Alongamento de Unhas</span><span style="font-size:12px;color:#1a5fab;font-weight:600;">12x</span></div><div class="meta-progress-bar" style="height:8px;"><div class="meta-progress-fill" style="width:22%;border-radius:4px;height:8px;"></div></div></div>
+            <div style="padding:14px 18px;display:flex;flex-direction:column;gap:10px;" id="rpt-services">
+              <div style="padding:10px 0;color:var(--text-secondary);font-size:13px;text-align:center;">Nenhum serviço no período</div>
             </div>
           </div>
 
           <div class="panel">
             <div class="panel-header"><div class="panel-title">Horários de Pico</div><span style="font-size:11px;color:#8aaccb;">Mapa de calor</span></div>
-            <div class="heatmap-grid">
-              <div class="heatmap-hours">
-                <div style="width:26px;"></div>
-                <div class="heatmap-hour-label">8h</div>
-                <div class="heatmap-hour-label">9h</div>
-                <div class="heatmap-hour-label">10h</div>
-                <div class="heatmap-hour-label">11h</div>
-                <div class="heatmap-hour-label">12h</div>
-                <div class="heatmap-hour-label">13h</div>
-                <div class="heatmap-hour-label">14h</div>
-                <div class="heatmap-hour-label">15h</div>
-                <div class="heatmap-hour-label">16h</div>
-                <div class="heatmap-hour-label">17h</div>
-              </div>
-              <div class="heatmap-row"><div class="heatmap-day-label">Seg</div><div class="hm-cell" style="background:rgba(74,144,217,0.2);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.5);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.7);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.9);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.3);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.6);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.8);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.9);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.7);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.4);"></div></div>
-              <div class="heatmap-row"><div class="heatmap-day-label">Ter</div><div class="hm-cell" style="background:rgba(74,144,217,0.3);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.8);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.9);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.7);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.2);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.7);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.5);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.4);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.6);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.8);"></div></div>
-              <div class="heatmap-row"><div class="heatmap-day-label">Qua</div><div class="hm-cell" style="background:rgba(74,144,217,0.1);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.4);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.6);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.9);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.2);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.5);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.9);"></div><div class="hm-cell" style="background:rgba(74,144,217,1);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.8);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.5);"></div></div>
-              <div class="heatmap-row"><div class="heatmap-day-label">Qui</div><div class="hm-cell" style="background:rgba(74,144,217,0.5);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.9);"></div><div class="hm-cell" style="background:rgba(74,144,217,1);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.9);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.3);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.8);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.6);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.9);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.7);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.5);"></div></div>
-              <div class="heatmap-row"><div class="heatmap-day-label">Sex</div><div class="hm-cell" style="background:rgba(74,144,217,0.6);"></div><div class="hm-cell" style="background:rgba(74,144,217,1);"></div><div class="hm-cell" style="background:rgba(74,144,217,1);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.8);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.4);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.9);"></div><div class="hm-cell" style="background:rgba(74,144,217,1);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.9);"></div><div class="hm-cell" style="background:rgba(74,144,217,1);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.9);"></div></div>
-              <div class="heatmap-row"><div class="heatmap-day-label">Sáb</div><div class="hm-cell" style="background:rgba(74,144,217,0.7);"></div><div class="hm-cell" style="background:rgba(74,144,217,1);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.9);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.7);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.1);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.3);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.5);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.4);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.3);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.2);"></div></div>
-              <div class="heatmap-row"><div class="heatmap-day-label">Dom</div><div class="hm-cell" style="background:rgba(74,144,217,0.05);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.05);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.05);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.05);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.05);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.05);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.05);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.05);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.05);"></div><div class="hm-cell" style="background:rgba(74,144,217,0.05);"></div></div>
-              <div class="heatmap-legend">
-                <span>Menos</span>
-                <div class="heatmap-legend-bar">
-                  <div class="heatmap-legend-step" style="background:rgba(74,144,217,0.1);"></div>
-                  <div class="heatmap-legend-step" style="background:rgba(74,144,217,0.3);"></div>
-                  <div class="heatmap-legend-step" style="background:rgba(74,144,217,0.6);"></div>
-                  <div class="heatmap-legend-step" style="background:rgba(74,144,217,0.8);"></div>
-                  <div class="heatmap-legend-step" style="background:rgba(74,144,217,1);"></div>
-                </div>
-                <span>Mais</span>
-              </div>
+            <div class="heatmap-grid" id="rpt-heatmap">
+              <div style="padding:16px;color:var(--text-secondary);font-size:13px;text-align:center;">Sem dados de agendamento</div>
             </div>
           </div>
+        </div>
+      </section>
+
+      <!-- ══════════════════════════════════
+           PAGE: USUÁRIOS
+      ══════════════════════════════════ -->
+      <section class="page" id="page-usuarios">
+        <div class="users-toolbar">
+          <button class="btn-primary" onclick="showCreateUserModal()">+ Novo Usuário</button>
+        </div>
+        <div class="users-table-wrap">
+          <table class="users-table">
+            <thead><tr><th>Nome</th><th>Email</th><th>Telefone</th><th>Função</th><th>Criado em</th><th></th></tr></thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
         </div>
       </section>
 
@@ -814,6 +734,21 @@
                   </div>
                   <div class="save-bar">
                     <button class="btn-primary" onclick="saveProfile()">Salvar Alterações</button>
+                  </div>
+                </div>
+              </div>
+              <div class="settings-section" style="margin-top:16px;">
+                <div class="settings-section-header">
+                  <div class="settings-section-title">Alterar Senha</div>
+                </div>
+                <div class="settings-body">
+                  <div class="form-row">
+                    <div class="form-field"><label class="form-label">Nova Senha</label><input class="form-input" type="password" id="pwd-new" placeholder="••••••"></div>
+                    <div class="form-field"><label class="form-label">Confirmar Senha</label><input class="form-input" type="password" id="pwd-confirm" placeholder="••••••"></div>
+                  </div>
+                  <div id="pwd-msg" class="auth-msg"></div>
+                  <div class="save-bar">
+                    <button class="btn-primary" onclick="changePassword()">Alterar Senha</button>
                   </div>
                 </div>
               </div>

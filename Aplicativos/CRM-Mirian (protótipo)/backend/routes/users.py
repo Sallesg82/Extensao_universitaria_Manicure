@@ -81,6 +81,19 @@ def delete_user_route(user_id):
     return jsonify({'message': 'Usuário removido', 'id': user_id})
 
 
+@users_bp.route('/<int:user_id>/password', methods=['PUT'])
+def change_password(user_id):
+    existing = get_user(user_id)
+    if not existing:
+        return jsonify({'error': 'Usuário não encontrado'}), 404
+    data = request.get_json()
+    if not data.get('password') or len(data['password']) < 4:
+        return jsonify({'error': 'Senha deve ter no mínimo 4 caracteres'}), 400
+    pw_hash = generate_password_hash(data['password'])
+    update_user(user_id, {'password_hash': pw_hash})
+    return jsonify({'message': 'Senha alterada com sucesso'})
+
+
 @users_bp.route('/login', methods=['POST'])
 def login():
     data = request.get_json()

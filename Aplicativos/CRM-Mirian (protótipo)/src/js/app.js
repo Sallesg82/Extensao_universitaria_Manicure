@@ -127,6 +127,9 @@ function updateUserCard() {
   card.querySelector('.avatar').textContent = ini || '?'
   card.querySelector('.user-name').textContent = currentUser.name || ''
   card.querySelector('.user-role').textContent = currentUser.role === 'admin' ? 'Administradora' : 'Usuário'
+
+  const nav = document.querySelector('.usuarios-nav')
+  if (nav) nav.style.display = currentUser.role === 'admin' ? '' : 'none'
 }
 
 async function checkAuth() {
@@ -180,6 +183,7 @@ const pageConfig = {
   metas:          { title: 'Metas',           sub: '',      btn: null },
   financeiro:     { title: 'Financeiro',      sub: '',      btn: '+ Novo Lançamento' },
   relatorios:     { title: 'Relatórios',      sub: 'Análise dos últimos 30 dias',      btn: '⬇ Exportar PDF' },
+  usuarios:       { title: 'Usuários',        sub: 'Gerenciar contas de acesso',          btn: null },
   configuracoes:  { title: 'Configurações',   sub: 'Gerencie seu sistema BeautyFlow',      btn: null },
 }
 
@@ -229,10 +233,13 @@ function handleTopbarBtn() {
     openServiceModal()
   } else if (pageId === 'financeiro') {
   } else if (pageId === 'relatorios') {
+    loadRelatorios()
     const btn = document.getElementById('topbar-btn')
     const orig = btn.textContent
     btn.textContent = '⏳ Exportando...'
     setTimeout(() => { btn.textContent = orig }, 2000)
+  } else if (pageId === 'usuarios') {
+    loadUsuarios()
   }
 }
 
@@ -284,6 +291,107 @@ async function saveProfile() {
       updateUserCard()
     }
   } catch (e) {}
+}
+
+// ── USUÁRIOS ────────────────────────────────────
+
+async function loadUsuarios() {
+  try {
+    const r = await fetch(API + '/users/')
+    const users = await r.json()
+    const tbody = document.getElementById('users-tbody')
+    if (!tbody) return
+    if (users.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-secondary);">Nenhum usuário cadastrado</td></tr>'
+      return
+    }
+    tbody.innerHTML = users.map(u => {
+      const date = u.created_at ? u.created_at.split('T')[0].split('-').reverse().join('/') : '—'
+      const isSelf = currentUser && currentUser.id === u.id
+      return `<tr>
+        <td><div class="user-cell-name">${u.name}${isSelf ? ' <span style="color:var(--primary-500);font-size:11px;">(você)</span>' : ''}</div></td>
+        <td>${u.email}</td>
+        <td>${u.phone || '—'}</td>
+        <td>${u.role === 'admin' ? 'Administradora' : 'Usuário'}</td>
+        <td>${date}</td>
+        <td>${u.role !== 'admin' || !isSelf ? `<button class="btn-outline btn-sm btn-danger" onclick="deleteUser(${u.id},'${u.name}')">Remover</button>` : ''}</td>
+      </tr>`
+    }).join('')
+  } catch (e) {
+    console.error('Erro ao carregar usuários:', e)
+  }
+}
+
+function showCreateUserModal() {
+  const html = `
+    <div class="modal-overlay" id="create-user-overlay" onclick="if(event.target===this)closeCreateUserModal()">
+      <div class="modal" style="max-width:420px;">
+        <div class="modal-header"><div class="modal-title">Novo Usuário</div><button class="modal-close" onclick="closeCreateUserModal()">×</button></div>
+        <div class="modal-body">
+          <div class="form-row"><div class="form-field full"><label class="form-label">Nome</label><input class="form-input" id="cu-name" placeholder="Nome completo"></div></div>
+          <div class="form-row"><div class="form-field full"><label class="form-label">Email</label><input class="form-input" id="cu-email" type="email" placeholder="email@exemplo.com"></div></div>
+          <div class="form-row"><div class="form-field full"><label class="form-label">Telefone</label><input class="form-input" id="cu-phone" placeholder="(11) 99999-8888"></div></div>
+          <div class="form-row"><div class="form-field full"><label class="form-label">Senha</label><input class="form-input" id="cu-password" type="password" placeholder="••••••"></div></div>
+          <div id="cu-msg" class="auth-msg"></div>
+        </div>
+        <div class="modal-footer"><button class="btn-outline" onclick="closeCreateUserModal()">Cancelar</button><button class="btn-primary" onclick="createUser()">Criar</button></div>
+      </div>
+    </div>`
+  const div = document.createElement('div')
+  div.innerHTML = html
+  document.body.appendChild(div)
+  document.getElementById('cu-name').focus()
+}
+
+function closeCreateUserModal() {
+  const el = document.getElementById('create-user-overlay')
+  if (el) el.remove()
+}
+
+async function createUser() {
+  const name = document.getElementById('cu-name').value.trim()
+  const email = document.getElementById('cu-email').value.trim()
+  const phone = document.getElementById('cu-phone').value.trim()
+  const password = document.getElementById('cu-password').value
+  const msg = document.getElementById('cu-msg')
+  if (!name || !email || !password) { msg.textContent = 'Preencha nome, email e senha.'; msg.className = 'auth-msg error'; return }
+  try {
+    const r = await fetch(API + '/users/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password, phone, role: 'user' })
+    })
+    const data = await r.json()
+    if (r.ok) { closeCreateUserModal(); loadUsuarios() }
+    else { msg.textContent = data.error || 'Erro ao criar.'; msg.className = 'auth-msg error' }
+  } catch (e) { msg.textContent = 'Erro de conexão.'; msg.className = 'auth-msg error' }
+}
+
+async function deleteUser(id, name) {
+  if (!confirm(`Remover usuário "${name}"?`)) return
+  try {
+    const r = await fetch(API + '/users/' + id, { method: 'DELETE' })
+    if (r.ok) loadUsuarios()
+  } catch (e) {}
+}
+
+async function changePassword() {
+  const pwd = document.getElementById('pwd-new').value
+  const confirm = document.getElementById('pwd-confirm').value
+  const msg = document.getElementById('pwd-msg')
+  if (!pwd || pwd.length < 4) { msg.textContent = 'A senha deve ter no mínimo 4 caracteres.'; msg.className = 'auth-msg error'; return }
+  if (pwd !== confirm) { msg.textContent = 'As senhas não conferem.'; msg.className = 'auth-msg error'; return }
+  if (!currentUser || !currentUser.id) return
+  try {
+    const r = await fetch(API + '/users/' + currentUser.id + '/password', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pwd })
+    })
+    const data = await r.json()
+    if (r.ok) { msg.textContent = 'Senha alterada com sucesso!'; msg.className = 'auth-msg success'; document.getElementById('pwd-new').value = ''; document.getElementById('pwd-confirm').value = '' }
+    else { msg.textContent = data.error || 'Erro ao alterar senha.'; msg.className = 'auth-msg error' }
+  } catch (e) { msg.textContent = 'Erro de conexão.'; msg.className = 'auth-msg error' }
 }
 
 // ── N8N INTEGRAÇÃO ─────────────────────────────────
@@ -719,11 +827,10 @@ async function loadFinanceiro() {
     if (metaPanel) {
       const badge = metaPanel.querySelector('.panel-badge')
       if (badge) badge.textContent = s.meta_pct + '%'
-      const labels = metaPanel.querySelectorAll('.meta-progress-label')
-      if (labels.length >= 2) {
-        labels[0].textContent = 'R$ ' + s.month_revenue.toLocaleString('pt-BR', {minimumFractionDigits: 0}) + ' arrecadado'
-        labels[1].textContent = 'Meta: R$ ' + s.meta_mensal.toLocaleString('pt-BR', {minimumFractionDigits: 0})
-      }
+      const labelEl = metaPanel.querySelector('.meta-progress-label')
+      const targetEl = metaPanel.querySelector('.meta-progress-target')
+      if (labelEl) labelEl.textContent = 'R$ ' + s.month_revenue.toLocaleString('pt-BR', {minimumFractionDigits: 0}) + ' arrecadado'
+      if (targetEl) targetEl.textContent = 'Meta: R$ ' + s.meta_mensal.toLocaleString('pt-BR', {minimumFractionDigits: 0})
       const fill = metaPanel.querySelector('.meta-progress-fill')
       if (fill) fill.style.width = Math.min(s.meta_pct, 100) + '%'
       const note = metaPanel.querySelector('.meta-progress-note')
@@ -742,6 +849,120 @@ async function loadFinanceiro() {
   } catch (e) {
     console.error('Erro ao carregar financeiro:', e)
   }
+}
+
+let _relPeriod = 30
+async function loadRelatorios(period) {
+  if (period) _relPeriod = period
+  try {
+    const res = await fetch(API + '/stats')
+    const s = await res.json()
+
+    const sub = document.querySelector('.rpt-trend-sub')
+    if (sub) sub.textContent = 'Últimos ' + _relPeriod + ' dias'
+
+    const svg = document.getElementById('rpt-trend-svg')
+    const revs = s.weekly_revenue || []
+    if (svg && revs.length > 1) {
+      const w = 450, h = 130, padB = 40, padT = 20
+      const maxVal = Math.max(...revs, 1)
+      const stepX = w / (revs.length - 1)
+      const pts = revs.map((v, i) => {
+        const x = i * stepX
+        const y = padT + (1 - v / maxVal) * (h - padT - padB)
+        return { x, y }
+      })
+      let lineD = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ' ' + p.y.toFixed(1)).join(' ')
+      let areaD = lineD + ' L' + (w - stepX).toFixed(1) + ' ' + (h - padB) + ' L0 ' + (h - padB) + 'Z'
+      const defs = '<defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4a90d9"/><stop offset="100%" stop-color="#4a90d9" stop-opacity="0"/></linearGradient></defs>'
+      svg.innerHTML = `
+        <line x1="0" y1="20" x2="450" y2="20" stroke="#f0f5fb" stroke-width="1"/>
+        <line x1="0" y1="55" x2="450" y2="55" stroke="#f0f5fb" stroke-width="1"/>
+        <line x1="0" y1="90" x2="450" y2="90" stroke="#f0f5fb" stroke-width="1"/>
+        <path d="${areaD}" fill="url(#g1)" opacity="0.3"/>
+        <path d="${lineD}" fill="none" stroke="#4a90d9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="${pts[pts.length - 1].x.toFixed(1)}" cy="${pts[pts.length - 1].y.toFixed(1)}" r="4" fill="#4a90d9"/>
+        ${defs}`
+    }
+
+    const labels = document.getElementById('rpt-trend-labels')
+    if (labels) {
+      const now = new Date()
+      const endStr = now.getDate() + ' ' + now.toLocaleString('pt-BR', { month: 'short' })
+      const start = new Date(now)
+      start.setDate(start.getDate() - _relPeriod)
+      const startStr = start.getDate() + ' ' + start.toLocaleString('pt-BR', { month: 'short' })
+      labels.innerHTML = `
+        <span style="font-size:9px;color:#8aaccb;">${startStr}</span>
+        <span style="font-size:9px;color:#8aaccb;">${endStr}</span>`
+    }
+
+    const total = revs.reduce((a, b) => a + b, 0)
+    const avg = revs.length > 0 ? total / revs.length : 0
+    const cs = document.querySelectorAll('.trend-chart-wrap .chart-stat-value')
+    if (cs.length >= 2) {
+      cs[0].textContent = 'R$ ' + total.toLocaleString('pt-BR', { minimumFractionDigits: 0 })
+      cs[1].textContent = 'R$ ' + avg.toLocaleString('pt-BR', { minimumFractionDigits: 0 })
+      if (cs[2]) {
+        const prev = s.month_revenue_prev || 0
+        const growth = prev > 0 ? ((s.month_revenue - prev) / prev * 100) : 0
+        if (growth !== 0 || prev > 0) {
+          cs[2].textContent = (growth >= 0 ? '+' : '') + growth.toFixed(0) + '%'
+          cs[2].className = 'chart-stat-value' + (growth >= 0 ? ' green' : '')
+        } else {
+          cs[2].textContent = '—'
+          cs[2].className = 'chart-stat-value'
+        }
+      }
+    }
+
+    const topDiv = document.getElementById('rpt-top-clients')
+    if (topDiv) {
+      const tops = s.top_clients || []
+      if (tops.length > 0) {
+        topDiv.innerHTML = tops.map((c, i) => {
+          const rankColors = ['#f0f8e8', '#f4f8ff', '#f8e8f4', '#f8f8f8', '#f4f7fc']
+          const rankTextColors = ['#4a8a2e', '#4a6888', '#8a2e6e', '#888', '#8aaccb']
+          const rankLabels = ['1°', '2°', '3°', '4°', '5°']
+          const lastDate = c.last_visit ? c.last_visit.split('T')[0].split('-').reverse().join('/') : '—'
+          return `
+            <div class="top-client-row">
+              <div class="rank-badge" style="background:${rankColors[i]};color:${rankTextColors[i]};">${rankLabels[i]}</div>
+              <div class="client-av" style="width:28px;height:28px;font-size:11px;">${c.avatar_initials || '?'}</div>
+              <div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:500;color:#0f2340;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.name}</div><div style="font-size:11px;color:#8aaccb;">${c.visits} visitas · última: ${lastDate}</div></div>
+              <div style="font-size:14px;font-weight:600;color:#1a5fab;flex-shrink:0;">R$ ${Number(c.total_spent).toLocaleString('pt-BR', {minimumFractionDigits: 0})}</div>
+            </div>`
+        }).join('')
+      } else {
+        topDiv.innerHTML = '<div style="padding:16px;color:var(--text-secondary);font-size:13px;text-align:center;">Nenhum cliente no período</div>'
+      }
+    }
+
+    const svcDiv = document.getElementById('rpt-services')
+    if (svcDiv) {
+      const svcs = s.service_breakdown || []
+      if (svcs.length > 0) {
+        const maxCount = Math.max(...svcs.map(v => v.count), 1)
+        const svcColors = ['#4a90d9', '#2563a8', '#3a7abf', '#b8d4f0', '#1a5fab']
+        svcDiv.innerHTML = svcs.map((v, i) => {
+          const pct = (v.count / maxCount) * 100
+          return `<div><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:12px;font-weight:500;color:#0f2340;">${v.name}</span><span style="font-size:12px;color:${svcColors[i % svcColors.length]};font-weight:600;">${v.count}x</span></div><div class="meta-progress-bar" style="height:8px;"><div class="meta-progress-fill" style="width:${pct}%;border-radius:4px;height:8px;background:${svcColors[i % svcColors.length]};"></div></div></div>`
+        }).join('')
+      } else {
+        svcDiv.innerHTML = '<div style="padding:10px 0;color:var(--text-secondary);font-size:13px;text-align:center;">Nenhum serviço no período</div>'
+      }
+    }
+
+    updatePeriodBtns()
+  } catch (e) {
+    console.error('Erro ao carregar relatórios:', e)
+  }
+}
+
+function updatePeriodBtns() {
+  document.querySelectorAll('.period-btn').forEach(b => {
+    b.classList.toggle('active', parseInt(b.getAttribute('onclick')?.match(/\d+/)?.[0] || '0') === _relPeriod)
+  })
 }
 
 // ── AGENDA ─────────────────────────────────────────
