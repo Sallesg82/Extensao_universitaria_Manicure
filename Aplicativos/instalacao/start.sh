@@ -3,7 +3,6 @@ set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 BASE="$(cd "$DIR/.." && pwd)"
-DB_PATH="$BASE/DB/beautyflow.db"
 CRM_DIR="$BASE/CRM-Mirian (protótipo)"
 APP_DIR="$BASE/agendamento Vinicius"
 
@@ -26,13 +25,6 @@ echo "║        BeautyFlow — Iniciar                  ║"
 echo "╚══════════════════════════════════════════════╝"
 echo ""
 
-if [ ! -f "$DB_PATH" ]; then
-  echo "  Banco não encontrado. Execute install.sh primeiro."
-  exit 1
-fi
-echo "  Banco: $DB_PATH"
-echo ""
-
 iniciar_crm() {
   if [ ! -d "$CRM_DIR/backend/.venv" ]; then
     echo "  CRM não instalado. Execute install.sh"
@@ -41,8 +33,6 @@ iniciar_crm() {
   echo "  Parando instância anterior do CRM..."
   kill_port 3001
   echo "  Iniciando CRM (http://localhost:3001)..."
-  export BEAUTYFLOW_DB_PATH="$DB_PATH"
-  export BEAUTYFLOW_NO_SEED="true"
   rm -f /tmp/beautyflow_crm.log
   cd "$CRM_DIR"
   nohup backend/.venv/bin/python backend/server.py > /tmp/beautyflow_crm.log 2>&1 &

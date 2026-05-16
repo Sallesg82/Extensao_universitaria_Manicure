@@ -5,8 +5,6 @@
 $REPO_URL = "https://github.com/Sallesg82/Extensao_universitaria_Manicure.git"
 $DIR     = Split-Path -Parent $MyInvocation.MyCommand.Path
 $BASE    = Split-Path -Parent $DIR
-$DB_DIR  = "$BASE\DB"
-$DB_PATH = "$DB_DIR\beautyflow.db"
 $CRM_DIR = "$BASE\CRM-Mirian (protótipo)"
 $APP_DIR = "$BASE\agendamento Vinicius"
 
@@ -55,20 +53,7 @@ function InstalarGit {
   exit 1
 }
 
-function InstalarSQLite {
-  if (Get-Command sqlite3 -ErrorAction SilentlyContinue) { Ok "sqlite3 encontrado"; return $true }
-  try {
-    Add-Type -AssemblyName System.Data.SQLite -ErrorAction Stop
-    Ok "System.Data.SQLite disponivel"
-    return $true
-  } catch {
-    Aviso "sqlite3 nao encontrado — vamos usar Python como fallback"
-    return $false
-  }
-}
-
 function InstalarPython {
-  if (Get-Command python -ErrorAction SilentlyContinue) {
     Ok "python $(python --version 2>&1)"
     return
   }
@@ -94,74 +79,6 @@ function InstalarNode {
 }
 
 # ══════════════════════════════════════════
-#  Banco de Dados
-# ══════════════════════════════════════════
-
-function CriarBanco {
-  Write-Host ""
-  Write-Host "── Banco de Dados ──" -ForegroundColor White
-  if (-not (Test-Path $DB_DIR)) { New-Item -ItemType Directory -Path $DB_DIR -Force | Out-Null }
-
-  if (Test-Path $DB_PATH) {
-    Aviso "Banco existente: $DB_PATH"
-    if (Confirmar "Limpar banco (remover dados existentes)?") {
-      Remove-Item -Force $DB_PATH -ErrorAction SilentlyContinue
-      ExecutarSQL $DB_PATH
-      Ok "Banco limpo e recriado vazio"
-    } else {
-      Ok "Banco mantido"
-    }
-  } else {
-    ExecutarSQL $DB_PATH
-    Ok "Banco criado vazio em:"
-    Write-Host "    $DB_PATH" -ForegroundColor Gray
-  }
-}
-
-function ExecutarSQL($path) {
-  $sqlScript = "$DIR\init_db.sql"
-  if (-not (Test-Path $sqlScript)) { Erro "init_db.sql nao encontrado em $DIR"; return }
-
-  try {
-    Add-Type -AssemblyName System.Data.SQLite -ErrorAction Stop
-    $conn = New-Object System.Data.SQLite.SQLiteConnection("Data Source=$path")
-    $conn.Open()
-    $sql = Get-Content $sqlScript -Raw
-    $cmd = $conn.CreateCommand()
-    $cmd.CommandText = $sql
-    $cmd.ExecuteNonQuery() | Out-Null
-    $conn.Close()
-    return
-  } catch {}
-
-  $sqliteOk = Get-Command sqlite3 -ErrorAction SilentlyContinue
-  if ($sqliteOk) {
-    & (Get-Command sqlite3).Source $path ".read '$sqlScript'" 2>$null
-    if ($LASTEXITCODE -eq 0) { return }
-  }
-
-  try {
-    python -c @"
-import sqlite3, os
-p = r'$path'
-s = r'$sqlScript'
-os.makedirs(os.path.dirname(p), exist_ok=True)
-conn = sqlite3.connect(p)
-with open(s, encoding='utf-8') as f:
-    conn.executescript(f.read())
-conn.commit()
-conn.close()
-"@ 2>$null
-    if ($LASTEXITCODE -eq 0) { return }
-  } catch {}
-
-  Erro "Nao foi possivel criar o banco de dados."
-  Erro "Verifique se Python esta instalado e funcionando."
-  Erro "Tente executar: python --version"
-  exit 1
-}
-
-# ══════════════════════════════════════════
 #  Repositorio
 # ══════════════════════════════════════════
 
@@ -175,8 +92,6 @@ function ClonarRepo {
   if (-not (Test-Path $target)) { Erro "Falha ao clonar repositorio"; exit 1 }
   Set-Variable -Name DIR -Value "$target\Aplicativos\instalacao" -Scope Script
   Set-Variable -Name BASE -Value "$target\Aplicativos" -Scope Script
-  Set-Variable -Name DB_DIR -Value "$target\Aplicativos\DB" -Scope Script
-  Set-Variable -Name DB_PATH -Value "$DB_DIR\beautyflow.db" -Scope Script
   Set-Variable -Name CRM_DIR -Value "$BASE\CRM-Mirian (protótipo)" -Scope Script
   Set-Variable -Name APP_DIR -Value "$BASE\agendamento Vinicius" -Scope Script
   Set-Variable -Name INSIDE_REPO -Value $false -Scope Script
@@ -243,7 +158,6 @@ function InstalarDocker {
 
 function ModoDocker($selection) {
   InstalarDocker
-  CriarBanco
   Push-Location $DIR
   docker compose down 2>$null
   if ($selection -eq "crm" -or $selection -eq "ambos") {
@@ -272,8 +186,6 @@ function IniciarCrm {
   $pythonExe = "$venvDir\Scripts\python.exe"
   if (-not (Test-Path $pythonExe)) { Aviso "CRM nao instalado (venv nao encontrado)"; return }
   Ok "Iniciando CRM (backend Python)..."
-  $env:BEAUTYFLOW_DB_PATH = $DB_PATH
-  $env:BEAUTYFLOW_NO_SEED = "true"
   try {
     $p = Start-Process -FilePath $pythonExe -ArgumentList "$CRM_DIR\backend\server.py" -WorkingDirectory "$CRM_DIR\backend" -NoNewWindow -PassThru
     Start-Sleep -Seconds 3
@@ -443,12 +355,6 @@ function GestorUninstall($target) {
     Pop-Location
     Ok "Docker desinstalado"
   }
-  if (Test-Path $DB_PATH) {
-    if (Confirmar "Remover tambem o banco de dados?") {
-      Remove-Item -Force $DB_PATH -ErrorAction SilentlyContinue
-      Ok "Banco de dados removido"
-    }
-  }
 }
 
 # ══════════════════════════════════════════
@@ -475,10 +381,8 @@ function Instalar($selection, $method) {
   ClonarRepo
   if ($method -eq "native") {
     InstalarGit
-    InstalarSQLite
     if ($selection -eq "crm" -or $selection -eq "ambos") { InstalarCrm }
     if ($selection -eq "agenda" -or $selection -eq "ambos") { InstalarAgendamento }
-    CriarBanco
   } else {
     InstalarGit
     ModoDocker $selection

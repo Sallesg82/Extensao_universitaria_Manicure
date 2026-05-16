@@ -4,8 +4,6 @@ set -euo pipefail
 REPO_URL="https://github.com/Sallesg82/Extensao_universitaria_Manicure.git"
 DIR="$(cd "$(dirname "$0")" && pwd)"
 BASE="$(cd "$DIR/.." && pwd)"
-DB_DIR="$BASE/DB"
-DB_PATH="$DB_DIR/beautyflow.db"
 
 echo "╔══════════════════════════════════════════════╗"
 echo "║         BeautyFlow — Instalador Unificado    ║"
@@ -41,8 +39,6 @@ if [ "$INSIDE_REPO" = false ]; then
   git clone "$REPO_URL" "$TARGET"
   DIR="$TARGET/Aplicativos/instalacao"
   BASE="$TARGET/Aplicativos"
-  DB_DIR="$TARGET/Aplicativos/DB"
-  DB_PATH="$DB_DIR/beautyflow.db"
   cd "$DIR"
   echo "  ✓ Repositório clonado"
   echo ""
@@ -74,35 +70,13 @@ instalar_dependencias_base() {
 
   local MISSING=()
   command -v git >/dev/null 2>&1 || MISSING+=("git")
-  command -v sqlite3 >/dev/null 2>&1 || MISSING+=("sqlite3")
+  command -v python3 >/dev/null 2>&1 || MISSING+=("python3")
 
   if [ ${#MISSING[@]} -gt 0 ]; then
     PERGUNTAR_INSTALACAO "${MISSING[*]}" "${MISSING[@]}"
     echo "  ✓ Instalados"
   else
-    echo "  ✓ git"; echo "  ✓ sqlite3"
-  fi
-}
-
-criar_banco() {
-  echo ""
-  echo "── Banco de Dados ──"
-  mkdir -p "$DB_DIR"
-  if [ -f "$DB_PATH" ]; then
-    echo "  Banco existente: $DB_PATH"
-    read -r -p "  Limpar banco (remover dados existentes)? [s/N] " R
-    if [ "$R" = "s" ] || [ "$R" = "S" ]; then
-      rm -f "$DB_PATH"
-      sqlite3 "$DB_PATH" < "$DIR/init_db.sql"
-      echo "  ✓ Banco limpo e recriado vazio"
-    else
-      echo "  ✓ Banco mantido"
-    fi
-  else
-    sqlite3 "$DB_PATH" < "$DIR/init_db.sql"
-    echo "  ✓ Banco criado vazio em:"
-    echo "    $DB_PATH"
-    echo "  ✓ Tabelas criadas (sem dados)"
+    echo "  ✓ git"; echo "  ✓ python3"
   fi
 }
 
@@ -205,8 +179,6 @@ iniciar_crm() {
 
   echo ""
   echo "  Iniciando CRM em http://localhost:3001 ..."
-  export BEAUTYFLOW_DB_PATH="$DB_PATH"
-  export BEAUTYFLOW_NO_SEED="true"
   nohup "$VENV_DIR/bin/python" "$CRM_DIR/backend/server.py" > /tmp/beautyflow_crm.log 2>&1 &
   sleep 2
   echo "  ✓ CRM rodando (PID $!)"
@@ -290,25 +262,6 @@ fi
 modo_docker() {
   instalar_docker
   verificar_docker_compose
-
-  # Docker mode: se o banco já existe, pergunta se quer limpar
-  echo ""
-  echo "── Banco de Dados ──"
-  mkdir -p "$DB_DIR"
-  if [ -f "$DB_PATH" ]; then
-    echo "  Banco existente: $DB_PATH"
-    read -r -p "  Limpar banco (remover dados existentes)? [s/N] " R
-    if [ "$R" = "s" ] || [ "$R" = "S" ]; then
-      rm -f "$DB_PATH"
-      sqlite3 "$DB_PATH" < "$DIR/init_db.sql"
-      echo "  ✓ Banco limpo e recriado vazio"
-    else
-      echo "  ✓ Banco mantido"
-    fi
-  else
-    sqlite3 "$DB_PATH" < "$DIR/init_db.sql"
-    echo "  ✓ Banco criado vazio em: $DB_PATH"
-  fi
 
   # Remove containers antigos para aplicar nova config
   $SUDO docker compose down 2>/dev/null || true
@@ -521,17 +474,9 @@ gestor_atualizacao() {
       fi
       echo "╚══════════════════════════════════════════════╝"
       ;;
-    3)
+     3)
       echo ""
       echo "── Desinstalando ──"
-
-      # Perguntar sobre o banco de dados
-      local DEL_DB=false
-      if [ -f "$DB_PATH" ]; then
-        echo "  Banco existente em: $DB_PATH"
-        read -r -p "  Remover também o banco de dados? [s/N] " R
-        [ "$R" = "s" ] || [ "$R" = "S" ] && DEL_DB=true
-      fi
 
       case "$target" in
         nativo-crm)
@@ -559,10 +504,6 @@ gestor_atualizacao() {
           ;;
       esac
 
-      if [ "$DEL_DB" = true ]; then
-        rm -f "$DB_PATH"
-        echo "  ✓ Banco de dados removido"
-      fi
       echo "  ✓ Desinstalação concluída"
       ;;
     4|*)
@@ -604,7 +545,6 @@ fi
 case "${ESCOLHA:-$MODE}" in
   1|ambos)
     instalar_dependencias_base
-    criar_banco
     instalar_crm
     instalar_agendamento
     echo ""
@@ -621,7 +561,6 @@ case "${ESCOLHA:-$MODE}" in
     ;;
   2|crm)
     instalar_dependencias_base
-    criar_banco
     instalar_crm
     echo ""
     echo "╔══════════════════════════════════════════════╗"
@@ -636,7 +575,6 @@ case "${ESCOLHA:-$MODE}" in
     ;;
   3|agenda)
     instalar_dependencias_base
-    criar_banco
     instalar_agendamento
     echo ""
     echo "╔══════════════════════════════════════════════╗"

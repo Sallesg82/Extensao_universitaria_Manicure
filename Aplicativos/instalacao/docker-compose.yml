@@ -6,11 +6,6 @@ services:
     container_name: beautyflow-crm
     ports:
       - "3001:3001"
-    volumes:
-      - ../../DB:/shared_db
-    environment:
-      - BEAUTYFLOW_DB_PATH=/shared_db/beautyflow.db
-      - BEAUTYFLOW_NO_SEED=true
     restart: unless-stopped
     networks:
       - beautyflow_net
