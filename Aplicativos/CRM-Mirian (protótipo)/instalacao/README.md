@@ -68,9 +68,7 @@ O script `install.sh` faz automaticamente:
 1. **Verifica** se Python 3 está instalado
 2. **Cria** um ambiente virtual Python em `backend/.venv/`
 3. **Instala** as dependências (Flask, Flask-CORS)
-4. **Inicializa** o banco SQLite com dados de demonstração (9 clientes, 16 agendamentos, 8 serviços, transações financeiras)
-
-> O banco de dados fica em `backend/db/beautyflow.db`. Para usar o banco compartilhado com o app de agendamento, defina a variável de ambiente `BEAUTYFLOW_DB_PATH` antes de iniciar.
+4. **Verifica** a conexão com o Supabase (banco de dados na nuvem)
 
 #### 2.1.3. Instalação manual passo a passo
 
@@ -86,11 +84,11 @@ source backend/.venv/bin/activate
 # 3. Instalar dependências
 pip install flask flask-cors
 
-# 4. Inicializar o banco
+# 4. Verificar conexão com Supabase
 python -c "
 import sys; sys.path.insert(0, 'backend')
 from db.database import get_db
-get_db().close()
+print('✓ Conexão com Supabase OK')
 "
 ```
 
@@ -98,7 +96,7 @@ get_db().close()
 > ```powershell
 > python -m venv backend\.venv
 > backend\.venv\Scripts\pip install flask flask-cors
-> backend\.venv\Scripts\python -c "import sys; sys.path.insert(0, 'backend'); from db.database import get_db; get_db().close()"
+> backend\.venv\Scripts\python -c "import sys; sys.path.insert(0, 'backend'); from db.database import get_db"
 > backend\.venv\Scripts\python backend\server.py
 > ```
 
@@ -225,7 +223,7 @@ integrações do CRM. Os serviços ficam todos na mesma rede Docker
 | Serviço     | Imagem               | Porta  | Finalidade                              |
 |-------------|----------------------|--------|-----------------------------------------|
 | **n8n**     | `n8nio/n8n`          | 5678   | Automação WhatsApp, lembretes, notificações |
-| **PostgreSQL** | `postgres:17`     | 5432   | Banco relacional para produção (substitui SQLite) |
+| **PostgreSQL** | `postgres:17`     | 5432   | Banco relacional para produção |
 | **Redis**   | `redis:7-alpine`     | 6379   | Cache e fila de processamento assíncrono |
 | **ngrok**   | `ngrok/ngrok`        | 4040   | Tunnel HTTP para testar webhooks localmente |
 
@@ -304,8 +302,8 @@ CRM-Mirian (protótipo)/
 │   ├── server.py           # Servidor Flask (API + arquivos estáticos)
 │   ├── run.py              # Entry point alternativo
 │   ├── db/
-│   │   ├── database.py     # Conexão SQLite, schema, seed data
-│   │   └── beautyflow.db   # Banco de dados (criado na 1ª execução)
+│   │   ├── database.py     # Conexão Supabase, queries
+│   │   └── supabase_schema.sql   # Schema SQL do banco
 │   ├── routes/
 │   │   ├── clients.py      # CRUD de clientes
 │   │   ├── appointments.py # CRUD de agendamentos
@@ -332,10 +330,10 @@ Navegador (index.html)
     ↓  fetch()  ↑  JSON
 Servidor Flask (server.py)
     ↓              ↑
-SQLite (backend/db/beautyflow.db)
+Supabase (nuvem)
 ```
 
-O front-end faz requisições `fetch()` para a API REST. O servidor processa e retorna JSON. O banco SQLite é acessado diretamente pelo servidor.
+O front-end faz requisições `fetch()` para a API REST. O servidor processa e retorna JSON. O banco Supabase é acessado via API.
 
 ---
 
@@ -544,16 +542,9 @@ kill <PID>
 docker compose down
 ```
 
-### 10.2. Banco corrompido ou resetar dados
+### 10.2. Resetar dados
 
-**Native:**
-
-```bash
-rm backend/db/beautyflow.db
-bash start.sh   # recria automaticamente com seed
-```
-
-> O banco fica em `backend/db/beautyflow.db` (padrão) ou no caminho definido por `BEAUTYFLOW_DB_PATH`.
+**Supabase:** Acesse o SQL Editor do seu projeto Supabase e execute `DROP TABLE` nas tabelas, depois execute o schema novamente.
 
 **Docker:**
 

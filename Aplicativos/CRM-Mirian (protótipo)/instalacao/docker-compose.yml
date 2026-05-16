@@ -6,11 +6,8 @@ services:
     container_name: beautyflow-crm
     ports:
       - "3001:3001"
-    volumes:
-      - beautyflow_data:/app/backend/db
     environment:
       - FLASK_ENV=production
-      - BEAUTYFLOW_DB_PATH=/app/backend/db/beautyflow.db
     restart: unless-stopped
     networks:
       - beautyflow_net
@@ -37,7 +34,7 @@ services:
   #     - beautyflow_net
 
   ## ── PostgreSQL (opcional) ─────────────────────────
-  ## Banco relacional para substituir SQLite em producao
+  ## Banco relacional para produção
   # postgres:
   #   image: postgres:17
   #   container_name: beautyflow-postgres
@@ -88,8 +85,6 @@ networks:
     driver: bridge
 
 volumes:
-  beautyflow_data:
-    driver: local
   # n8n_data:
   #   driver: local
   # postgres_data:

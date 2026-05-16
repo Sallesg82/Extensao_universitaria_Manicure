@@ -32,6 +32,8 @@ CREATE TABLE IF NOT EXISTS appointments (
     price REAL NOT NULL DEFAULT 0,
     duration INTEGER DEFAULT 60,
     notes TEXT DEFAULT '',
+    google_event_id TEXT DEFAULT '',
+    google_html_link TEXT DEFAULT '',
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -60,6 +62,17 @@ CREATE TABLE IF NOT EXISTS transactions (
 CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id SERIAL PRIMARY KEY,
+    type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    related_id INTEGER DEFAULT NULL,
+    related_type TEXT DEFAULT '',
+    read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS users (
@@ -128,3 +141,10 @@ INSERT INTO services (name, duration, price, color) VALUES
     ('Design de Sobrancelha', 30, 45, '#8aaccb'),
     ('Sobrancelha + Manicure', 70, 80, '#4e8f6a')
 ON CONFLICT (name) DO NOTHING;
+
+-- ══════════════════════════════════════════
+--  MIGRAÇÃO: Adicionar colunas Google Calendar
+-- ══════════════════════════════════════════
+-- Execute se a tabela já existir:
+-- ALTER TABLE appointments ADD COLUMN IF NOT EXISTS google_event_id TEXT DEFAULT '';
+-- ALTER TABLE appointments ADD COLUMN IF NOT EXISTS google_html_link TEXT DEFAULT '';

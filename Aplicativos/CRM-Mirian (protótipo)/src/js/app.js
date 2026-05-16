@@ -130,6 +130,7 @@ function updateUserCard() {
 
   const nav = document.querySelector('.usuarios-nav')
   if (nav) nav.style.display = currentUser.role === 'admin' ? '' : 'none'
+  document.querySelector('#settings-nav-integ')?.classList.toggle('hide', currentUser.role !== 'admin')
 }
 
 async function checkAuth() {
@@ -152,12 +153,22 @@ function startPageRefresh(pageId) {
     dashboard: { ms: 15000, fn: loadDashboard },
     agenda:    { ms: 10000, fn: loadAgenda },
     clientes:  { ms: 30000, fn: loadClients },
+    relatorios: { ms: 30000, fn: loadRelatorios },
   }
   const c = map[pageId]
   if (!c) return
   refreshTimer = setInterval(() => {
     if (!document.hidden) c.fn()
   }, c.ms)
+}
+
+let _notifTimer
+function startNotifPoll() {
+  if (_notifTimer) return
+  loadNotifDot()
+  _notifTimer = setInterval(() => {
+    if (!document.hidden) loadNotifDot()
+  }, 30000)
 }
 
 function stopPageRefresh() {
@@ -190,6 +201,16 @@ const pageConfig = {
 function showPage(pageId, navEl) {
   stopPageRefresh()
 
+  if (pageId === 'usuarios' && currentUser && currentUser.role !== 'admin') {
+    pageId = 'dashboard'
+    navEl = document.querySelector('.nav-item[onclick*="\'dashboard\'"]')
+  }
+  if (pageId === 'configuracoes' && currentUser && currentUser.role !== 'admin') {
+    document.querySelector('#settings-nav-integ')?.classList.add('hide')
+  } else {
+    document.querySelector('#settings-nav-integ')?.classList.remove('hide')
+  }
+
   if (location.hash !== '#' + pageId) {
     ignoreHash = true
     location.hash = pageId
@@ -216,6 +237,8 @@ function showPage(pageId, navEl) {
   else if (pageId === 'metas') loadMetas()
   else if (pageId === 'agenda') loadAgenda()
   else if (pageId === 'financeiro') loadFinanceiro()
+  else if (pageId === 'usuarios') loadUsuarios()
+  else if (pageId === 'relatorios') loadRelatorios()
   else if (pageId === 'configuracoes') updateProfileTab()
 
   startPageRefresh(pageId)
@@ -244,13 +267,17 @@ function handleTopbarBtn() {
 }
 
 function showSettingsTab(navEl, tabId) {
+  if (tabId === 'tab-integ' && currentUser && currentUser.role !== 'admin') {
+    tabId = 'tab-perfil'
+    navEl = document.querySelector('.settings-nav-item.active')
+  }
   document.querySelectorAll('.settings-nav-item').forEach(n => n.classList.remove('active'))
   navEl.classList.add('active')
   ;['tab-perfil','tab-notif','tab-integ','tab-aparencia'].forEach(id => {
     document.getElementById(id).style.display = id === tabId ? '' : 'none'
   })
   if (tabId === 'tab-perfil') updateProfileTab()
-  if (tabId === 'tab-integ') loadN8nConfig()
+  if (tabId === 'tab-integ') { loadN8nConfig(); loadGoogleConfig() }
 }
 
 function updateProfileTab() {
@@ -325,13 +352,14 @@ async function loadUsuarios() {
 function showCreateUserModal() {
   const html = `
     <div class="modal-overlay" id="create-user-overlay" onclick="if(event.target===this)closeCreateUserModal()">
-      <div class="modal" style="max-width:420px;">
+      <div class="modal-card" style="max-width:420px;">
         <div class="modal-header"><div class="modal-title">Novo Usuário</div><button class="modal-close" onclick="closeCreateUserModal()">×</button></div>
         <div class="modal-body">
           <div class="form-row"><div class="form-field full"><label class="form-label">Nome</label><input class="form-input" id="cu-name" placeholder="Nome completo"></div></div>
           <div class="form-row"><div class="form-field full"><label class="form-label">Email</label><input class="form-input" id="cu-email" type="email" placeholder="email@exemplo.com"></div></div>
           <div class="form-row"><div class="form-field full"><label class="form-label">Telefone</label><input class="form-input" id="cu-phone" placeholder="(11) 99999-8888"></div></div>
           <div class="form-row"><div class="form-field full"><label class="form-label">Senha</label><input class="form-input" id="cu-password" type="password" placeholder="••••••"></div></div>
+          <div class="form-row"><div class="form-field full"><label class="form-label">Tipo</label><select class="form-input" id="cu-role"><option value="user">Comum</option><option value="admin">Administrador</option></select></div></div>
           <div id="cu-msg" class="auth-msg"></div>
         </div>
         <div class="modal-footer"><button class="btn-outline" onclick="closeCreateUserModal()">Cancelar</button><button class="btn-primary" onclick="createUser()">Criar</button></div>
@@ -340,12 +368,21 @@ function showCreateUserModal() {
   const div = document.createElement('div')
   div.innerHTML = html
   document.body.appendChild(div)
+  requestAnimationFrame(() => document.getElementById('create-user-overlay').classList.add('open'))
   document.getElementById('cu-name').focus()
+  ;['cu-name','cu-email','cu-phone','cu-password','cu-role'].forEach(id => {
+    document.getElementById(id)?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') createUser()
+    })
+  })
 }
 
 function closeCreateUserModal() {
   const el = document.getElementById('create-user-overlay')
-  if (el) el.remove()
+  if (el) {
+    el.classList.remove('open')
+    setTimeout(() => el.remove(), 200)
+  }
 }
 
 async function createUser() {
@@ -359,7 +396,7 @@ async function createUser() {
     const r = await fetch(API + '/users/', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password, phone, role: 'user' })
+      body: JSON.stringify({ name, email, password, phone, role: document.getElementById('cu-role').value })
     })
     const data = await r.json()
     if (r.ok) { closeCreateUserModal(); loadUsuarios() }
@@ -397,39 +434,66 @@ async function changePassword() {
 // ── N8N INTEGRAÇÃO ─────────────────────────────────
 
 async function loadN8nConfig() {
-  const input = document.getElementById('n8n-url')
   const status = document.getElementById('n8n-status')
-  if (!input) return
   try {
     const r = await fetch(API + '/n8n/config')
     const data = await r.json()
-    input.value = data.webhook_url || ''
-    if (status) { status.textContent = data.webhook_url ? 'URL carregada.' : 'Nenhuma URL configurada.'; status.className = 'integ-status' }
+    const g = id => document.getElementById(id)
+    if (g('n8n-url')) g('n8n-url').value = data.n8n_webhook_url || ''
+    if (g('n8n-enabled')) g('n8n-enabled').checked = data.n8n_enabled !== 'false'
+    if (g('n8n-timeout')) g('n8n-timeout').value = data.n8n_timeout || 8
+    if (g('n8n-header-name')) g('n8n-header-name').value = data.n8n_header_name || ''
+    if (g('n8n-header-value')) g('n8n-header-value').value = data.n8n_header_value || ''
+
+    const events = (data.n8n_events || 'create,update,delete').split(',')
+    ;['n8n-ev-create','n8n-ev-update','n8n-ev-delete'].forEach(id => {
+      const el = g(id)
+      if (el) el.checked = events.includes(el.value)
+    })
+
+    if (status) {
+      const hasUrl = !!data.n8n_webhook_url
+      status.textContent = hasUrl ? 'Configuração carregada.' : 'Nenhuma URL configurada.'
+      status.className = 'integ-status'
+    }
   } catch (e) {
     if (status) { status.textContent = 'Erro ao carregar config.'; status.className = 'integ-status err' }
   }
 }
 
 async function saveN8nConfig() {
-  const input = document.getElementById('n8n-url')
   const status = document.getElementById('n8n-status')
-  const url = (input.value || '').trim()
-  input.value = url
   if (!status) return
+  const g = id => document.getElementById(id)
+  const events = ['n8n-ev-create','n8n-ev-update','n8n-ev-delete']
+    .filter(id => g(id)?.checked)
+    .map(id => g(id).value)
+    .join(',')
+
+  const body = {
+    n8n_webhook_url: (g('n8n-url')?.value || '').trim(),
+    n8n_enabled: g('n8n-enabled')?.checked ? 'true' : 'false',
+    n8n_events: events || 'create,update,delete',
+    n8n_timeout: g('n8n-timeout')?.value || '8',
+    n8n_header_name: (g('n8n-header-name')?.value || '').trim(),
+    n8n_header_value: (g('n8n-header-value')?.value || '').trim(),
+  }
+  if (g('n8n-url')) g('n8n-url').value = body.n8n_webhook_url
+
   status.textContent = 'Salvando...'
   status.className = 'integ-status wait'
   try {
     const r = await fetch(API + '/n8n/config', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ webhook_url: url })
+      body: JSON.stringify(body)
     })
-    const data = await r.json()
     if (r.ok) {
-      status.textContent = url ? 'URL salva com sucesso!' : 'URL removida.'
+      status.textContent = 'Configuração salva com sucesso!'
       status.className = 'integ-status ok'
     } else {
-      status.textContent = data.error || 'Erro ao salvar.'
+      const err = await r.json()
+      status.textContent = err.error || 'Erro ao salvar.'
       status.className = 'integ-status err'
     }
   } catch (e) {
@@ -463,6 +527,183 @@ async function testN8n() {
     status.textContent = '✗ Erro de conexão com o servidor.'
     status.className = 'integ-status err'
   }
+}
+
+// ── GOOGLE CALENDAR INTEGRAÇÃO ────────────────────
+
+async function loadGoogleConfig() {
+  const cid = document.getElementById('google-client-id')
+  const sec = document.getElementById('google-client-secret')
+  const status = document.getElementById('google-status')
+  const connectRow = document.getElementById('google-connect-row')
+  const connectBtn = document.getElementById('google-connect-btn')
+  const disconnectBtn = document.getElementById('google-disconnect-btn')
+  if (!cid) return
+  try {
+    const r = await fetch(API + '/google/config')
+    const data = await r.json()
+    cid.value = data.client_id || ''
+    const sr = await fetch(API + '/google/status')
+    const gs = await sr.json()
+    if (gs.connected) {
+      connectRow.style.display = ''
+      connectBtn.style.display = 'none'
+      disconnectBtn.style.display = ''
+      if (status) { status.textContent = '✓ Conectado ao Google Calendar'; status.className = 'integ-status ok' }
+    } else {
+      const hasCreds = data.client_id && data.client_secret !== ''
+      if (hasCreds) {
+        connectRow.style.display = ''
+        connectBtn.style.display = ''
+        disconnectBtn.style.display = 'none'
+        if (status) { status.textContent = 'Clique em "Conectar com Google" para autorizar.'; status.className = 'integ-status' }
+      } else {
+        connectRow.style.display = 'none'
+        if (status) { status.textContent = 'Preencha Client ID e Client Secret acima.'; status.className = 'integ-status' }
+      }
+    }
+  } catch (e) {
+    if (status) { status.textContent = 'Erro ao carregar config.'; status.className = 'integ-status err' }
+  }
+}
+
+async function saveGoogleConfig() {
+  const cid = document.getElementById('google-client-id')
+  const sec = document.getElementById('google-client-secret')
+  const status = document.getElementById('google-status')
+  if (!status) return
+  status.textContent = 'Salvando...'
+  status.className = 'integ-status wait'
+  try {
+    const r = await fetch(API + '/google/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: (cid.value || '').trim(), client_secret: (sec.value || '').trim() })
+    })
+    if (r.ok) {
+      status.textContent = 'Credenciais salvas! Conecte com o Google abaixo.'
+      status.className = 'integ-status ok'
+      loadGoogleConfig()
+    } else {
+      status.textContent = 'Erro ao salvar.'
+      status.className = 'integ-status err'
+    }
+  } catch (e) {
+    status.textContent = 'Erro de conexão.'
+    status.className = 'integ-status err'
+  }
+}
+
+async function connectGoogle() {
+  const status = document.getElementById('google-status')
+  if (!status) return
+  status.textContent = 'Redirecionando para o Google...'
+  status.className = 'integ-status wait'
+  try {
+    const r = await fetch(API + '/google/auth')
+    const data = await r.json()
+    if (data.auth_url) {
+      window.location.href = data.auth_url
+    } else {
+      status.textContent = data.error || 'Erro ao obter URL de autorização.'
+      status.className = 'integ-status err'
+    }
+  } catch (e) {
+    status.textContent = 'Erro de conexão.'
+    status.className = 'integ-status err'
+  }
+}
+
+async function disconnectGoogle() {
+  if (!confirm('Desconectar Google Calendar? Os agendamentos não serão mais sincronizados.')) return
+  const status = document.getElementById('google-status')
+  try {
+    await fetch(API + '/google/disconnect', { method: 'POST' })
+    if (status) { status.textContent = 'Desconectado.'; status.className = 'integ-status' }
+    loadGoogleConfig()
+  } catch (e) {
+    if (status) { status.textContent = 'Erro ao desconectar.'; status.className = 'integ-status err' }
+  }
+}
+
+async function checkGoogleStatus() {
+  const status = document.getElementById('google-status')
+  if (!status) return
+  status.textContent = 'Verificando...'
+  status.className = 'integ-status wait'
+  try {
+    const r = await fetch(API + '/google/status')
+    const data = await r.json()
+    if (data.connected) {
+      status.textContent = '✓ Conectado ao Google Calendar'
+      status.className = 'integ-status ok'
+    } else {
+      status.textContent = '✗ Não conectado.'
+      status.className = 'integ-status err'
+    }
+    const connectBtn = document.getElementById('google-connect-btn')
+    const disconnectBtn = document.getElementById('google-disconnect-btn')
+    const connectRow = document.getElementById('google-connect-row')
+    if (connectBtn && disconnectBtn && connectRow) {
+      if (data.connected) {
+        connectBtn.style.display = 'none'
+        disconnectBtn.style.display = ''
+      } else {
+        connectBtn.style.display = ''
+        disconnectBtn.style.display = 'none'
+      }
+    }
+  } catch (e) {
+    status.textContent = 'Erro de conexão.'
+    status.className = 'integ-status err'
+  }
+}
+
+async function syncDetailToGoogle() {
+  const id = document.getElementById('detail-id').value
+  const btn = document.getElementById('detail-google-btn')
+  const gs = document.getElementById('detail-google-status')
+  if (!id || !gs) return
+  gs.textContent = 'Sincronizando...'
+  if (btn) btn.disabled = true
+  try {
+    const r = await fetch(API + '/appointments/' + id)
+    const a = await r.json()
+    const body = {
+      action: a.google_event_id ? 'update' : 'create',
+      appointment_id: a.id,
+      client_name: a.client_name,
+      client_phone: a.client_phone,
+      service: a.service,
+      price: a.price,
+      status: a.status,
+      appointment_date: a.appointment_date,
+      appointment_time: a.appointment_time,
+      duration: a.duration || 60,
+      google_event_id: a.google_event_id || '',
+    }
+    const sr = await fetch(API + '/google/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    const sd = await sr.json()
+    if (sd.status === 'ok') {
+      gs.textContent = '✓ Sincronizado!'
+      gs.className = 'integ-status ok'
+      if (sd.html_link) {
+        gs.innerHTML = '✓ <a href="' + sd.html_link + '" target="_blank" style="color:var(--primary-600)">Ver no Google Calendar</a>'
+      }
+      openAppointmentDetail(id)
+    } else {
+      gs.textContent = '✗ ' + (sd.error || 'Falha ao sincronizar.')
+      gs.className = 'integ-status err'
+    }
+  } catch (e) {
+    gs.textContent = '✗ Erro de conexão.'
+    gs.className = 'integ-status err'
+  }
+  if (btn) btn.disabled = false
 }
 
 // ── CLIENTES ──────────────────────────────────────
@@ -586,6 +827,11 @@ async function loadDashboard() {
   try {
     const res = await fetch(API + '/stats')
     const stats = await res.json()
+
+    const dot = document.getElementById('notif-dot')
+    if (dot && stats.notifications_unread !== undefined) {
+      dot.classList.toggle('hidden', !stats.notifications_unread)
+    }
 
     const today = new Date()
     const days = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado']
@@ -1163,6 +1409,7 @@ async function saveAppointment() {
       return
     }
     closeModal()
+    showToast(idField.value ? 'Agendamento atualizado!' : 'Agendamento criado!', 'success')
     loadAgenda()
     loadDashboard()
   } catch (e) {
@@ -1206,6 +1453,45 @@ async function openAppointmentDetail(apptId) {
 
     cancelBtn.style.display = (a.status === 'cancelled' || a.status === 'done') ? 'none' : ''
     deleteBtn.style.display = ''
+
+    const googleBtn = document.getElementById('detail-google-btn')
+    const googleStatus = document.getElementById('detail-google-status')
+    if (googleBtn && googleStatus) {
+      if (a.google_event_id) {
+        googleStatus.textContent = 'Verificando...'
+        googleStatus.className = 'integ-status wait'
+        try {
+          const vr = await fetch(API + '/google/verify-event', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ event_id: a.google_event_id })
+          })
+          const vd = await vr.json()
+          if (!vd.exists) {
+            a.google_event_id = ''
+            a.google_html_link = ''
+            await fetch(API + '/appointments/' + a.id, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ google_event_id: '', google_html_link: '' })
+            })
+          }
+        } catch (e) {}
+      }
+      if (a.google_event_id) {
+        googleBtn.textContent = a.google_html_link ? 'Ver no Google Calendar' : 'Atualizar no Google'
+        googleBtn.onclick = a.google_html_link ? (() => window.open(a.google_html_link, '_blank')) : (() => syncDetailToGoogle())
+        googleBtn.style.display = ''
+        googleStatus.textContent = '✓ Sincronizado'
+        googleStatus.className = 'integ-status ok'
+      } else {
+        googleBtn.textContent = 'Sincronizar com Google'
+        googleBtn.onclick = syncDetailToGoogle
+        googleBtn.style.display = ''
+        googleStatus.textContent = 'Não sincronizado (evento removido do Google)'
+        googleStatus.className = 'integ-status err'
+      }
+    }
 
     overlay.classList.add('open')
   } catch (e) {
@@ -1489,12 +1775,135 @@ async function deleteClient() {
   }
 }
 
+// ── NOTIFICAÇÕES ────────────────────────────────────
+
+document.querySelectorAll('.hour-toggle').forEach(t => {
+  t.addEventListener('click', () => {
+    t.classList.toggle('on')
+    t.classList.toggle('off')
+  })
+})
+
+async function saveNotificacoes() {
+  const toggles = document.querySelectorAll('.hour-toggle')
+  const data = {}
+  toggles.forEach(t => {
+    const titleEl = t.closest('.toggle-row')?.querySelector('.toggle-title')
+    if (!titleEl) return
+    const key = 'notify_' + titleEl.textContent.trim().toLowerCase().replace(/\s+/g, '_')
+    data[key] = t.classList.contains('on') ? 'true' : 'false'
+  })
+  try {
+    const res = await fetch(API + '/settings/', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (!res.ok) { showToast('Erro ao salvar preferências.'); return }
+    showToast('Preferências salvas!', 'success')
+  } catch {
+    showToast('Erro ao salvar preferências.')
+  }
+}
+
+// ── NOTIFICATION PANEL ─────────────────────────────
+
+let notifPanelOpen = false
+
+async function loadNotifDot() {
+  try {
+    const res = await fetch(API + '/notifications/unread-count')
+    const data = await res.json()
+    const dot = document.getElementById('notif-dot')
+    if (dot) {
+      dot.classList.toggle('hidden', !data.count)
+    }
+  } catch {}
+}
+
+async function loadNotifPanel() {
+  const list = document.getElementById('notif-list')
+  if (!list) return
+  try {
+    const res = await fetch(API + '/notifications/')
+    const notifs = await res.json()
+    if (!notifs.length) {
+      list.innerHTML = '<div class="notif-empty">Nenhuma notificação</div>'
+      return
+    }
+    const iconMap = {
+      appointment_created: 'info',
+      appointment_cancelled: 'danger',
+      meta_atingida: 'success',
+    }
+    const iconChars = {
+      appointment_created: '&#10003;',
+      appointment_cancelled: '&#10007;',
+      meta_atingida: '&#9733;',
+    }
+    list.innerHTML = notifs.map(n => {
+      const icon = iconMap[n.type] || 'info'
+      const ch = iconChars[n.type] || '&#9679;'
+      const time = n.created_at ? new Date(n.created_at + 'Z').toLocaleString('pt-BR') : ''
+      return `
+        <div class="notif-item${n.read ? ' read' : ' unread'}" onclick="${n.read ? '' : "markNotifRead(" + n.id + ")"}">
+          <div class="notif-item-icon ${icon}">${ch}</div>
+          <div class="notif-item-body">
+            <div class="notif-item-title">${n.title}</div>
+            <div class="notif-item-msg">${n.message}</div>
+            <div class="notif-item-time">${time}</div>
+          </div>
+          <div class="notif-mark-read"></div>
+        </div>`
+    }).join('')
+  } catch {
+    list.innerHTML = '<div class="notif-empty">Erro ao carregar notificações</div>'
+  }
+}
+
+function toggleNotifPanel() {
+  const panel = document.getElementById('notif-panel')
+  if (!panel) return
+  notifPanelOpen = !notifPanelOpen
+  panel.style.display = notifPanelOpen ? 'flex' : 'none'
+  if (notifPanelOpen) loadNotifPanel()
+}
+
+async function markNotifRead(id) {
+  try {
+    await fetch(API + '/notifications/read/' + id, { method: 'POST' })
+    loadNotifPanel()
+    loadNotifDot()
+  } catch {}
+}
+
+async function readAllNotifs() {
+  try {
+    await fetch(API + '/notifications/read-all', { method: 'POST' })
+    loadNotifPanel()
+    loadNotifDot()
+  } catch {}
+}
+
+document.addEventListener('click', function(e) {
+  const panel = document.getElementById('notif-panel')
+  const bell = document.querySelector('.badge-notif')
+  if (notifPanelOpen && panel && bell && !bell.contains(e.target)) {
+    notifPanelOpen = false
+    panel.style.display = 'none'
+  }
+})
+
 // ── EVENT LISTENERS ────────────────────────────────
 
 document.querySelectorAll('.filter-tab').forEach(t => {
   t.addEventListener('click', () => {
     document.querySelectorAll('.filter-tab').forEach(x => x.classList.remove('active'))
     t.classList.add('active')
+    if (typeof filterClients === 'function') {
+      const filter = t.getAttribute('onclick')?.match(/'([^']+)'/)
+      if (filter) filterClients(filter[1])
+    }
   })
 })
 
@@ -1909,6 +2318,7 @@ function setColorScheme(scheme, el) {
 
   loadServices()
   checkAuth()
+  startNotifPoll()
 })()
 
 document.querySelectorAll('.btn-primary, .btn-outline').forEach(btn => {

@@ -1,7 +1,10 @@
+import os
+import threading
+import requests
+import datetime
 from flask import Blueprint, request, jsonify
-from db.database import get_db, get_settings
+from db.database import get_db, get_settings, create_notification
 from middleware.validation import validate_appointment
-import threading, requests, datetime
 
 appointments_bp = Blueprint('appointments', __name__)
 
@@ -42,10 +45,12 @@ def format_appt(a):
         'notes': a.get('notes', ''),
         'created_at': a.get('created_at'),
         'updated_at': a.get('updated_at'),
+        'google_event_id': a.get('google_event_id', ''),
+        'google_html_link': a.get('google_html_link', ''),
     }
 
 
-def _n8n_payload(a):
+def _n8n_payload(a, action='create'):
     appt_date = a['appointment_date']
     appt_time = a.get('appointment_time', '12:00')[:5]
     duration  = int(a.get('duration', 60))
@@ -59,7 +64,7 @@ def _n8n_payload(a):
         start_iso = appt_date + 'T' + appt_time + ':00-03:00'
         end_iso   = start_iso
     return {
-        'action': 'create',
+        'action': action,
         'appointment_id': a['id'],
         'client_name': a.get('client_name', ''),
         'client_phone': a.get('client_phone', ''),
@@ -68,21 +73,71 @@ def _n8n_payload(a):
         'status': a['status'],
         'start_datetime': start_iso,
         'end_datetime': end_iso,
-        'google_event_id': '',
+        'google_event_id': a.get('google_event_id', ''),
     }
 
 
-def _fire_n8n(a):
+def _sync_google(a, action='create'):
     try:
-        settings = get_settings()
-        url = settings.get('n8n_webhook_url', '').strip()
+        from routes.google_calendar import sync_appointment_to_google
+        result = sync_appointment_to_google(action, {
+            'appointment_id': a['id'],
+            'client_name': a.get('client_name', ''),
+            'client_phone': a.get('client_phone', ''),
+            'service': a['service'],
+            'price': a['price'],
+            'status': a['status'],
+            'appointment_date': a['appointment_date'],
+            'appointment_time': a.get('appointment_time', '12:00'),
+            'duration': a.get('duration', 60),
+            'google_event_id': a.get('google_event_id', ''),
+        })
+        if result.get('status') == 'ok' and result.get('google_event_id'):
+            get_db().table('appointments').update({
+                'google_event_id': result['google_event_id'],
+                'google_html_link': result.get('html_link', ''),
+            }).eq('id', a['id']).execute()
+    except Exception:
+        pass
+
+
+_N8N_FALLBACK = 'https://mirianfiorini.app.n8n.cloud/webhook/calendar-webhook'
+
+
+def _notif_enabled(key):
+    try:
+        s = get_settings()
+        return s.get(key, 'false') == 'true'
+    except Exception:
+        return False
+
+
+def _fire_n8n(a, action='create'):
+    try:
+        s = get_settings()
+        enabled = s.get('n8n_enabled', 'true') == 'true'
+        if not enabled:
+            return
+        events = s.get('n8n_events', 'create,update,delete').split(',')
+        if action not in events:
+            return
+        url = s.get('n8n_webhook_url', '').strip()
         if not url:
-            import os
             url = os.environ.get('N8N_WEBHOOK_URL', '')
         if not url:
-            return
-        payload = _n8n_payload(a)
-        threading.Thread(target=lambda: requests.post(url, json=payload, timeout=8), daemon=True).start()
+            url = _N8N_FALLBACK
+        headers = {}
+        h_name = s.get('n8n_header_name', '').strip()
+        h_value = s.get('n8n_header_value', '').strip()
+        if h_name and h_value:
+            headers[h_name] = h_value
+        timeout = 8
+        try:
+            timeout = int(s.get('n8n_timeout', '8'))
+        except (ValueError, TypeError):
+            pass
+        payload = _n8n_payload(a, action)
+        threading.Thread(target=lambda: requests.post(url, json=payload, headers=headers, timeout=timeout), daemon=True).start()
     except Exception:
         pass
 
@@ -147,7 +202,18 @@ def create_appointment():
     a = result.data[0]
     a['client_name'] = client.get('name', '')
     a['client_phone'] = client.get('phone', '')
+    a['google_event_id'] = ''
+    a['google_html_link'] = ''
     _fire_n8n(a)
+    _sync_google(a, 'create')
+    if _notif_enabled('notify_confirmacao_de_agendamento'):
+        create_notification(
+            'appointment_created',
+            'Novo Agendamento',
+            f"{a.get('client_name', 'Cliente')} - {a['service']} em {a['appointment_date']} às {a.get('appointment_time', '')[:5]}",
+            related_id=a['id'],
+            related_type='appointment'
+        )
     return jsonify(format_appt(a)), 201
 
 
@@ -159,7 +225,7 @@ def update_appointment(appt_id):
 
     data = request.get_json()
     update_data = {}
-    for field in ['client_id', 'service', 'appointment_date', 'appointment_time', 'status', 'duration', 'notes']:
+    for field in ['client_id', 'service', 'appointment_date', 'appointment_time', 'status', 'duration', 'notes', 'google_event_id', 'google_html_link']:
         if field in data and data[field] is not None:
             update_data[field] = data[field]
     if 'price' in data and data['price'] is not None:
@@ -168,13 +234,38 @@ def update_appointment(appt_id):
         get_db().table('appointments').update(update_data).eq('id', appt_id).execute()
 
     a = _get_appt(appt_id)
+    if update_data.get('status') == 'cancelled':
+        if a.get('google_event_id'):
+            _sync_google(a, 'delete')
+        _fire_n8n(a, 'delete')
+        if _notif_enabled('notify_confirmacao_de_agendamento'):
+            create_notification(
+                'appointment_cancelled',
+                'Agendamento Cancelado',
+                f"{a.get('client_name', 'Cliente')} - {a['service']} em {a['appointment_date']} foi cancelado",
+                related_id=a['id'],
+                related_type='appointment'
+            )
+    else:
+        _sync_google(a, 'update')
+        _fire_n8n(a, 'update')
     return jsonify(format_appt(a))
 
 
 @appointments_bp.route('/<int:appt_id>', methods=['DELETE'])
 def delete_appointment(appt_id):
-    existing = _first('appointments', 'id', appt_id)
+    existing = _get_appt(appt_id)
     if not existing:
         return jsonify({'error': 'Agendamento n\u00e3o encontrado'}), 404
+    _sync_google(existing, 'delete')
+    _fire_n8n(existing, 'delete')
+    if _notif_enabled('notify_confirmacao_de_agendamento'):
+        create_notification(
+            'appointment_cancelled',
+            'Agendamento Removido',
+            f"{existing.get('client_name', 'Cliente')} - {existing['service']} em {existing['appointment_date']} foi removido",
+            related_id=existing['id'],
+            related_type='appointment'
+        )
     get_db().table('appointments').delete().eq('id', appt_id).execute()
     return jsonify({'message': 'Agendamento removido', 'id': appt_id})

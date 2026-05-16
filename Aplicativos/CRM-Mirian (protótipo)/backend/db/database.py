@@ -16,6 +16,7 @@ TABLE_SERVICES = 'services'
 TABLE_TRANSACTIONS = 'transactions'
 TABLE_SETTINGS = 'settings'
 TABLE_USERS = 'users'
+TABLE_NOTIFICATIONS = 'notifications'
 
 
 def get_db():
@@ -80,7 +81,6 @@ def update_client(client_id, data):
 
 
 def delete_client(client_id):
-    supabase.table(TABLE_APPOINTMENTS).delete().eq('client_id', client_id).execute()
     supabase.table(TABLE_CLIENTS).delete().eq('id', client_id).execute()
 
 
@@ -123,11 +123,9 @@ def get_stats():
     month_clients_count = len(set(a['client_id'] for a in month_clients.data))
 
     # All time
-    total_revenue = supabase.table(TABLE_APPOINTMENTS).select('price').neq('status', 'cancelled').execute()
-    total_revenue_all = sum(a['price'] for a in total_revenue.data)
-
     all_appts = supabase.table(TABLE_APPOINTMENTS).select('price').neq('status', 'cancelled').execute()
-    avg_ticket = round(sum(a['price'] for a in all_appts.data) / len(all_appts.data), 2) if all_appts.data else 0
+    total_revenue_all = sum(a['price'] for a in all_appts.data)
+    avg_ticket = round(total_revenue_all / len(all_appts.data), 2) if all_appts.data else 0
 
     # Active clients
     active = supabase.table(TABLE_CLIENTS).select('id', count='exact').execute()
@@ -375,5 +373,52 @@ def delete_user(user_id):
         return
     try:
         supabase.table(TABLE_USERS).delete().eq('id', user_id).execute()
+    except APIError:
+        pass
+
+
+# ── Notifications ─────────────────────────────────────────────────────────────
+
+
+def create_notification(notif_type, title, message, related_id=None, related_type=''):
+    try:
+        r = supabase.table(TABLE_NOTIFICATIONS).insert({
+            'type': notif_type,
+            'title': title,
+            'message': message,
+            'related_id': related_id,
+            'related_type': related_type,
+        }).execute()
+        return r.data[0] if r.data else None
+    except APIError:
+        return None
+
+
+def get_notifications(limit=20):
+    try:
+        r = supabase.table(TABLE_NOTIFICATIONS).select('*').order('created_at', desc=True).limit(limit).execute()
+        return r.data
+    except APIError:
+        return []
+
+
+def unread_notifications_count():
+    try:
+        r = supabase.table(TABLE_NOTIFICATIONS).select('id', count='exact').eq('read', False).execute()
+        return r.count or 0
+    except APIError:
+        return 0
+
+
+def mark_notification_read(notif_id):
+    try:
+        supabase.table(TABLE_NOTIFICATIONS).update({'read': True}).eq('id', notif_id).execute()
+    except APIError:
+        pass
+
+
+def mark_all_notifications_read():
+    try:
+        supabase.table(TABLE_NOTIFICATIONS).update({'read': True}).eq('read', False).execute()
     except APIError:
         pass

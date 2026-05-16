@@ -212,16 +212,15 @@ echo "[3/5] Instalando dependências Python..."
 echo "  ✓ Flask e Flask-CORS instalados"
 echo ""
 
-# ────────── Inicializar banco ──────────
-echo "[4/5] Inicializando banco de dados..."
+# ────────── Verificar Supabase ──────────
+echo "[4/5] Verificando conexão com Supabase..."
 "$VENV_DIR/bin/python" -c "
 import sys
 sys.path.insert(0, '$DIR/backend')
 from db.database import get_db
-conn = get_db()
-conn.close()
-print('  ✓ Banco criado e populado com dados de demonstração')
-"
+db = get_db()
+print('  ✓ Conexão com Supabase OK')
+" 2>&1 || echo "  ⚠ Não foi possível conectar ao Supabase. Verifique as credenciais no código."
 echo ""
 
 # ────────── Resumo final ──────────

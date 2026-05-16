@@ -3,11 +3,13 @@ import datetime
 import requests
 from flask import Flask, jsonify, send_from_directory, request
 from flask_cors import CORS
-from db.database import get_db, get_settings, update_setting, get_stats
+from db.database import get_db, get_settings, update_setting, get_stats, unread_notifications_count, create_notification
 from routes.clients import clients_bp
 from routes.appointments import appointments_bp
 from routes.services import services_bp
 from routes.users import users_bp
+from routes.google_calendar import google_bp
+from routes.notifications import notifications_bp
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src')
 
@@ -18,32 +20,52 @@ app.register_blueprint(clients_bp, url_prefix='/api/clients')
 app.register_blueprint(appointments_bp, url_prefix='/api/appointments')
 app.register_blueprint(services_bp, url_prefix='/api/services')
 app.register_blueprint(users_bp, url_prefix='/api/users')
+app.register_blueprint(google_bp, url_prefix='/api/google')
+app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
 
 
-# ─── Helper: obtém a URL do webhook n8n ────────────────────────────────────
-# Prioridade: 1. settings no banco, 2. variável de ambiente, 3. fallback fixo
+# ─── Helpers de configuração n8n ────────────────────────────────────────────
 _N8N_FALLBACK = 'https://mirianfiorini.app.n8n.cloud/webhook/calendar-webhook'
 
-def _n8n_webhook_url():
+def _n8n_settings():
     try:
         s = get_settings()
-        url = s.get('n8n_webhook_url', '').strip()
-        if url:
-            return url
+        return {
+            'n8n_enabled': s.get('n8n_enabled', 'true'),
+            'n8n_webhook_url': s.get('n8n_webhook_url', ''),
+            'n8n_events': s.get('n8n_events', 'create,update,delete'),
+            'n8n_timeout': s.get('n8n_timeout', '8'),
+            'n8n_header_name': s.get('n8n_header_name', ''),
+            'n8n_header_value': s.get('n8n_header_value', ''),
+        }
     except Exception:
-        pass
-    return os.environ.get('N8N_WEBHOOK_URL', _N8N_FALLBACK)
+        return {}
 
+def _n8n_enabled():
+    return _n8n_settings().get('n8n_enabled', 'true') == 'true'
 
-# ─── Helper: envia payload para o n8n (sem lançar exceções) ─────────────────
-def _fire_n8n_webhook(payload):
-    url = _n8n_webhook_url()
-    if not url:
-        return
+def _n8n_webhook_url():
+    cfg = _n8n_settings()
+    url = cfg.get('n8n_webhook_url', '').strip()
+    return url or os.environ.get('N8N_WEBHOOK_URL', _N8N_FALLBACK)
+
+def _n8n_timeout():
+    cfg = _n8n_settings()
     try:
-        requests.post(url, json=payload, timeout=8)
-    except Exception:
-        pass
+        return int(cfg.get('n8n_timeout', '8'))
+    except (ValueError, TypeError):
+        return 8
+
+def _n8n_headers():
+    cfg = _n8n_settings()
+    name = cfg.get('n8n_header_name', '').strip()
+    value = cfg.get('n8n_header_value', '').strip()
+    return {name: value} if name and value else {}
+
+def _n8n_should_fire(action):
+    cfg = _n8n_settings()
+    events = cfg.get('n8n_events', 'create,update,delete').split(',')
+    return action in events
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -54,12 +76,12 @@ def _fire_n8n_webhook(payload):
 def n8n_config():
     if request.method == 'PUT':
         data = request.get_json()
-        url = (data.get('webhook_url') or '').strip()
-        update_setting('n8n_webhook_url', url)
-        return jsonify({'status': 'ok', 'webhook_url': url})
+        for key in ('n8n_enabled', 'n8n_webhook_url', 'n8n_events', 'n8n_timeout', 'n8n_header_name', 'n8n_header_value'):
+            if key in data:
+                update_setting(key, data[key])
+        return jsonify({'status': 'ok'})
 
-    url = _n8n_webhook_url()
-    return jsonify({'webhook_url': url})
+    return jsonify(_n8n_settings())
 
 
 @ app.route('/api/n8n/test', methods=['POST'])
@@ -82,7 +104,7 @@ def n8n_test():
         'google_event_id': '',
     }
     try:
-        r = requests.post(url, json=payload, timeout=10)
+        r = requests.post(url, json=payload, headers=_n8n_headers(), timeout=_n8n_timeout())
         r.raise_for_status()
         return jsonify({
             'status': 'ok',
@@ -91,7 +113,7 @@ def n8n_test():
             'n8n_response': r.text[:500],
         })
     except requests.exceptions.Timeout:
-        return jsonify({'error': 'Timeout — n8n não respondeu em 10 segundos.'}), 504
+        return jsonify({'error': f'Timeout — n8n não respondeu em {_n8n_timeout()} segundos.'}), 504
     except requests.exceptions.ConnectionError:
         return jsonify({'error': 'Conexão recusada — verifique a URL do webhook.'}), 502
     except requests.exceptions.HTTPError as e:
@@ -143,9 +165,11 @@ def n8n_sync_calendar():
         'google_event_id':  data.get('google_event_id', ''),
     }
 
+    if not _n8n_enabled():
+        return jsonify({'error': 'Integração n8n desabilitada.'}), 400
     url = _n8n_webhook_url()
     try:
-        n8n_response = requests.post(url, json=payload, timeout=8)
+        n8n_response = requests.post(url, json=payload, headers=_n8n_headers(), timeout=_n8n_timeout())
         n8n_response.raise_for_status()
         return jsonify({
             'status': 'ok',
@@ -165,6 +189,7 @@ def n8n_sync_calendar():
 
 @ app.route('/api/n8n/status', methods=['GET'])
 def n8n_status():
+    cfg = _n8n_settings()
     url = _n8n_webhook_url()
     try:
         resp = requests.get(url, timeout=5)
@@ -174,7 +199,10 @@ def n8n_status():
         online = False
         http_code = None
     return jsonify({
+        'n8n_enabled': cfg.get('n8n_enabled', 'true') == 'true',
         'n8n_webhook_url': url,
+        'n8n_events': cfg.get('n8n_events', 'create,update,delete'),
+        'n8n_timeout': int(cfg.get('n8n_timeout', 8)),
         'n8n_reachable': online,
         'n8n_http_code': http_code
     })
@@ -187,7 +215,7 @@ def n8n_status():
 @ app.route('/api/settings/', methods=['GET', 'PUT'])
 def handle_settings():
     if request.method == 'PUT':
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         for key, value in data.items():
             update_setting(key, value)
     result = get_settings()
@@ -213,14 +241,32 @@ def js(filename):
 
 @ app.route('/api/stats')
 def stats():
-    return jsonify(get_stats())
+    data = get_stats()
+    data['notifications_unread'] = unread_notifications_count()
+
+    if data.get('month_revenue', 0) >= data.get('meta_mensal', 0) and data.get('meta_mensal', 0) > 0:
+        settings = get_settings()
+        if settings.get('notify_alerta_de_meta_atingida', 'true') == 'true':
+            existing = get_db().table('notifications').select('id').eq('type', 'meta_atingida').limit(1).execute()
+            if not existing.data:
+                create_notification(
+                    'meta_atingida',
+                    'Meta Mensal Atingida!',
+                    f"Parabéns! A meta de R$ {data['meta_mensal']:,.0f} foi alcançada. Receita atual: R$ {data['month_revenue']:,.2f}"
+                )
+                data['notifications_unread'] = unread_notifications_count()
+
+    return jsonify(data)
 
 
 @ app.route('/api/migrate/sql', methods=['GET'])
 def migrate_sql():
     sql_path = os.path.join(os.path.dirname(__file__), 'db', 'supabase_schema.sql')
-    with open(sql_path) as f:
-        return f.read(), 200, {'Content-Type': 'text/plain; charset=utf-8'}
+    try:
+        with open(sql_path) as f:
+            return f.read(), 200, {'Content-Type': 'text/plain; charset=utf-8'}
+    except FileNotFoundError:
+        return jsonify({'error': 'Arquivo de schema SQL não encontrado'}), 404
 
 
 @ app.errorhandler(404)

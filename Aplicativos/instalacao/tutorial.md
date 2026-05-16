@@ -36,7 +36,7 @@ python3 -m venv .venv
 source .venv/bin/activate      # Linux/macOS
 # .venv\Scripts\activate       # Windows (PowerShell)
 
-pip install -r requirements.txt
+pip install flask flask-cors supabase httpx
 ```
 
 ### 3.2 Verificar o Supabase

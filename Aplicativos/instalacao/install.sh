@@ -78,6 +78,14 @@ instalar_dependencias_base() {
   else
     echo "  ✓ git"; echo "  ✓ python3"
   fi
+
+  echo ""
+  echo "── Verificando Supabase (banco de dados) ──"
+  echo "  Este projeto usa Supabase como banco de dados."
+  echo "  Certifique-se de ter um projeto em https://supabase.com"
+  echo "  e execute o schema SQL em:"
+  echo "    CRM-Mirian (protótipo)/backend/db/supabase_schema.sql"
+  echo "  no SQL Editor do seu projeto Supabase."
 }
 
 # ────────── Gerenciador de pacotes ──────────

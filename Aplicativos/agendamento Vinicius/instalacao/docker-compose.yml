@@ -23,10 +23,6 @@ services:
   #   container_name: beautyflow-crm
   #   ports:
   #     - "3001:3001"
-  #   volumes:
-  #     - beautyflow_data:/app/backend/db
-  #   environment:
-  #     - BEAUTYFLOW_DB_PATH=/app/backend/db/beautyflow.db
   #   restart: unless-stopped
   #   networks:
   #     - beautyflow_net
@@ -34,7 +30,3 @@ services:
 networks:
   beautyflow_net:
     driver: bridge
-
-# volumes:
-#   beautyflow_data:
-#     driver: local

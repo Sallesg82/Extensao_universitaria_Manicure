@@ -1,6 +1,6 @@
 # BeautyFlow — Instalador Unificado
 
-Instala o **BeautyFlow CRM** (gestão do salão) e/ou o **BeautyFlow Agendamento** (painel do cliente) com um único banco de dados SQLite compartilhado.
+Instala o **BeautyFlow CRM** (gestão do salão) e/ou o **BeautyFlow Agendamento** (painel do cliente) com banco de dados Supabase.
 
 ---
 
@@ -24,7 +24,7 @@ Instala o **BeautyFlow CRM** (gestão do salão) e/ou o **BeautyFlow Agendamento
 | Python 3.10+| ✓ (CRM)           | ✓ (CRM)        | —      |
 | Node.js 20+ | ✓ (Agendamento)  | ✓ (Agendamento)| —      |
 | Docker 24+  | —                 | —              | ✓      |
-| sqlite3 CLI | ✓                 | —              | —      |
+| Conta Supabase | ✓ obrigatório | ✓ obrigatório  | ✓      |
 
 ---
 
@@ -48,8 +48,8 @@ O menu pergunta qual app instalar:
 - **4** — Docker (ambos em container)
 
 O instalador:
-1. Cria o banco em `Aplicativos/DB/beautyflow.db` (tabelas sem dados)
-2. Instala as dependências do sistema (git, sqlite3, python3, node)
+1. Configura as credenciais do Supabase (banco de dados na nuvem)
+2. Instala as dependências do sistema (git, python3, node)
 3. Configura o(s) app(s) escolhido(s)
 4. Ao final, mostra os endereços para acessar
 
@@ -77,21 +77,21 @@ docker compose build
 docker compose up -d
 ```
 
-> O banco SQLite fica em um volume Docker (`beautyflow_data`). Para resetar: `docker compose down -v && docker compose up -d`
+> O Supabase é usado como banco de dados. Para resetar os dados, acesse o SQL Editor do Supabase e recrie as tabelas.
 
 ---
 
 ## 3. O que é instalado
 
-### Banco de Dados (sempre)
-- **`Aplicativos/DB/beautyflow.db`** — SQLite com 5 tabelas: `clients`, `appointments`, `services`, `transactions`, `settings`
-- Criado sem dados — começa vazio
+### Banco de Dados
+- **Supabase** — tabelas: `clients`, `appointments`, `services`, `transactions`, `settings`, `users`
+- Schema disponível em `backend/db/supabase_schema.sql`
 
 ### BeautyFlow CRM (se escolhido)
 - **Backend:** Flask (Python) na porta `3001`
 - **Frontend:** HTML/CSS/JS com dashboard, agenda, clientes, financeiro, relatórios
 - **API REST:** `/api/clients/`, `/api/appointments/`, `/api/services/`, `/api/stats`
-- **Banco:** aponta para o SQLite compartilhado
+- **Banco:** Supabase (nuvem)
 
 ### BeautyFlow Agendamento (se escolhido)
 - **Frontend:** React + Vite na porta `5173`
@@ -110,13 +110,12 @@ Aplicativos/
 │   ├── install.bat           Launcher Windows
 │   ├── install_windows.ps1   GUI Windows
 │   ├── docker-compose.yml    Docker (CRM + Agendamento)
-│   ├── init_db.sql           Schema SQL (tabelas)
 │   └── README.md
 │
-├── DB/
-│   └── beautyflow.db         ← Banco compartilhado
-│
 ├── CRM-Mirian (protótipo)/   ← Aplicativo CRM
+│   ├── backend/
+│   │   └── db/
+│   │       └── supabase_schema.sql  ← Schema do banco
 │   └── instalacao/           (instalador individual)
 │
 └── agendamento Vinicius/     ← Aplicativo Agendamento

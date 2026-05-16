@@ -1,5 +1,4 @@
 backend/__pycache__
-backend/db/beautyflow.db
 .venv
 .DS_Store
 *.pyc

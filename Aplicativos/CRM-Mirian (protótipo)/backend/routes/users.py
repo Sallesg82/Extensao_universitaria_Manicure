@@ -39,8 +39,9 @@ def create_user_route():
         phone=data.get('phone', ''),
         role=data.get('role', 'admin'),
     )
-    if u:
-        u.pop('password_hash', None)
+    if not u:
+        return jsonify({'error': 'Erro ao criar usuário'}), 500
+    u.pop('password_hash', None)
     return jsonify(u), 201
 
 
@@ -67,8 +68,9 @@ def update_user_route(user_id):
         u = update_user(user_id, update_data)
     else:
         u = get_user(user_id)
-    if u:
-        u.pop('password_hash', None)
+    if not u:
+        return jsonify({'error': 'Erro ao atualizar usuário'}), 500
+    u.pop('password_hash', None)
     return jsonify(u)
 
 
