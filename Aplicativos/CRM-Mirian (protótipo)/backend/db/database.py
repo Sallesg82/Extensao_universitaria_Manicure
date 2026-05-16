@@ -17,6 +17,7 @@ TABLE_TRANSACTIONS = 'transactions'
 TABLE_SETTINGS = 'settings'
 TABLE_USERS = 'users'
 TABLE_NOTIFICATIONS = 'notifications'
+TABLE_INTEGRATIONS = 'integrations'
 
 
 def get_db():
@@ -420,5 +421,53 @@ def mark_notification_read(notif_id):
 def mark_all_notifications_read():
     try:
         supabase.table(TABLE_NOTIFICATIONS).update({'read': True}).eq('read', False).execute()
+    except APIError:
+        pass
+
+
+# ── Integrations ──────────────────────────────────────────────────────────────
+
+
+def list_integrations():
+    try:
+        r = supabase.table(TABLE_INTEGRATIONS).select('*').order('created_at').execute()
+        return r.data
+    except APIError:
+        return []
+
+
+def get_integration(integ_id):
+    try:
+        r = supabase.table(TABLE_INTEGRATIONS).select('*').eq('id', integ_id).limit(1).execute()
+        return r.data[0] if r.data else None
+    except APIError:
+        return None
+
+
+def create_integration(name, integ_type, config=None, enabled=True):
+    try:
+        r = supabase.table(TABLE_INTEGRATIONS).insert({
+            'name': name,
+            'type': integ_type,
+            'config': config or {},
+            'enabled': enabled,
+        }).execute()
+        return r.data[0] if r.data else None
+    except APIError:
+        return None
+
+
+def update_integration(integ_id, data):
+    try:
+        supabase.table(TABLE_INTEGRATIONS).update(data).eq('id', integ_id).execute()
+        r = supabase.table(TABLE_INTEGRATIONS).select('*').eq('id', integ_id).limit(1).execute()
+        return r.data[0] if r.data else None
+    except APIError:
+        return None
+
+
+def delete_integration(integ_id):
+    try:
+        supabase.table(TABLE_INTEGRATIONS).delete().eq('id', integ_id).execute()
     except APIError:
         pass

@@ -3900,6 +3900,131 @@ body {
 .btn-google:hover { box-shadow: 0 1px 3px rgba(0,0,0,.15); }
 #google-connect-row { margin-top: 12px; }
 
+/* ── Integration List ───────────────────────────── */
+
+.integ-empty {
+  text-align: center;
+  padding: 48px 20px;
+  color: var(--text-muted);
+  font-size: var(--text-13);
+}
+
+.integ-list-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 10px;
+  transition: box-shadow .15s;
+}
+.integ-list-item:hover {
+  box-shadow: 0 2px 8px rgba(0,0,0,.06);
+}
+.integ-list-item:last-child {
+  margin-bottom: 0;
+}
+.integ-list-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 16px;
+  color: #fff;
+}
+.integ-list-icon.webhook { background: #6b7280; }
+.integ-list-icon.n8n { background: #4a90d9; }
+.integ-list-icon.google_calendar { background: #34a853; }
+.integ-list-body {
+  flex: 1;
+  min-width: 0;
+}
+.integ-list-name {
+  font-size: var(--text-13);
+  font-weight: 600;
+  color: var(--text-dark);
+  margin-bottom: 2px;
+}
+.integ-list-type {
+  font-size: var(--text-11);
+  color: var(--text-muted);
+  text-transform: capitalize;
+}
+.integ-list-enabled {
+  flex-shrink: 0;
+}
+.integ-list-enabled .toggle-switch {
+  margin: 0;
+}
+.integ-list-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.integ-list-btn {
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-white);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all .1s;
+}
+.integ-list-btn:hover {
+  border-color: var(--primary-400);
+  color: var(--primary-600);
+  background: var(--primary-50);
+}
+.integ-list-btn.danger:hover {
+  border-color: #e8a0a0;
+  color: #c05050;
+  background: #fcf0f0;
+}
+
+/* ── Integration Type Grid ───────────────────────── */
+
+.integ-type-grid {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.integ-type-option {
+  flex: 1;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 12px;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all .15s;
+  font-size: var(--text-12);
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-white);
+}
+.integ-type-option:hover {
+  border-color: var(--primary-300);
+  background: var(--primary-50);
+}
+.integ-type-option.selected {
+  border-color: var(--primary-500);
+  background: var(--primary-50);
+  color: var(--primary-600);
+}
+
 .toggle-switch {
   position: relative;
   display: inline-block;

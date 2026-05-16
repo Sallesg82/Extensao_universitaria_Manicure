@@ -277,7 +277,7 @@ function showSettingsTab(navEl, tabId) {
     document.getElementById(id).style.display = id === tabId ? '' : 'none'
   })
   if (tabId === 'tab-perfil') updateProfileTab()
-  if (tabId === 'tab-integ') { loadN8nConfig(); loadGoogleConfig() }
+  if (tabId === 'tab-integ') { loadIntegrations() }
 }
 
 function updateProfileTab() {
@@ -1819,6 +1819,386 @@ async function loadNotifDot() {
       dot.classList.toggle('hidden', !data.count)
     }
   } catch {}
+}
+
+// ── INTEGRAÇÕES ─────────────────────────────────────
+
+async function loadIntegrations() {
+  const list = document.getElementById('integrations-list')
+  if (!list) return
+  try {
+    const res = await fetch(API + '/integrations/')
+    const data = await res.json()
+    if (!data.length) {
+      list.innerHTML = '<div class="integ-empty">Nenhuma integração criada. Clique em "Nova Integração" para começar.</div>'
+      return
+    }
+    const typeLabels = { webhook: 'Webhook', n8n: 'n8n', google_calendar: 'Google Calendar' }
+    const typeIcons = {
+      webhook: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M4 10a6 6 0 1 1 12 0" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M8 10l2-2 2 2-2 2z" fill="currentColor"/></svg>',
+      n8n: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><circle cx="5" cy="10" r="3" stroke="currentColor" stroke-width="1.5"/><circle cx="15" cy="5" r="3" stroke="currentColor" stroke-width="1.5"/><circle cx="15" cy="15" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M8 10h3l1.5-3M8 10h3l1.5 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>',
+      google_calendar: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="15" rx="2" stroke="currentColor" stroke-width="1.3"/><path d="M2 7h16M7 2v3M13 2v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><text x="10" y="16" text-anchor="middle" font-size="7" fill="currentColor" font-weight="700">GC</text></svg>',
+    }
+    list.innerHTML = data.map(integ => {
+      const canTest = integ.type === 'webhook' || integ.type === 'n8n'
+      return `
+      <div class="integ-list-item">
+        <div class="integ-list-icon ${integ.type}">${typeIcons[integ.type] || ''}</div>
+        <div class="integ-list-body">
+          <div class="integ-list-name">${integ.name}</div>
+          <div class="integ-list-type">${typeLabels[integ.type] || integ.type}</div>
+        </div>
+        <div class="integ-list-enabled">
+          <label class="toggle-switch">
+            <input type="checkbox" ${integ.enabled ? 'checked' : ''} onchange="toggleInteg(${integ.id}, this.checked)">
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+        <div class="integ-list-actions">
+          ${canTest ? `<button class="integ-list-btn" onclick="testInteg(${integ.id})" title="Testar">&#9654;</button>` : ''}
+          <button class="integ-list-btn" onclick="editInteg(${integ.id})" title="Editar">&#9998;</button>
+          <button class="integ-list-btn danger" onclick="deleteInteg(${integ.id})" title="Excluir">&#10005;</button>
+        </div>
+      </div>`
+    }).join('')
+  } catch {
+    list.innerHTML = '<div class="integ-empty">Erro ao carregar integrações.</div>'
+  }
+}
+
+async function toggleInteg(id, enabled) {
+  try {
+    await fetch(API + '/integrations/' + id, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled })
+    })
+  } catch {}
+}
+
+async function deleteInteg(id) {
+  if (!confirm('Excluir esta integração?')) return
+  try {
+    await fetch(API + '/integrations/' + id, { method: 'DELETE' })
+    loadIntegrations()
+    showToast('Integração removida.', 'info')
+  } catch {
+    showToast('Erro ao remover integração.')
+  }
+}
+
+function showCreateIntegrationModal() {
+  document.getElementById('integ-id').value = ''
+  document.getElementById('integ-modal-title').textContent = 'Nova Integração'
+  document.getElementById('integ-save-btn').textContent = 'Criar Integração'
+  document.getElementById('integ-name').value = ''
+  document.getElementById('integ-status').textContent = ''
+  document.getElementById('integ-status').className = 'integ-status'
+  document.getElementById('integ-config-fields').style.display = 'none'
+  document.getElementById('integ-config-fields').innerHTML = ''
+  window._integSavedConfig = {}
+  document.querySelectorAll('.integ-type-option').forEach(el => {
+    el.classList.remove('selected')
+    el.style.opacity = ''
+    el.style.cursor = ''
+  })
+  document.getElementById('integ-modal-overlay').classList.add('open')
+}
+
+function closeIntegModal() {
+  const ov = document.getElementById('integ-modal-overlay')
+  if (ov) ov.classList.remove('open')
+}
+
+let _selectedIntegType = ''
+
+function selectIntegType(type, el) {
+  _selectedIntegType = type
+  document.querySelectorAll('.integ-type-option').forEach(e => e.classList.remove('selected'))
+  el.classList.add('selected')
+  renderIntegConfigFields(type)
+}
+
+function renderIntegConfigFields(type) {
+  const container = document.getElementById('integ-config-fields')
+  container.style.display = 'block'
+  const editing = !!document.getElementById('integ-id').value
+  const saved = window._integSavedConfig || {}
+
+  const getVal = (key, def) => (saved[key] !== undefined ? saved[key] : def)
+
+  if (type === 'webhook' || type === 'n8n') {
+    const brand = type === 'n8n' ? 'n8n' : 'Webhook'
+    container.innerHTML = `
+      <hr class="integ-divider" style="margin:16px 0;">
+      <div class="integ-section-title">Configuração do ${brand}</div>
+      <div class="integ-field" style="margin-bottom:12px;">
+        <label class="form-label">URL do Webhook</label>
+        <div style="display:flex;gap:8px;">
+          <input class="form-input" id="integ-cfg-url" placeholder="https://..." value="${getVal('url', '')}" style="flex:1;">
+          <button class="btn-outline" onclick="testIntegUrl()" style="flex-shrink:0;">Testar</button>
+        </div>
+      </div>
+      <div class="integ-field" style="margin-bottom:12px;">
+        <label class="form-label">Eventos</label>
+        <div class="checkbox-group">
+          <label class="checkbox-card">
+            <input type="checkbox" id="integ-cfg-ev-create" value="create" ${getVal('events', '').includes('create') ? 'checked' : ''}>
+            <div class="checkbox-card-content">
+              <div class="checkbox-card-title">Agendamento Criado</div>
+              <div class="checkbox-card-desc">Dispara quando um novo agendamento é registrado</div>
+            </div>
+          </label>
+          <label class="checkbox-card">
+            <input type="checkbox" id="integ-cfg-ev-update" value="update" ${getVal('events', '').includes('update') ? 'checked' : ''}>
+            <div class="checkbox-card-content">
+              <div class="checkbox-card-title">Agendamento Atualizado</div>
+              <div class="checkbox-card-desc">Dispara quando um agendamento existente é modificado</div>
+            </div>
+          </label>
+          <label class="checkbox-card">
+            <input type="checkbox" id="integ-cfg-ev-delete" value="delete" ${getVal('events', '').includes('delete') ? 'checked' : ''}>
+            <div class="checkbox-card-content">
+              <div class="checkbox-card-title">Agendamento Cancelado</div>
+              <div class="checkbox-card-desc">Dispara quando um agendamento é cancelado ou removido</div>
+            </div>
+          </label>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field" style="max-width:120px;">
+          <label class="form-label">Timeout (s)</label>
+          <input class="form-input" id="integ-cfg-timeout" type="number" value="${getVal('timeout', '8')}" min="1" max="60">
+        </div>
+      </div>
+      <div class="integ-field">
+        <label class="form-label">Cabeçalho personalizado (opcional)</label>
+        <div class="integ-header-row" style="margin-top:6px;">
+          <div class="integ-header-field">
+            <input class="form-input" id="integ-cfg-header-name" placeholder="Authorization" value="${getVal('header_name', '')}">
+          </div>
+          <span class="integ-header-sep">:</span>
+          <div class="integ-header-field">
+            <input class="form-input" id="integ-cfg-header-value" type="password" placeholder="Bearer ..." value="${getVal('header_value', '')}">
+          </div>
+        </div>
+      </div>`
+  } else if (type === 'google_calendar') {
+    container.innerHTML = `
+      <hr class="integ-divider" style="margin:16px 0;">
+      <div class="integ-section-title">Credenciais do Google</div>
+      <div class="integ-helper" style="margin-bottom:12px;">Crie um projeto no <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</a> e gere um Client ID e Client Secret.</div>
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Client ID</label>
+          <input class="form-input" id="integ-cfg-google-client-id" placeholder="xxxx.apps.googleusercontent.com" value="${getVal('client_id', '')}">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Client Secret</label>
+          <input class="form-input" id="integ-cfg-google-client-secret" type="password" placeholder="GOCSPX-..." value="${getVal('client_secret', '')}">
+        </div>
+      </div>
+      <hr class="integ-divider" style="margin:16px 0;">
+      <div class="integ-section-title">Autenticação</div>
+      <div class="integ-helper" style="margin-bottom:12px;">Após salvar as credenciais, clique em "Conectar com Google" para autorizar o acesso à sua agenda.</div>
+      <div id="integ-google-status" class="integ-status" style="margin-bottom:12px;">${getVal('_google_connected', false) ? '✓ Conectado ao Google Calendar' : 'Aguardando conexão...'}</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-primary" onclick="integConnectGoogle()" id="integ-google-connect-btn">Conectar com Google</button>
+        <button class="btn-outline" onclick="integDisconnectGoogle()" id="integ-google-disconnect-btn" style="${getVal('_google_connected', false) ? '' : 'display:none;'}">Desconectar</button>
+      </div>`
+    // check real google status
+    fetch(API + '/google/status').then(r => r.json()).then(gs => {
+      const st = document.getElementById('integ-google-status')
+      const dc = document.getElementById('integ-google-disconnect-btn')
+      if (gs.connected) {
+        if (st) { st.textContent = '✓ Conectado ao Google Calendar'; st.className = 'integ-status ok' }
+        if (dc) dc.style.display = ''
+      } else {
+        const hasCreds = getVal('client_id', '') && getVal('client_secret', '')
+        if (st) {
+          st.textContent = hasCreds ? 'Clique em "Conectar com Google" para autorizar.' : 'Preencha Client ID e Client Secret e salve, depois conecte.'
+          st.className = 'integ-status'
+        }
+      }
+    }).catch(() => {})
+  }
+}
+
+async function saveInteg() {
+  const id = document.getElementById('integ-id').value
+  const name = document.getElementById('integ-name').value.trim()
+  const status = document.getElementById('integ-status')
+  if (!name) { showToast('Informe um nome para a integração.'); return }
+  if (!_selectedIntegType) { showToast('Selecione um tipo de integração.'); return }
+
+  let config = {}
+  if (_selectedIntegType === 'webhook' || _selectedIntegType === 'n8n') {
+    const events = ['integ-cfg-ev-create','integ-cfg-ev-update','integ-cfg-ev-delete']
+      .filter(el => document.getElementById(el)?.checked)
+      .map(el => document.getElementById(el).value)
+    config = {
+      url: (document.getElementById('integ-cfg-url')?.value || '').trim(),
+      events: events.join(','),
+      timeout: document.getElementById('integ-cfg-timeout')?.value || '8',
+      header_name: (document.getElementById('integ-cfg-header-name')?.value || '').trim(),
+      header_value: (document.getElementById('integ-cfg-header-value')?.value || '').trim(),
+    }
+  } else if (_selectedIntegType === 'google_calendar') {
+    config = {
+      client_id: (document.getElementById('integ-cfg-google-client-id')?.value || '').trim(),
+      client_secret: (document.getElementById('integ-cfg-google-client-secret')?.value || '').trim(),
+    }
+  }
+
+  status.textContent = 'Salvando...'
+  status.className = 'integ-status wait'
+
+  try {
+    if (id) {
+      const res = await fetch(API + '/integrations/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, config })
+      })
+      if (!res.ok) { showToast('Erro ao atualizar.'); return }
+      showToast('Integração atualizada!', 'success')
+    } else {
+      const res = await fetch(API + '/integrations/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, type: _selectedIntegType, config })
+      })
+      if (!res.ok) { showToast('Erro ao criar.'); return }
+      showToast('Integração criada!', 'success')
+    }
+    closeIntegModal()
+    loadIntegrations()
+  } catch {
+    showToast('Erro de conexão.')
+  }
+}
+
+async function editInteg(id) {
+  try {
+    const res = await fetch(API + '/integrations/' + id)
+    const integ = await res.json()
+    if (!integ) { showToast('Integração não encontrada.'); return }
+
+    document.getElementById('integ-id').value = integ.id
+    document.getElementById('integ-modal-title').textContent = 'Editar Integração'
+    document.getElementById('integ-save-btn').textContent = 'Salvar'
+    document.getElementById('integ-name').value = integ.name
+    document.getElementById('integ-status').textContent = ''
+    document.getElementById('integ-status').className = 'integ-status'
+
+    _selectedIntegType = integ.type
+
+    document.querySelectorAll('.integ-type-option').forEach(el => {
+      el.classList.toggle('selected', el.dataset.type === integ.type)
+      el.style.opacity = '0.6'
+      el.style.cursor = 'default'
+    })
+
+    const cfg = integ.config || {}
+    window._integSavedConfig = cfg
+    renderIntegConfigFields(integ.type)
+
+    document.getElementById('integ-modal-overlay').classList.add('open')
+  } catch {
+    showToast('Erro ao carregar integração.')
+  }
+}
+
+async function testInteg(id) {
+  try {
+    const res = await fetch(API + '/integrations/' + id)
+    const integ = await res.json()
+    if (!integ) { showToast('Integração não encontrada.'); return }
+    const url = (integ.config && integ.config.url) || ''
+    if (!url) { showToast('Configure a URL primeiro.'); return }
+    const tr = await fetch(API + '/n8n/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ webhook_url: url })
+    })
+    const data = await tr.json()
+    if (tr.ok) {
+      showToast('✓ ' + (data.message || 'Webhook funcionando!'), 'success')
+    } else {
+      showToast('✗ ' + (data.error || 'Falha no teste.'))
+    }
+  } catch {
+    showToast('Erro ao testar integração.')
+  }
+}
+
+async function testIntegUrl() {
+  const url = (document.getElementById('integ-cfg-url')?.value || '').trim()
+  if (!url) { showToast('Informe a URL do webhook.'); return }
+  try {
+    const r = await fetch(API + '/n8n/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ webhook_url: url })
+    })
+    const data = await r.json()
+    if (r.ok) {
+      showToast('✓ ' + (data.message || 'Webhook funcionando!'), 'success')
+    } else {
+      showToast('✗ ' + (data.error || 'Falha no teste.'))
+    }
+  } catch {
+    showToast('Erro ao testar.')
+  }
+}
+
+async function integConnectGoogle() {
+  const cid = document.getElementById('integ-cfg-google-client-id')?.value?.trim()
+  const sec = document.getElementById('integ-cfg-google-client-secret')?.value?.trim()
+  if (!cid || !sec) { showToast('Preencha Client ID e Client Secret primeiro.'); return }
+
+  // save credentials to settings first (needed by google auth endpoint)
+  await fetch(API + '/google/config', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ client_id: cid, client_secret: sec })
+  })
+
+  // also save the integration config
+  const id = document.getElementById('integ-id')?.value
+  if (id) {
+    await fetch(API + '/integrations/' + id, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ config: { client_id: cid, client_secret: sec } })
+    })
+  }
+
+  try {
+    const r = await fetch(API + '/google/auth')
+    const data = await r.json()
+    if (data.auth_url) {
+      window.location.href = data.auth_url
+    } else {
+      showToast(data.error || 'Erro ao conectar.')
+    }
+  } catch {
+    showToast('Erro de conexão.')
+  }
+}
+
+async function integDisconnectGoogle() {
+  if (!confirm('Desconectar Google Calendar?')) return
+  try {
+    await fetch(API + '/google/disconnect', { method: 'POST' })
+    showToast('Google Calendar desconectado.', 'info')
+    const st = document.getElementById('integ-google-status')
+    if (st) { st.textContent = 'Desconectado.'; st.className = 'integ-status' }
+    const dc = document.getElementById('integ-google-disconnect-btn')
+    if (dc) dc.style.display = 'none'
+  } catch {
+    showToast('Erro ao desconectar.')
+  }
 }
 
 async function loadNotifPanel() {
