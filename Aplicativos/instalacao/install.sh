@@ -84,7 +84,7 @@ instalar_dependencias_base() {
   echo "  Este projeto usa Supabase como banco de dados."
   echo "  Certifique-se de ter um projeto em https://supabase.com"
   echo "  e execute o schema SQL em:"
-  echo "    CRM-Mirian (protótipo)/backend/db/supabase_schema.sql"
+  echo "    CRM BeautyFlow/backend/db/supabase_schema.sql"
   echo "  no SQL Editor do seu projeto Supabase."
 }
 
@@ -120,7 +120,7 @@ PERGUNTAR_INSTALACAO() {
 }
 
 configurar_supabase() {
-  local CRM_DIR="$BASE/CRM-Mirian (protótipo)"
+  local CRM_DIR="$BASE/CRM BeautyFlow"
   local ENV_FILE="$CRM_DIR/backend/.env"
 
   if [ -f "$ENV_FILE" ]; then
@@ -159,7 +159,7 @@ EOF
 instalar_crm() {
   echo ""
   echo "── Instalando BeautyFlow CRM ──"
-  local CRM_DIR="$BASE/CRM-Mirian (protótipo)"
+  local CRM_DIR="$BASE/CRM BeautyFlow"
   local VENV_DIR="$CRM_DIR/backend/.venv"
   local INST_DIR="$CRM_DIR/instalacao"
 
@@ -221,7 +221,7 @@ instalar_agendamento() {
 }
 
 iniciar_crm() {
-  local CRM_DIR="$BASE/CRM-Mirian (protótipo)"
+  local CRM_DIR="$BASE/CRM BeautyFlow"
   local VENV_DIR="$CRM_DIR/backend/.venv"
 
   echo ""
@@ -348,7 +348,7 @@ modo_docker() {
 # ══════════════════════════════════════════
 
 detectar_instalacao() {
-  local CRM_DIR="$BASE/CRM-Mirian (protótipo)"
+  local CRM_DIR="$BASE/CRM BeautyFlow"
   local APP_DIR="$BASE/agendamento Vinicius"
   local VENV_DIR="$CRM_DIR/backend/.venv"
 
@@ -385,7 +385,7 @@ atualizar_repositorio() {
 
 reinstalar_nativo() {
   local target="$1"  # crm, agenda, ambos
-  local CRM_DIR="$BASE/CRM-Mirian (protótipo)"
+  local CRM_DIR="$BASE/CRM BeautyFlow"
   local APP_DIR="$BASE/agendamento Vinicius"
   local VENV_DIR="$CRM_DIR/backend/.venv"
 
@@ -418,7 +418,7 @@ reinstalar_docker() {
 
 atualizar_dependencias_nativo() {
   local target="$1"
-  local CRM_DIR="$BASE/CRM-Mirian (protótipo)"
+  local CRM_DIR="$BASE/CRM BeautyFlow"
   local APP_DIR="$BASE/agendamento Vinicius"
   local VENV_DIR="$CRM_DIR/backend/.venv"
 
@@ -468,7 +468,7 @@ atualizar_docker() {
 gestor_atualizacao() {
   local target="$1"   # nativo-crm, nativo-agenda, nativo-ambos, docker
   local nome=""
-  local CRM_DIR="$BASE/CRM-Mirian (protótipo)"
+  local CRM_DIR="$BASE/CRM BeautyFlow"
   local APP_DIR="$BASE/agendamento Vinicius"
   local VENV_DIR="$CRM_DIR/backend/.venv"
 

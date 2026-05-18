@@ -3,7 +3,7 @@ set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 BASE="$(cd "$DIR/.." && pwd)"
-CRM_DIR="$BASE/CRM-Mirian (protótipo)"
+CRM_DIR="$BASE/CRM BeautyFlow"
 APP_DIR="$BASE/agendamento Vinicius"
 
 MODO="${1:-ambos}"

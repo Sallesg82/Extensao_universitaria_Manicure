@@ -1,7 +1,7 @@
 services:
   crm:
     build:
-      context: "../CRM-Mirian (protótipo)"
+      context: "../CRM BeautyFlow"
       dockerfile: instalacao/Dockerfile
     container_name: beautyflow-crm
     ports:

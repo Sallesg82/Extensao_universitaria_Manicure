@@ -112,7 +112,7 @@ Aplicativos/
 │   ├── docker-compose.yml    Docker (CRM + Agendamento)
 │   └── README.md
 │
-├── CRM-Mirian (protótipo)/   ← Aplicativo CRM
+├── CRM BeautyFlow/   ← Aplicativo CRM
 │   ├── backend/
 │   │   └── db/
 │   │       └── supabase_schema.sql  ← Schema do banco
