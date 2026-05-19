@@ -2,6 +2,63 @@ const API = window.location.origin + '/api'
 
 let currentUser = null
 
+// ── Socket.IO ────────────────────────────────────────
+let _socket = null
+let _pageRefreshPending = {}
+
+function connectSocket() {
+  if (typeof io === 'undefined') return
+  _socket = io(window.location.origin, {
+    transports: ['websocket', 'polling'],
+    reconnection: true,
+    reconnectionDelay: 2000,
+  })
+  _socket.on('connect', () => console.log('[WS] Conectado'))
+  _socket.on('disconnect', () => console.log('[WS] Desconectado'))
+
+  _socket.on('data:changed', (data) => {
+    _requestPageRefresh(data.type)
+  })
+  _socket.on('appointment:created', () => _requestPageRefresh('appointment'))
+  _socket.on('appointment:updated', () => _requestPageRefresh('appointment'))
+  _socket.on('appointment:deleted', () => _requestPageRefresh('appointment'))
+  _socket.on('client:created', () => _requestPageRefresh('client'))
+  _socket.on('client:updated', () => _requestPageRefresh('client'))
+  _socket.on('client:deleted', () => _requestPageRefresh('client'))
+  _socket.on('service:changed', () => _requestPageRefresh('service'))
+}
+
+function _requestPageRefresh(type) {
+  const pageId = (location.hash.slice(1) || 'dashboard')
+  const key = pageId + ':' + type
+  if (_pageRefreshPending[key]) return
+  _pageRefreshPending[key] = true
+  setTimeout(() => {
+    delete _pageRefreshPending[key]
+    const activePage = document.querySelector('.page.active')
+    if (!activePage) return
+    // Always refresh the notification dot
+    loadNotifDot()
+    // Only refresh if the user is still on the same page
+    if (document.hidden) return
+    const currentPageId = location.hash.slice(1) || 'dashboard'
+    if (currentPageId !== pageId) return
+
+    if (currentPageId === 'dashboard') loadDashboard()
+    else if (currentPageId === 'agenda') showAgendaView()
+    else if (currentPageId === 'clientes') loadClients()
+    else if (currentPageId === 'relatorios') loadRelatorios()
+    else if (currentPageId === 'financeiro') loadFinanceiro()
+    else if (currentPageId === 'servicos') loadServicos()
+  }, 300)
+}
+
+// Connect after login (when user is authenticated)
+document.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('bf_user')
+  if (saved) connectSocket()
+})
+
 function renderLoginForm() {
   const form = document.getElementById('auth-form')
   form.innerHTML = `
@@ -118,6 +175,7 @@ function showApp() {
   document.querySelector('.screen').style.display = 'flex'
   navigateFromHash()
   updateUserCard()
+  connectSocket()
 }
 
 function updateUserCard() {
@@ -149,11 +207,12 @@ let refreshTimer = null
 
 function startPageRefresh(pageId) {
   stopPageRefresh()
+  // Fallback polling (60s) - socket events handle real-time now
   const map = {
-    dashboard: { ms: 15000, fn: loadDashboard },
-    agenda:    { ms: 10000, fn: loadAgenda },
-    clientes:  { ms: 30000, fn: loadClients },
-    relatorios: { ms: 30000, fn: loadRelatorios },
+    dashboard: { ms: 60000, fn: loadDashboard },
+    agenda:    { ms: 60000, fn: loadAgenda },
+    clientes:  { ms: 120000, fn: loadClients },
+    relatorios: { ms: 120000, fn: loadRelatorios },
   }
   const c = map[pageId]
   if (!c) return
@@ -166,9 +225,10 @@ let _notifTimer
 function startNotifPoll() {
   if (_notifTimer) return
   loadNotifDot()
+  // Notification polling is a fallback - socket events will also trigger it
   _notifTimer = setInterval(() => {
     if (!document.hidden) loadNotifDot()
-  }, 30000)
+  }, 60000)
 }
 
 function stopPageRefresh() {

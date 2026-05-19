@@ -1,8 +1,14 @@
 // src/App.jsx
 
 import { useState, useEffect } from "react";
+import { io } from "socket.io-client";
 
 const API = "http://localhost:3001/api";
+const SOCKET = io("http://localhost:3001", {
+  transports: ["websocket", "polling"],
+  reconnection: true,
+  reconnectionDelay: 2000,
+});
 
 export default function App() {
   const [etapa, setEtapa] = useState(1);
@@ -59,6 +65,20 @@ export default function App() {
         }),
       }).catch(() => {});
     });
+
+    SOCKET.on("connect", () => console.log("[App Agendamento] Conectado ao WebSocket"));
+    SOCKET.on("data:changed", (data) => {
+      console.log("[App Agendamento] Dados alterados:", data);
+    });
+    SOCKET.on("appointment:created", (data) => {
+      console.log("[App Agendamento] Novo agendamento criado:", data);
+    });
+
+    return () => {
+      SOCKET.off("connect");
+      SOCKET.off("data:changed");
+      SOCKET.off("appointment:created");
+    };
   }, []);
 
   function enviarNome() {

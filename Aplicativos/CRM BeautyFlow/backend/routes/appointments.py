@@ -5,6 +5,7 @@ import datetime
 from flask import Blueprint, request, jsonify
 from db.database import get_db, get_settings, create_notification
 from middleware.validation import validate_appointment
+from ws import socketio
 
 appointments_bp = Blueprint('appointments', __name__)
 
@@ -214,6 +215,8 @@ def create_appointment():
             related_id=a['id'],
             related_type='appointment'
         )
+    socketio.emit('appointment:created', format_appt(a))
+    socketio.emit('data:changed', {'type': 'appointment', 'action': 'created'})
     return jsonify(format_appt(a)), 201
 
 
@@ -249,6 +252,8 @@ def update_appointment(appt_id):
     else:
         _sync_google(a, 'update')
         _fire_n8n(a, 'update')
+    socketio.emit('appointment:updated', format_appt(a))
+    socketio.emit('data:changed', {'type': 'appointment', 'action': 'updated'})
     return jsonify(format_appt(a))
 
 
@@ -268,4 +273,6 @@ def delete_appointment(appt_id):
             related_type='appointment'
         )
     get_db().table('appointments').delete().eq('id', appt_id).execute()
+    socketio.emit('appointment:deleted', {'id': appt_id})
+    socketio.emit('data:changed', {'type': 'appointment', 'action': 'deleted'})
     return jsonify({'message': 'Agendamento removido', 'id': appt_id})

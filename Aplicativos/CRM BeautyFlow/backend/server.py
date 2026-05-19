@@ -3,6 +3,7 @@ import datetime
 import requests
 from flask import Flask, jsonify, send_from_directory, request
 from flask_cors import CORS
+from ws import socketio
 from db.database import get_db, get_settings, update_setting, get_stats, unread_notifications_count, create_notification
 from routes.clients import clients_bp
 from routes.appointments import appointments_bp
@@ -16,6 +17,7 @@ STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src')
 
 app = Flask(__name__, static_folder=None)
 CORS(app)
+socketio.init_app(app, cors_allowed_origins="*", async_mode='threading')
 
 app.register_blueprint(clients_bp, url_prefix='/api/clients')
 app.register_blueprint(appointments_bp, url_prefix='/api/appointments')
@@ -282,4 +284,4 @@ def server_error(e):
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=3001, debug=True)
+    socketio.run(app, host='0.0.0.0', port=3001, debug=False, allow_unsafe_werkzeug=True)

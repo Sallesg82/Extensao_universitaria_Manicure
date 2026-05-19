@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from db.database import get_db
+from ws import socketio
 
 services_bp = Blueprint('services', __name__)
 
@@ -31,7 +32,10 @@ def create_service():
         'price': float(data['price']),
         'color': data.get('color', '#4a90d9'),
     }).execute()
-    return jsonify(dict(result.data[0])), 201
+    svc = dict(result.data[0])
+    socketio.emit('service:changed', {'action': 'created', 'service': svc})
+    socketio.emit('data:changed', {'type': 'service', 'action': 'created'})
+    return jsonify(svc), 201
 
 
 @services_bp.route('/<int:svc_id>', methods=['PUT'])
@@ -51,7 +55,10 @@ def update_service(svc_id):
         get_db().table('services').update(update_data).eq('id', svc_id).execute()
 
     svc = _first('services', 'id', svc_id)
-    return jsonify(dict(svc))
+    result = dict(svc)
+    socketio.emit('service:changed', {'action': 'updated', 'service': result})
+    socketio.emit('data:changed', {'type': 'service', 'action': 'updated'})
+    return jsonify(result)
 
 
 @services_bp.route('/<int:svc_id>', methods=['DELETE'])
@@ -60,4 +67,6 @@ def delete_service(svc_id):
     if not existing:
         return jsonify({'error': 'Serviço não encontrado'}), 404
     get_db().table('services').delete().eq('id', svc_id).execute()
+    socketio.emit('service:changed', {'action': 'deleted', 'id': svc_id})
+    socketio.emit('data:changed', {'type': 'service', 'action': 'deleted'})
     return jsonify({'message': 'Serviço removido', 'id': svc_id})

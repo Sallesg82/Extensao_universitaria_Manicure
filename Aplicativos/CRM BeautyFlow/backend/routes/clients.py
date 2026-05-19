@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from db.database import get_db, all_clients, get_client, create_client, update_client, delete_client
 from middleware.validation import validate_client
+from ws import socketio
 
 clients_bp = Blueprint('clients', __name__)
 
@@ -56,7 +57,10 @@ def create_client_route():
     c['visits'] = 0
     c['total_spent'] = 0
     c['last_visit'] = None
-    return jsonify(format_client(c)), 201
+    result = format_client(c)
+    socketio.emit('client:created', result)
+    socketio.emit('data:changed', {'type': 'client', 'action': 'created'})
+    return jsonify(result), 201
 
 
 @clients_bp.route('/<int:client_id>', methods=['PUT'])
@@ -66,7 +70,10 @@ def update_client_route(client_id):
         c = update_client(client_id, data)
     except Exception:
         return jsonify({'error': 'Cliente n\u00e3o encontrado'}), 404
-    return jsonify(format_client(c))
+    result = format_client(c)
+    socketio.emit('client:updated', result)
+    socketio.emit('data:changed', {'type': 'client', 'action': 'updated'})
+    return jsonify(result)
 
 
 @clients_bp.route('/<int:client_id>', methods=['DELETE'])
@@ -75,4 +82,6 @@ def delete_client_route(client_id):
         delete_client(client_id)
     except Exception:
         return jsonify({'error': 'Cliente n\u00e3o encontrado'}), 404
+    socketio.emit('client:deleted', {'id': client_id})
+    socketio.emit('data:changed', {'type': 'client', 'action': 'deleted'})
     return jsonify({'message': 'Cliente removido', 'id': client_id})

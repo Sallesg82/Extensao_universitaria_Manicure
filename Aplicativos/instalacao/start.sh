@@ -38,7 +38,7 @@ iniciar_crm() {
   if [ -f backend/.env ]; then
     set -a; source backend/.env; set +a
   fi
-  nohup backend/.venv/bin/python backend/server.py > /tmp/beautyflow_crm.log 2>&1 &
+  nohup backend/.venv/bin/python backend/run.py > /tmp/beautyflow_crm.log 2>&1 &
   echo "  ✓ CRM rodando (PID $!)"
   cd "$DIR"
 }
