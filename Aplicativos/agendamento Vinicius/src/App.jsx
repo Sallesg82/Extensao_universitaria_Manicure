@@ -137,10 +137,15 @@ export default function App() {
   const [salvando, setSalvando] = useState(false);
 
   const servicos = [
-    { id: 1, nome: "Corte + Sobrancelha", preco: 40, duracao: "1hr" },
-    { id: 2, nome: "Corte & Barba",        preco: 60, duracao: "1hr" },
-    { id: 3, nome: "Corte",                preco: 35, duracao: "1hr" },
-    { id: 4, nome: "Barba",                preco: 25, duracao: "30min" },
+    { id: 1, nome: "Micropigmentação Shadow", preco: 300},
+    { id: 2, nome: "Design personalizado",        preco: 30},
+    { id: 3, nome: "Design com hena",                preco: 55 },
+    { id: 4, nome: "Brow Lamination sem tintura",                preco: 125 },
+    { id: 5, nome: "Brow Lamination com tintura ",                preco: 145 },
+    { id: 6, nome: "Depilação buço ",                preco: 17 },
+    { id: 7, nome: "Manicure  E Pedicure ",                preco: 60 },
+    { id: 8, nome: "Mão ",                preco: 30 },
+    { id: 9, nome: "Pé",                preco: 35 },
   ];
 
   useEffect(() => {
@@ -255,7 +260,7 @@ export default function App() {
             <div className="chat-wrap">
               <AssistantBubble delay={0}>
                 Olá, seja muito bem-vinda! ✨ Sou a assistente virtual do{" "}
-                <em>Beatris Gomes Studios</em> — especialistas em extensão de cílios
+                <em>Beatriz Gomes Studios</em> — especialistas em extensão de cílios
                 e beleza feminina.
               </AssistantBubble>
 
