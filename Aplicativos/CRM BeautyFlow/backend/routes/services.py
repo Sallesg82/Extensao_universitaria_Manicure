@@ -30,6 +30,7 @@ def create_service():
         'name': data['name'],
         'duration': data['duration'],
         'price': float(data['price']),
+        'buffer': data.get('buffer', 15),
         'color': data.get('color', '#4a90d9'),
     }).execute()
     svc = dict(result.data[0])
@@ -46,7 +47,7 @@ def update_service(svc_id):
 
     data = request.get_json()
     update_data = {}
-    for field in ['name', 'duration', 'color']:
+    for field in ['name', 'duration', 'buffer', 'color']:
         if field in data and data[field] is not None:
             update_data[field] = data[field]
     if 'price' in data and data['price'] is not None:

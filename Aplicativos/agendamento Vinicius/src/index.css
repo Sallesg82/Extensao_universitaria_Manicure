@@ -843,6 +843,123 @@ input, button, select, textarea {
   }
 }
 
+/* ─── Success Modal ────────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(45,36,39,0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  animation: fadeIn 0.3s var(--ease-out);
+  padding: 20px;
+}
+
+.modal-content {
+  position: relative;
+  background: var(--white);
+  border-radius: var(--r-xl);
+  padding: 48px 40px 36px;
+  max-width: 420px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 32px 80px rgba(45,36,39,0.3);
+  animation: modalIn 0.4s var(--ease-out);
+  overflow: hidden;
+}
+
+.modal-glow {
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(244,197,208,0.35) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.modal-check {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  animation: scaleIn 0.5s var(--ease-out) 0.1s both;
+}
+
+.modal-check svg {
+  filter: drop-shadow(0 4px 12px rgba(232,160,180,0.4));
+}
+
+.modal-title {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 28px;
+  font-weight: 500;
+  color: var(--text-main);
+  margin-bottom: 6px;
+}
+
+.modal-sub {
+  font-size: 15px;
+  color: var(--text-muted);
+  margin-bottom: 28px;
+}
+
+.modal-details {
+  background: linear-gradient(135deg, var(--rose-blush), var(--gold-soft));
+  border: 1px solid rgba(244,197,208,0.25);
+  border-radius: var(--r-lg);
+  padding: 20px 24px;
+  text-align: left;
+}
+
+.modal-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(180,140,160,0.1);
+}
+
+.modal-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.modal-label {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.modal-value {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--text-main);
+  text-align: right;
+  max-width: 60%;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.92) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.5); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

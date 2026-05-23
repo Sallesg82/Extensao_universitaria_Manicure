@@ -128,6 +128,60 @@ function formatDuracao(min) {
   return `${min}min`;
 }
 
+function SuccessModal({ data, onClose }) {
+  const dateFormatted = data?.date
+    ? new Date(data.date + "T12:00").toLocaleDateString("pt-BR", {
+        weekday: "long", day: "numeric", month: "long", year: "numeric",
+      })
+    : "";
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-glow" />
+        <div className="modal-check">
+          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+            <circle cx="16" cy="16" r="16" fill="url(#check-grad)" />
+            <path d="M9 17l5 5 9-9" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            <defs>
+              <linearGradient id="check-grad" x1="0" y1="0" x2="32" y2="32">
+                <stop stopColor="#e8a0b4" />
+                <stop offset="1" stopColor="#c9a96e" />
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+
+        <h2 className="modal-title">Agendamento Confirmado!</h2>
+        <p className="modal-sub">Seu horário foi reservado com sucesso</p>
+
+        <div className="modal-details">
+          <div className="modal-row">
+            <span className="modal-label">Cliente</span>
+            <span className="modal-value">{data?.cliente}</span>
+          </div>
+          <div className="modal-row">
+            <span className="modal-label">Serviço</span>
+            <span className="modal-value">{data?.servico}</span>
+          </div>
+          <div className="modal-row">
+            <span className="modal-label">Data</span>
+            <span className="modal-value" style={{ textTransform: "capitalize" }}>{dateFormatted}</span>
+          </div>
+          <div className="modal-row">
+            <span className="modal-label">Horário</span>
+            <span className="modal-value">{data?.horario}</span>
+          </div>
+        </div>
+
+        <button className="btn-primary" onClick={onClose} style={{ marginTop: "24px" }}>
+          <span className="btn-icon">Perfeito! ✨</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [etapa, setEtapa] = useState(1);
   const [nome, setNome] = useState("");
@@ -137,22 +191,34 @@ export default function App() {
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successData, setSuccessData] = useState(null);
   const [availableSlots, setAvailableSlots] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [slotsError, setSlotsError] = useState("");
   const [dataInfo, setDataInfo] = useState(null);
+  const [servicos, setServicos] = useState([]);
+  const [loadingServicos, setLoadingServicos] = useState(true);
 
-  const servicos = [
-    { id: 1, nome: "Micropigmentação Shadow", preco: 300, duracao: 120 },
-    { id: 2, nome: "Design personalizado",     preco: 30,  duracao: 30 },
-    { id: 3, nome: "Design com hena",          preco: 55,  duracao: 45 },
-    { id: 4, nome: "Brow Lamination sem tintura", preco: 125, duracao: 60 },
-    { id: 5, nome: "Brow Lamination com tintura", preco: 145, duracao: 75 },
-    { id: 6, nome: "Depilação buço",           preco: 17,  duracao: 15 },
-    { id: 7, nome: "Manicure e Pedicure",      preco: 60,  duracao: 60 },
-    { id: 8, nome: "Mão",                      preco: 30,  duracao: 30 },
-    { id: 9, nome: "Pé",                       preco: 35,  duracao: 30 },
-  ];
+  useEffect(() => {
+    fetch(API + "/services/")
+      .then((r) => r.json())
+      .then((data) => {
+        setServicos(
+          data.map((s) => ({
+            id: s.id,
+            nome: s.name,
+            preco: s.price,
+            duracao: s.duration,
+            buffer: s.buffer || 0,
+          }))
+        );
+      })
+      .catch(() => {
+        setServicos([]);
+      })
+      .finally(() => setLoadingServicos(false));
+  }, []);
 
   useEffect(() => {
     SOCKET.on("connect", () => console.log("[App Agendamento] Conectado ao WebSocket"));
@@ -175,10 +241,11 @@ export default function App() {
       return;
     }
     const dur = servicoSelecionado.duracao;
+    const buf = servicoSelecionado.buffer || 0;
     setLoadingSlots(true);
     setTime("");
     setSlotsError("");
-    fetch(`${API}/available-slots?date=${date}&duration=${dur}`)
+    fetch(`${API}/available-slots?date=${date}&duration=${dur}&buffer=${buf}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.closed) {
@@ -256,9 +323,13 @@ export default function App() {
         throw new Error(err.error || "Erro ao criar agendamento");
       }
 
-      alert(
-        `Agendamento confirmado!\n\nCliente: ${nome}\nServiço: ${servicoSelecionado.nome}\nData: ${date} às ${time}`
-      );
+      setSuccessData({
+        cliente: nome,
+        servico: servicoSelecionado.nome,
+        date: date,
+        horario: time,
+      });
+      setShowSuccess(true);
 
       setNome(""); setNomeInput(""); setPhone("");
       setServicoSelecionado(null); setDate(""); setTime("");
@@ -277,8 +348,14 @@ export default function App() {
       })
     : "";
 
+  function closeSuccess() {
+    setShowSuccess(false);
+    setSuccessData(null);
+  }
+
   return (
     <div className="app-shell">
+      {showSuccess && <SuccessModal data={successData} onClose={closeSuccess} />}
       <StudioHeader etapa={etapa} />
 
       <div className="app-container">
@@ -399,6 +476,17 @@ export default function App() {
               <div className="section-eyebrow">Serviços disponíveis</div>
               <div className="section-title">O que você procura?</div>
 
+              {loadingServicos ? (
+                <div className="slots-loading">
+                  <span className="loading-dots"><span /><span /><span /></span>
+                  <span style={{ marginLeft: "8px", color: "var(--text-muted)" }}>Carregando serviços...</span>
+                </div>
+              ) : servicos.length === 0 ? (
+                <div className="slots-empty">
+                  <span style={{ fontSize: "32px" }}>💅</span>
+                  <p>Nenhum serviço disponível no momento.</p>
+                </div>
+              ) : (
               <div className="services-scroll">
                 {servicos.map((item, i) => (
                   <div
@@ -418,6 +506,7 @@ export default function App() {
                   </div>
                 ))}
               </div>
+              )}
 
               <div className="scroll-hint">
                 <span>deslize para ver mais</span>
@@ -450,7 +539,12 @@ export default function App() {
                     <div className="slots-section">
                       <div className="section-eyebrow">Horários disponíveis</div>
                       <div className="section-title" style={{ fontSize: "20px", marginBottom: "16px" }}>
-                        {formattedDate} — {formatDuracao(servicoSelecionado.duracao)} de duração
+                        {formattedDate} — {formatDuracao(servicoSelecionado.duracao)}
+                        {servicoSelecionado.buffer > 0 && (
+                          <span style={{ fontSize: "14px", color: "var(--text-muted)" }}>
+                            {" "}({formatDuracao(servicoSelecionado.duracao + servicoSelecionado.buffer)} reservado)
+                          </span>
+                        )}
                       </div>
 
                       {loadingSlots && (
@@ -523,7 +617,14 @@ export default function App() {
                   </div>
                   <div className="summary-row">
                     <span className="summary-label">Duração</span>
-                    <span className="summary-value">{formatDuracao(servicoSelecionado.duracao)}</span>
+                    <span className="summary-value">
+                      {formatDuracao(servicoSelecionado.duracao)}
+                      {servicoSelecionado.buffer > 0 && (
+                        <span style={{ fontSize: "12px", color: "var(--text-muted)", marginLeft: "4px" }}>
+                          +{servicoSelecionado.buffer}min de margem
+                        </span>
+                      )}
+                    </span>
                   </div>
                 </div>
               )}

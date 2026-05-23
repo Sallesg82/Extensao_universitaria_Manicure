@@ -1,4 +1,5 @@
 import os
+import json
 from datetime import datetime
 from supabase import create_client
 from postgrest import APIError
@@ -18,6 +19,7 @@ TABLE_SETTINGS = 'settings'
 TABLE_USERS = 'users'
 TABLE_NOTIFICATIONS = 'notifications'
 TABLE_INTEGRATIONS = 'integrations'
+TABLE_BUSINESS_HOURS = 'business_hours'
 
 
 def get_db():
@@ -471,3 +473,154 @@ def delete_integration(integ_id):
         supabase.table(TABLE_INTEGRATIONS).delete().eq('id', integ_id).execute()
     except APIError:
         pass
+
+
+# ── Business Hours ──────────────────────────────────────────────────────────
+
+DAYS_PT = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo']
+
+DEFAULT_HOURS = {
+    'segunda': {'open': '08:00', 'close': '18:00', 'closed': False},
+    'terca':   {'open': '08:00', 'close': '18:00', 'closed': False},
+    'quarta':  {'open': '08:00', 'close': '18:00', 'closed': False},
+    'quinta':  {'open': '08:00', 'close': '18:00', 'closed': False},
+    'sexta':   {'open': '08:00', 'close': '18:00', 'closed': False},
+    'sabado':  {'open': '08:00', 'close': '13:00', 'closed': False},
+    'domingo': {'open': '', 'close': '', 'closed': True},
+}
+
+_BH_ALERTADO = False
+
+_BH_TABLE_SQL = """
+CREATE TABLE IF NOT EXISTS business_hours (
+    id          SERIAL PRIMARY KEY,
+    day         TEXT NOT NULL UNIQUE,
+    open        TEXT NOT NULL DEFAULT '08:00',
+    close       TEXT NOT NULL DEFAULT '18:00',
+    closed      BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TRIGGER IF NOT EXISTS trg_business_hours_updated_at
+    BEFORE UPDATE ON business_hours
+    FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();
+
+INSERT INTO business_hours (day, open, close, closed) VALUES
+    ('segunda', '08:00', '18:00', FALSE),
+    ('terca',   '08:00', '18:00', FALSE),
+    ('quarta',  '08:00', '18:00', FALSE),
+    ('quinta',  '08:00', '18:00', FALSE),
+    ('sexta',   '08:00', '18:00', FALSE),
+    ('sabado',  '08:00', '13:00', FALSE),
+    ('domingo', '',      '',      TRUE)
+ON CONFLICT (day) DO NOTHING;
+"""
+
+
+_MIGRATION_SQL = _BH_TABLE_SQL + """
+
+-- Adicionar coluna buffer se não existir (margem extra entre agendamentos)
+ALTER TABLE services ADD COLUMN IF NOT EXISTS buffer INTEGER NOT NULL DEFAULT 15;
+"""
+
+
+def _criar_tabela_business_hours():
+    global _BH_ALERTADO
+    if _BH_ALERTADO:
+        return
+    _BH_ALERTADO = True
+    sql_path = os.path.join(os.path.dirname(__file__), 'criar_business_hours.sql')
+    with open(sql_path, 'w') as f:
+        f.write(_MIGRATION_SQL)
+    print(f"[DB] Tabela 'business_hours' não encontrada no Supabase.")
+    print(f"[DB] SQL para criar foi salvo em: {sql_path}")
+    print(f"[DB] Execute esse SQL no SQL Editor do Supabase e reinicie o servidor.")
+
+
+def _migrate_business_hours():
+    try:
+        r = supabase.table(TABLE_BUSINESS_HOURS).select('id').limit(1).execute()
+        if r.data:
+            return
+    except APIError:
+        _criar_tabela_business_hours()
+        return
+    try:
+        s = get_settings()
+        raw = s.get('business_hours', '')
+        if raw:
+            data = json.loads(raw)
+            rows = [{'day': k, 'open': v.get('open', ''), 'close': v.get('close', ''), 'closed': v.get('closed', False)} for k, v in data.items()]
+            supabase.table(TABLE_BUSINESS_HOURS).upsert(rows, on_conflict='day').execute()
+            supabase.table(TABLE_SETTINGS).delete().eq('key', 'business_hours').execute()
+    except Exception:
+        pass
+
+
+def load_business_hours():
+    try:
+        r = supabase.table(TABLE_BUSINESS_HOURS).select('day,open,close,closed').execute()
+        if r.data:
+            return {row['day']: {'open': row['open'], 'close': row['close'], 'closed': row['closed']} for row in r.data}
+    except APIError:
+        _criar_tabela_business_hours()
+    return dict(DEFAULT_HOURS)
+
+
+def save_business_hours(data):
+    for day_key, info in data.items():
+        try:
+            supabase.table(TABLE_BUSINESS_HOURS).upsert({
+                'day': day_key,
+                'open': info.get('open', ''),
+                'close': info.get('close', ''),
+                'closed': info.get('closed', False),
+            }, on_conflict='day').execute()
+        except APIError:
+            _criar_tabela_business_hours()
+            raise RuntimeError(
+                f"Tabela 'business_hours' não existe no Supabase. "
+                f"Execute o SQL gerado em 'db/criar_business_hours.sql' no SQL Editor do Supabase."
+            )
+
+
+def validate_appointment_hours(appointment_date, appointment_time, duration=60, buffer=0):
+    """Returns None if valid, or an error message string if the appointment falls outside business hours."""
+    try:
+        dt = datetime.strptime(appointment_date, '%Y-%m-%d')
+    except (ValueError, TypeError):
+        return 'Data inválida'
+
+    try:
+        t_parts = appointment_time.split(':')
+        appt_min = int(t_parts[0]) * 60 + int(t_parts[1])
+    except (ValueError, IndexError, AttributeError):
+        return 'Horário inválido'
+
+    dow = dt.weekday()
+    day_key = DAYS_PT[dow]
+
+    hours = load_business_hours()
+    day_hours = hours.get(day_key, {})
+
+    if day_hours.get('closed', False):
+        return 'Fechado neste dia'
+
+    open_str = day_hours.get('open', '08:00')
+    close_str = day_hours.get('close', '18:00')
+
+    try:
+        open_min = int(open_str.split(':')[0]) * 60 + int(open_str.split(':')[1])
+        close_min = int(close_str.split(':')[0]) * 60 + int(close_str.split(':')[1])
+    except (ValueError, IndexError):
+        return 'Horário de funcionamento inválido'
+
+    if appt_min < open_min:
+        return f'O horário de funcionamento neste dia é {open_str} às {close_str}. O agendamento deve começar após {open_str}.'
+
+    total = appt_min + duration + buffer
+    if total > close_min:
+        return f'O horário de funcionamento neste dia é {open_str} às {close_str}. O serviço termina após o fechamento.'
+
+    return None

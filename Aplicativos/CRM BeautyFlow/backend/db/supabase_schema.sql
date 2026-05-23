@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS services (
     id          SERIAL PRIMARY KEY,
     name        TEXT NOT NULL UNIQUE,
     duration    INTEGER NOT NULL DEFAULT 60,
+    buffer      INTEGER NOT NULL DEFAULT 15,
     price       REAL NOT NULL DEFAULT 0,
     color       TEXT DEFAULT '#4a90d9',
     created_at  TIMESTAMPTZ DEFAULT NOW()
@@ -118,6 +119,34 @@ CREATE TABLE IF NOT EXISTS settings (
     key     TEXT PRIMARY KEY,
     value   TEXT NOT NULL
 );
+
+-- ═══════════════════════════════════════════════════════════════
+--  TABELA: business_hours (horários de funcionamento)
+-- ═══════════════════════════════════════════════════════════════
+
+CREATE TABLE IF NOT EXISTS business_hours (
+    id          SERIAL PRIMARY KEY,
+    day         TEXT NOT NULL UNIQUE,
+    open        TEXT NOT NULL DEFAULT '08:00',
+    close       TEXT NOT NULL DEFAULT '18:00',
+    closed      BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TRIGGER trg_business_hours_updated_at
+    BEFORE UPDATE ON business_hours
+    FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();
+
+INSERT INTO business_hours (day, open, close, closed) VALUES
+    ('segunda', '08:00', '18:00', FALSE),
+    ('terca',   '08:00', '18:00', FALSE),
+    ('quarta',  '08:00', '18:00', FALSE),
+    ('quinta',  '08:00', '18:00', FALSE),
+    ('sexta',   '08:00', '18:00', FALSE),
+    ('sabado',  '08:00', '13:00', FALSE),
+    ('domingo', '',      '',      TRUE)
+ON CONFLICT (day) DO NOTHING;
 
 -- ═══════════════════════════════════════════════════════════════
 --  TABELA: notifications (notificações do sistema)

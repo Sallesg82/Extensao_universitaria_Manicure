@@ -3,7 +3,7 @@ import threading
 import requests
 import datetime
 from flask import Blueprint, request, jsonify
-from db.database import get_db, get_settings, create_notification
+from db.database import get_db, get_settings, create_notification, validate_appointment_hours
 from middleware.validation import validate_appointment
 from ws import socketio
 
@@ -189,6 +189,22 @@ def create_appointment():
     if not client:
         return jsonify({'error': 'Cliente n\u00e3o encontrado'}), 400
 
+    svc_buffer = 0
+    svc_info = _first('services', 'name', data['service'])
+    if svc_info:
+        try:
+            svc_buffer = int(svc_info.get('buffer', 0) or 0)
+        except (ValueError, TypeError):
+            svc_buffer = 0
+    hours_error = validate_appointment_hours(
+        data['appointment_date'],
+        data['appointment_time'],
+        int(data.get('duration', 60)),
+        svc_buffer
+    )
+    if hours_error:
+        return jsonify({'error': f'Hor\u00e1rio fora do funcionamento: {hours_error}'}), 400
+
     supabase = get_db()
     result = supabase.table('appointments').insert({
         'client_id': data['client_id'],
@@ -233,6 +249,22 @@ def update_appointment(appt_id):
             update_data[field] = data[field]
     if 'price' in data and data['price'] is not None:
         update_data['price'] = float(data['price'])
+
+    if 'appointment_date' in update_data or 'appointment_time' in update_data or 'duration' in update_data or 'service' in update_data:
+        check_date = update_data.get('appointment_date', existing['appointment_date'])
+        check_time = update_data.get('appointment_time', existing['appointment_time'])
+        check_dur = int(update_data.get('duration', existing.get('duration', 60)))
+        check_svc = update_data.get('service', existing.get('service', ''))
+        svc_buffer = 0
+        svc_info = _first('services', 'name', check_svc)
+        if svc_info:
+            try:
+                svc_buffer = int(svc_info.get('buffer', 0) or 0)
+            except (ValueError, TypeError):
+                svc_buffer = 0
+        hours_error = validate_appointment_hours(check_date, check_time, check_dur, svc_buffer)
+        if hours_error:
+            return jsonify({'error': f'Hor\u00e1rio fora do funcionamento: {hours_error}'}), 400
     if update_data:
         get_db().table('appointments').update(update_data).eq('id', appt_id).execute()
 
