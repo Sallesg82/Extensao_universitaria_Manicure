@@ -703,6 +703,10 @@
               <svg class="settings-nav-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="6" r="3.5" stroke="currentColor" stroke-width="1.2"/><path d="M2 13c0-2.5 2.7-4 6-4s6 1.5 6 4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
               Perfil
             </div>
+            <div class="settings-nav-item" onclick="showSettingsTab(this,'tab-horarios')">
+              <svg class="settings-nav-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/><polyline points="8 4 8 8 11 10" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              Horários
+            </div>
             <div class="settings-nav-item" onclick="showSettingsTab(this,'tab-notif')">
               <svg class="settings-nav-icon" viewBox="0 0 16 16" fill="none"><path d="M8 1a5 5 0 0 1 5 5c0 3 1 4 1 4H2s1-1 1-4a5 5 0 0 1 5-5zM6.5 13.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
               Notificações
@@ -759,6 +763,18 @@
                   <div class="save-bar">
                     <button class="btn-primary" onclick="changePassword()">Alterar Senha</button>
                   </div>
+                </div>
+              </div>
+            </div>
+
+            <div id="tab-horarios" style="display:none;">
+              <div class="settings-section">
+                <div class="settings-section-header">
+                  <div class="settings-section-title">Horários de Funcionamento</div>
+                  <div class="settings-section-sub">Defina os dias e horários de abertura e fechamento da empresa</div>
+                </div>
+                <div class="settings-body" id="business-hours-body">
+                  <div class="hours-loading">Carregando...</div>
                 </div>
               </div>
             </div>

@@ -706,6 +706,76 @@ input, button, select, textarea {
   margin-bottom: 20px;
 }
 
+/* ─── Slots Grid ─────────────────────────────────────── */
+.slots-section {
+  animation: fadeUp 0.5s var(--ease-out) both;
+  margin-top: 8px;
+}
+
+.slots-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  color: var(--text-muted);
+  font-size: 15px;
+}
+
+.slots-empty {
+  text-align: center;
+  padding: 32px 16px;
+  background: var(--white);
+  border: 1.5px dashed rgba(180,140,160,0.3);
+  border-radius: var(--r-lg);
+  color: var(--text-muted);
+}
+
+.slots-empty p {
+  margin-top: 8px;
+  font-size: 15px;
+}
+
+.slots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.slot-btn {
+  background: var(--white);
+  border: 1.5px solid rgba(180,140,160,0.2);
+  border-radius: var(--r-md);
+  padding: 12px 8px;
+  font-size: 15px;
+  font-weight: 400;
+  color: var(--text-main);
+  cursor: pointer;
+  transition: all var(--dur) var(--ease-out);
+  font-family: 'Jost', sans-serif;
+  text-align: center;
+}
+
+.slot-btn:hover {
+  border-color: var(--rose-deep);
+  background: var(--rose-blush);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.slot-btn.selected {
+  background: linear-gradient(135deg, var(--rose-deep), var(--gold));
+  border-color: transparent;
+  color: var(--white);
+  box-shadow: var(--shadow-gold);
+  font-weight: 500;
+}
+
+/* ─── Utility Classes ─────────────────────────────────── */
+.fadeUp {
+  animation: fadeUp 0.5s var(--ease-out) both;
+}
+
 /* ─── Animations ─────────────────────────────────────── */
 @keyframes slideInLeft {
   from { opacity: 0; transform: translateX(-20px); }

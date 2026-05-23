@@ -5261,3 +5261,54 @@ body {
 
 [data-color-scheme="dark"] .day-view-card:hover { background: var(--dark-hover-bg); }
 [data-color-scheme="dark"] .day-view-panel { background: var(--bg-white); }
+
+/* ═══════════════ BUSINESS HOURS ═══════════════ */
+.hours-day-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+.hours-day-row:last-of-type {
+  border-bottom: none;
+}
+.hours-day-label {
+  width: 120px;
+  font-size: var(--text-14);
+  font-weight: 500;
+  color: var(--text-dark);
+  flex-shrink: 0;
+}
+.hours-toggle {
+  flex-shrink: 0;
+}
+.hours-status-label {
+  width: 60px;
+  font-size: var(--text-13);
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.hours-time-fields {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: opacity 0.2s;
+}
+.hours-sep {
+  font-size: var(--text-13);
+  color: var(--text-faint);
+}
+.hours-loading {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: var(--text-14);
+}
+
+[data-color-scheme="dark"] .hours-day-row {
+  border-color: var(--dark-bg-raised);
+}
+[data-color-scheme="dark"] .hours-day-label {
+  color: var(--text-dark);
+}

@@ -1,4 +1,5 @@
 import os
+import json
 import datetime
 import requests
 from flask import Flask, jsonify, send_from_directory, request
@@ -226,6 +227,128 @@ def handle_settings():
     if 'meta_mensal' in result:
         result['meta_mensal'] = float(result['meta_mensal'])
     return jsonify(result)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Business Hours (horários de funcionamento)
+# ══════════════════════════════════════════════════════════════════════════════
+
+_DAYS_PT = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado']
+_DAYS_EN = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+
+_DEFAULT_HOURS = {
+    'segunda': {'open': '08:00', 'close': '18:00', 'closed': False},
+    'terca':   {'open': '08:00', 'close': '18:00', 'closed': False},
+    'quarta':  {'open': '08:00', 'close': '18:00', 'closed': False},
+    'quinta':  {'open': '08:00', 'close': '18:00', 'closed': False},
+    'sexta':   {'open': '08:00', 'close': '18:00', 'closed': False},
+    'sabado':  {'open': '08:00', 'close': '13:00', 'closed': False},
+    'domingo': {'open': '', 'close': '', 'closed': True},
+}
+
+def _load_business_hours():
+    s = get_settings()
+    raw = s.get('business_hours', '')
+    if raw:
+        try:
+            return json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            pass
+    return dict(_DEFAULT_HOURS)
+
+
+@app.route('/api/business-hours', methods=['GET', 'PUT'])
+def business_hours():
+    if request.method == 'PUT':
+        data = request.get_json(silent=True) or {}
+        update_setting('business_hours', json.dumps(data, ensure_ascii=False))
+        return jsonify({'status': 'ok'})
+    return jsonify(_load_business_hours())
+
+
+@app.route('/api/available-slots', methods=['GET'])
+def available_slots():
+    date_str = request.args.get('date', '')
+    duration = request.args.get('duration', '60')
+    if not date_str:
+        return jsonify({'error': 'Parâmetro "date" é obrigatório (YYYY-MM-DD)'}), 400
+    try:
+        duration = int(duration)
+    except (ValueError, TypeError):
+        duration = 60
+
+    try:
+        dt = datetime.datetime.strptime(date_str, '%Y-%m-%d')
+    except ValueError:
+        return jsonify({'error': 'Formato de data inválido. Use YYYY-MM-DD'}), 400
+
+    dow = dt.weekday()  # 0=Monday, 6=Sunday
+    day_key = _DAYS_PT[dow]
+
+    hours = _load_business_hours()
+    day_hours = hours.get(day_key, {})
+
+    if day_hours.get('closed', False):
+        return jsonify({
+            'date': date_str,
+            'day': day_key,
+            'duration': duration,
+            'closed': True,
+            'slots': [],
+            'message': 'Fechado neste dia'
+        })
+
+    open_str = day_hours.get('open', '08:00')
+    close_str = day_hours.get('close', '18:00')
+
+    try:
+        open_min = int(open_str.split(':')[0]) * 60 + int(open_str.split(':')[1])
+        close_min = int(close_str.split(':')[0]) * 60 + int(close_str.split(':')[1])
+    except (ValueError, IndexError):
+        return jsonify({'error': 'Horário de funcionamento inválido'}), 500
+
+    # Buscar agendamentos existentes para esta data
+    supabase = get_db()
+    existing = supabase.table('appointments').select('appointment_time,duration').eq('appointment_date', date_str).neq('status', 'cancelled').execute()
+    occupied = []
+    for a in existing.data:
+        try:
+            t = a.get('appointment_time', '')
+            if isinstance(t, str) and ':' in t:
+                parts = t.split(':')
+                start = int(parts[0]) * 60 + int(parts[1])
+                dur = int(a.get('duration', 60))
+                occupied.append({'start': start, 'end': start + dur})
+        except (ValueError, IndexError):
+            pass
+
+    # Gerar slots a cada 30 minutos
+    slot_step = 30
+    slots = []
+    slot_start = open_min
+    while slot_start + duration <= close_min:
+        # Verificar se este slot conflita com algum agendamento existente
+        slot_end = slot_start + duration
+        conflict = False
+        for occ in occupied:
+            if slot_start < occ['end'] and slot_end > occ['start']:
+                conflict = True
+                break
+        if not conflict:
+            h = slot_start // 60
+            m = slot_start % 60
+            slots.append(f"{h:02d}:{m:02d}")
+        slot_start += slot_step
+
+    return jsonify({
+        'date': date_str,
+        'day': day_key,
+        'duration': duration,
+        'closed': False,
+        'open': open_str,
+        'close': close_str,
+        'slots': slots,
+    })
 
 
 @ app.route('/')

@@ -333,11 +333,112 @@ function showSettingsTab(navEl, tabId) {
   }
   document.querySelectorAll('.settings-nav-item').forEach(n => n.classList.remove('active'))
   navEl.classList.add('active')
-  ;['tab-perfil','tab-notif','tab-integ','tab-aparencia'].forEach(id => {
+  ;['tab-perfil','tab-horarios','tab-notif','tab-integ','tab-aparencia'].forEach(id => {
     document.getElementById(id).style.display = id === tabId ? '' : 'none'
   })
   if (tabId === 'tab-perfil') updateProfileTab()
   if (tabId === 'tab-integ') { loadIntegrations() }
+  if (tabId === 'tab-horarios') { loadBusinessHours() }
+}
+
+// ── BUSINESS HOURS ──────────────────────────────────
+
+async function loadBusinessHours() {
+  const body = document.getElementById('business-hours-body')
+  if (!body) return
+  try {
+    const res = await fetch(API + '/business-hours')
+    const data = await res.json()
+    const days = [
+      { key: 'segunda', label: 'Segunda-feira' },
+      { key: 'terca',   label: 'Terça-feira' },
+      { key: 'quarta',  label: 'Quarta-feira' },
+      { key: 'quinta',  label: 'Quinta-feira' },
+      { key: 'sexta',   label: 'Sexta-feira' },
+      { key: 'sabado',  label: 'Sábado' },
+      { key: 'domingo',  label: 'Domingo' },
+    ]
+    body.innerHTML = days.map(d => {
+      const h = data[d.key] || { open: '08:00', close: '18:00', closed: false }
+      const closed = h.closed
+      return `
+        <div class="hours-day-row" data-day="${d.key}">
+          <div class="hours-day-label">${d.label}</div>
+          <label class="toggle-switch hours-toggle">
+            <input type="checkbox" class="hours-closed-chk" ${closed ? '' : 'checked'}>
+            <span class="toggle-slider"></span>
+          </label>
+          <span class="hours-status-label">${closed ? 'Fechado' : 'Aberto'}</span>
+          <div class="hours-time-fields" style="${closed ? 'opacity:0.4;pointer-events:none;' : ''}">
+            <input type="time" class="form-input hours-open" value="${h.open || '08:00'}" style="width:120px;">
+            <span class="hours-sep">até</span>
+            <input type="time" class="form-input hours-close" value="${h.close || '18:00'}" style="width:120px;">
+          </div>
+        </div>`
+    }).join('') + `
+      <div class="save-bar">
+        <button class="btn-primary" onclick="saveBusinessHours()">Salvar Horários</button>
+        <span id="hours-status" class="integ-status" style="margin-left:12px;"></span>
+      </div>`
+
+    // Toggle closed/open
+    body.querySelectorAll('.hours-closed-chk').forEach(chk => {
+      chk.addEventListener('change', function() {
+        const row = this.closest('.hours-day-row')
+        const fields = row.querySelector('.hours-time-fields')
+        const status = row.querySelector('.hours-status-label')
+        if (this.checked) {
+          fields.style.opacity = '1'
+          fields.style.pointerEvents = ''
+          status.textContent = 'Aberto'
+        } else {
+          fields.style.opacity = '0.4'
+          fields.style.pointerEvents = 'none'
+          status.textContent = 'Fechado'
+        }
+      })
+    })
+  } catch (e) {
+    body.innerHTML = '<div class="integ-empty">Erro ao carregar horários.</div>'
+  }
+}
+
+async function saveBusinessHours() {
+  const body = document.getElementById('business-hours-body')
+  const status = document.getElementById('hours-status')
+  if (!body || !status) return
+  const rows = body.querySelectorAll('.hours-day-row')
+  const data = {}
+  rows.forEach(row => {
+    const key = row.dataset.day
+    const chk = row.querySelector('.hours-closed-chk')
+    const open = row.querySelector('.hours-open')
+    const close = row.querySelector('.hours-close')
+    data[key] = {
+      open: chk.checked ? (open.value || '08:00') : '',
+      close: chk.checked ? (close.value || '18:00') : '',
+      closed: !chk.checked,
+    }
+  })
+  status.textContent = 'Salvando...'
+  status.className = 'integ-status wait'
+  try {
+    const res = await fetch(API + '/business-hours', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data)
+    })
+    if (res.ok) {
+      status.textContent = 'Horários salvos com sucesso!'
+      status.className = 'integ-status ok'
+    } else {
+      status.textContent = 'Erro ao salvar.'
+      status.className = 'integ-status err'
+    }
+  } catch (e) {
+    status.textContent = 'Erro de conexão.'
+    status.className = 'integ-status err'
+  }
 }
 
 function updateProfileTab() {

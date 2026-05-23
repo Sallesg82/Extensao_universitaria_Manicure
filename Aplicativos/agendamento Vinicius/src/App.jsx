@@ -1,5 +1,3 @@
-// src/App.jsx — Agendamento Studio Premium
-
 import { useState, useEffect } from "react";
 import { io } from "socket.io-client";
 
@@ -10,7 +8,6 @@ const SOCKET = io("http://localhost:3001", {
   reconnectionDelay: 2000,
 });
 
-// ─── Icons ────────────────────────────────────────────────────
 const CheckIcon = () => (
   <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
     <path d="M2 6l3 3 5-5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
@@ -43,7 +40,6 @@ const ArrowIcon = () => (
   </svg>
 );
 
-// ─── Header ───────────────────────────────────────────────────
 function StudioHeader({ etapa }) {
   return (
     <header className="studio-header">
@@ -66,7 +62,6 @@ function StudioHeader({ etapa }) {
   );
 }
 
-// ─── Chat Bubble ──────────────────────────────────────────────
 function AssistantBubble({ children, delay = 0 }) {
   return (
     <div
@@ -87,7 +82,6 @@ function UserBubble({ children }) {
   );
 }
 
-// ─── Service Card ─────────────────────────────────────────────
 function ServiceCard({ item, selected, onClick }) {
   return (
     <div
@@ -125,7 +119,15 @@ function ServiceCard({ item, selected, onClick }) {
   );
 }
 
-// ─── Main App ─────────────────────────────────────────────────
+function formatDuracao(min) {
+  if (min >= 60) {
+    const h = Math.floor(min / 60);
+    const m = min % 60;
+    return m ? `${h}h${m}` : `${h}h`;
+  }
+  return `${min}min`;
+}
+
 export default function App() {
   const [etapa, setEtapa] = useState(1);
   const [nome, setNome] = useState("");
@@ -135,33 +137,24 @@ export default function App() {
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [salvando, setSalvando] = useState(false);
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [slotsError, setSlotsError] = useState("");
+  const [dataInfo, setDataInfo] = useState(null);
 
   const servicos = [
-    { id: 1, nome: "Micropigmentação Shadow", preco: 300},
-    { id: 2, nome: "Design personalizado",        preco: 30},
-    { id: 3, nome: "Design com hena",                preco: 55 },
-    { id: 4, nome: "Brow Lamination sem tintura",                preco: 125 },
-    { id: 5, nome: "Brow Lamination com tintura ",                preco: 145 },
-    { id: 6, nome: "Depilação buço ",                preco: 17 },
-    { id: 7, nome: "Manicure  E Pedicure ",                preco: 60 },
-    { id: 8, nome: "Mão ",                preco: 30 },
-    { id: 9, nome: "Pé",                preco: 35 },
+    { id: 1, nome: "Micropigmentação Shadow", preco: 300, duracao: 120 },
+    { id: 2, nome: "Design personalizado",     preco: 30,  duracao: 30 },
+    { id: 3, nome: "Design com hena",          preco: 55,  duracao: 45 },
+    { id: 4, nome: "Brow Lamination sem tintura", preco: 125, duracao: 60 },
+    { id: 5, nome: "Brow Lamination com tintura", preco: 145, duracao: 75 },
+    { id: 6, nome: "Depilação buço",           preco: 17,  duracao: 15 },
+    { id: 7, nome: "Manicure e Pedicure",      preco: 60,  duracao: 60 },
+    { id: 8, nome: "Mão",                      preco: 30,  duracao: 30 },
+    { id: 9, nome: "Pé",                       preco: 35,  duracao: 30 },
   ];
 
   useEffect(() => {
-    servicos.forEach((s) => {
-      fetch(`${API}/services/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: s.nome,
-          duration: s.duracao === "30min" ? 30 : 60,
-          price: s.preco,
-          color: "#c9a96e",
-        }),
-      }).catch(() => {});
-    });
-
     SOCKET.on("connect", () => console.log("[App Agendamento] Conectado ao WebSocket"));
     SOCKET.on("data:changed", (data) => console.log("[App Agendamento] Dados alterados:", data));
     SOCKET.on("appointment:created", (data) => console.log("[App Agendamento] Novo agendamento:", data));
@@ -172,6 +165,42 @@ export default function App() {
       SOCKET.off("appointment:created");
     };
   }, []);
+
+  useEffect(() => {
+    if (!servicoSelecionado || !date) {
+      setAvailableSlots([]);
+      setTime("");
+      setDataInfo(null);
+      setSlotsError("");
+      return;
+    }
+    const dur = servicoSelecionado.duracao;
+    setLoadingSlots(true);
+    setTime("");
+    setSlotsError("");
+    fetch(`${API}/available-slots?date=${date}&duration=${dur}`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.closed) {
+          setAvailableSlots([]);
+          setDataInfo({ closed: true, message: data.message || "Fechado neste dia" });
+          setSlotsError("");
+        } else if (data.slots && data.slots.length === 0) {
+          setAvailableSlots([]);
+          setDataInfo({ closed: false, open: data.open, close: data.close });
+          setSlotsError("Nenhum horário disponível nesta data.");
+        } else {
+          setAvailableSlots(data.slots || []);
+          setDataInfo({ closed: false, open: data.open, close: data.close });
+          setSlotsError("");
+        }
+      })
+      .catch(() => {
+        setAvailableSlots([]);
+        setSlotsError("Erro ao buscar horários.");
+      })
+      .finally(() => setLoadingSlots(false));
+  }, [servicoSelecionado, date]);
 
   function enviarNome() {
     if (!nomeInput || !phone) return;
@@ -218,7 +247,7 @@ export default function App() {
           appointment_time: time,
           price: servicoSelecionado.preco,
           status: "confirmed",
-          duration: servicoSelecionado.duracao === "30min" ? 30 : 60,
+          duration: servicoSelecionado.duracao,
         }),
       });
 
@@ -233,6 +262,7 @@ export default function App() {
 
       setNome(""); setNomeInput(""); setPhone("");
       setServicoSelecionado(null); setDate(""); setTime("");
+      setAvailableSlots([]);
       setEtapa(1);
     } catch (e) {
       alert("Erro ao salvar: " + e.message);
@@ -241,7 +271,6 @@ export default function App() {
     setSalvando(false);
   }
 
-  // Formatted date for summary
   const formattedDate = date
     ? new Date(date + "T12:00").toLocaleDateString("pt-BR", {
         weekday: "long", day: "numeric", month: "long",
@@ -254,7 +283,6 @@ export default function App() {
 
       <div className="app-container">
 
-        {/* ── ETAPA 1: Boas-vindas + Nome ── */}
         {etapa === 1 && (
           <div>
             <div className="chat-wrap">
@@ -313,7 +341,6 @@ export default function App() {
           </div>
         )}
 
-        {/* ── ETAPA 2: Notificações ── */}
         {etapa === 2 && (
           <div>
             <div className="chat-wrap">
@@ -360,7 +387,6 @@ export default function App() {
           </div>
         )}
 
-        {/* ── ETAPA 3: Serviços + Data/Hora ── */}
         {etapa === 3 && (
           <div>
             <div className="chat-wrap">
@@ -381,9 +407,13 @@ export default function App() {
                     className="fadeUp"
                   >
                     <ServiceCard
-                      item={item}
+                      item={{ ...item, duracao: formatDuracao(item.duracao) }}
                       selected={servicoSelecionado?.id === item.id}
-                      onClick={() => setServicoSelecionado(item)}
+                      onClick={() => {
+                        setServicoSelecionado(item);
+                        setTime("");
+                        setAvailableSlots([]);
+                      }}
                     />
                   </div>
                 ))}
@@ -395,33 +425,80 @@ export default function App() {
                 <span>→</span>
               </div>
 
-              <div className="divider">
-                <div className="divider-text">escolha data e horário</div>
-              </div>
+              {servicoSelecionado && (
+                <>
+                  <div className="divider">
+                    <div className="divider-text">escolha a data</div>
+                  </div>
 
-              <div className="datetime-grid">
-                <div>
-                  <label className="form-label">📅 Data</label>
-                  <input
-                    type="date"
-                    value={date}
-                    onChange={(e) => setDate(e.target.value)}
-                    className="input-field"
-                    min={new Date().toISOString().split("T")[0]}
-                  />
-                </div>
-                <div>
-                  <label className="form-label">🕐 Horário</label>
-                  <input
-                    type="time"
-                    value={time}
-                    onChange={(e) => setTime(e.target.value)}
-                    className="input-field"
-                  />
-                </div>
-              </div>
+                  <div style={{ marginBottom: "16px" }}>
+                    <label className="form-label">📅 Data do agendamento</label>
+                    <input
+                      type="date"
+                      value={date}
+                      onChange={(e) => {
+                        setDate(e.target.value);
+                        setTime("");
+                        setAvailableSlots([]);
+                      }}
+                      className="input-field"
+                      min={new Date().toISOString().split("T")[0]}
+                    />
+                  </div>
 
-              {/* Summary preview */}
+                  {date && (
+                    <div className="slots-section">
+                      <div className="section-eyebrow">Horários disponíveis</div>
+                      <div className="section-title" style={{ fontSize: "20px", marginBottom: "16px" }}>
+                        {formattedDate} — {formatDuracao(servicoSelecionado.duracao)} de duração
+                      </div>
+
+                      {loadingSlots && (
+                        <div className="slots-loading">
+                          <span className="loading-dots">
+                            <span /><span /><span />
+                          </span>
+                          <span style={{ marginLeft: "8px", color: "var(--text-muted)" }}>
+                            Buscando horários...
+                          </span>
+                        </div>
+                      )}
+
+                      {dataInfo?.closed && !loadingSlots && (
+                        <div className="slots-empty">
+                          <span style={{ fontSize: "32px" }}>😴</span>
+                          <p>Fechado neste dia</p>
+                        </div>
+                      )}
+
+                      {slotsError && !loadingSlots && !dataInfo?.closed && (
+                        <div className="slots-empty">
+                          <span style={{ fontSize: "32px" }}>📅</span>
+                          <p>{slotsError}</p>
+                          <p style={{ fontSize: "13px", color: "var(--text-muted)", marginTop: "4px" }}>
+                            {dataInfo && `Funcionamento: ${dataInfo.open} às ${dataInfo.close}`}
+                          </p>
+                        </div>
+                      )}
+
+                      {!loadingSlots && !dataInfo?.closed && availableSlots.length > 0 && (
+                        <div className="slots-grid">
+                          {availableSlots.map((slot) => (
+                            <button
+                              key={slot}
+                              className={`slot-btn ${time === slot ? "selected" : ""}`}
+                              onClick={() => setTime(slot)}
+                            >
+                              {slot}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+
               {servicoSelecionado && date && time && (
                 <div className="summary-card" style={{ animationDelay: "0.1s" }}>
                   <div className="deco-line" />
@@ -446,7 +523,7 @@ export default function App() {
                   </div>
                   <div className="summary-row">
                     <span className="summary-label">Duração</span>
-                    <span className="summary-value">{servicoSelecionado.duracao}</span>
+                    <span className="summary-value">{formatDuracao(servicoSelecionado.duracao)}</span>
                   </div>
                 </div>
               )}

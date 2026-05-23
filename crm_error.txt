@@ -1,0 +1,21 @@
+Traceback (most recent call last):
+  File "C:\Users\47377942878\Documents\GitHub\Extensao_universitaria_Manicure\Aplicativos\CRM BeautyFlow\backend\server.py", line 8, in <module>
+    from db.database import get_db, get_settings, update_setting, get_stats, unread_notifications_count, create_notification
+  File "C:\Users\47377942878\Documents\GitHub\Extensao_universitaria_Manicure\Aplicativos\CRM BeautyFlow\backend\db\database.py", line 3, in <module>
+    from supabase import create_client
+  File "C:\Users\47377942878\AppData\Roaming\Python\Python314\site-packages\supabase\__init__.py", line 1, in <module>
+    from postgrest import APIError as PostgrestAPIError
+  File "C:\Users\47377942878\AppData\Roaming\Python\Python314\site-packages\postgrest\__init__.py", line 5, in <module>
+    from httpx import Timeout
+  File "C:\Users\47377942878\AppData\Roaming\Python\Python314\site-packages\httpx\__init__.py", line 2, in <module>
+    from ._api import delete, get, head, options, patch, post, put, request, stream
+  File "C:\Users\47377942878\AppData\Roaming\Python\Python314\site-packages\httpx\_api.py", line 4, in <module>
+    from ._client import Client
+  File "C:\Users\47377942878\AppData\Roaming\Python\Python314\site-packages\httpx\_client.py", line 30, in <module>
+    from ._transports.default import AsyncHTTPTransport, HTTPTransport
+  File "C:\Users\47377942878\AppData\Roaming\Python\Python314\site-packages\httpx\_transports\default.py", line 30, in <module>
+    import httpcore
+  File "C:\Users\47377942878\AppData\Roaming\Python\Python314\site-packages\httpcore\__init__.py", line 139, in <module>
+    setattr(__locals[__name], "__module__", "httpcore")  # noqa
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'typing.Union' object has no attribute '__module__' and no __dict__ for setting new attributes. Did you mean: '__reduce__'?
