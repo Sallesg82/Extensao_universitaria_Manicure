@@ -2092,7 +2092,16 @@ async function deleteService(svcId) {
 
 function filterClients(filter) {
   if (!clientsCache.length) return
-  const filtered = filter === 'all' ? clientsCache : clientsCache.filter(c => c.status === filter)
+  const search = (document.getElementById('client-search')?.value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  let filtered = filter === 'all' ? clientsCache : clientsCache.filter(c => c.status === filter)
+  if (search) {
+    const phoneSearch = search.replace(/\D/g, '')
+    filtered = filtered.filter(c => {
+      const name = (c.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      const phone = (c.phone || '').replace(/\D/g, '')
+      return name.includes(search) || (phoneSearch && phone.includes(phoneSearch))
+    })
+  }
   renderClientList(filtered)
 }
 
@@ -2721,14 +2730,18 @@ document.addEventListener('click', function(e) {
 
 // ── EVENT LISTENERS ────────────────────────────────
 
+document.getElementById('client-search')?.addEventListener('input', () => {
+  const activeTab = document.querySelector('.filter-tab.active')
+  const filter = activeTab?.getAttribute('data-filter') || 'all'
+  filterClients(filter)
+})
+
 document.querySelectorAll('.filter-tab').forEach(t => {
   t.addEventListener('click', () => {
     document.querySelectorAll('.filter-tab').forEach(x => x.classList.remove('active'))
     t.classList.add('active')
-    if (typeof filterClients === 'function') {
-      const filter = t.getAttribute('onclick')?.match(/'([^']+)'/)
-      if (filter) filterClients(filter[1])
-    }
+    const filter = t.getAttribute('data-filter') || 'all'
+    filterClients(filter)
   })
 })
 // ── AGENDA VIEW STATE ─────────────────────────────

@@ -456,33 +456,14 @@
             <input class="search-input" id="client-search" placeholder="Buscar cliente por nome ou telefone…">
           </div>
           <div class="filter-tabs">
-            <div class="filter-tab active" data-filter="all" onclick="filterClients('all', this)">Todos</div>
-            <div class="filter-tab" data-filter="frequente" onclick="filterClients('frequente', this)">Frequentes</div>
-            <div class="filter-tab" data-filter="novo" onclick="filterClients('novo', this)">Novos</div>
-            <div class="filter-tab" data-filter="inativo" onclick="filterClients('inativo', this)">Inativos</div>
-            <div class="filter-tab" data-filter="regulares" onclick="filterClients('regulares', this)">⭐ Clientes Regulares</div>
+            <div class="filter-tab active" data-filter="all">Todos</div>
+            <div class="filter-tab" data-filter="frequente">Frequentes</div>
+            <div class="filter-tab" data-filter="novo">Novos</div>
+            <div class="filter-tab" data-filter="inativo">Inativos</div>
+            <div class="filter-tab" data-filter="regular">Regulares</div>
           </div>
           <div class="toolbar-actions">
             <button class="btn-primary">+ Nova Cliente</button>
-          </div>
-        </div>
-
-        <!-- Seção Clientes Regulares -->
-        <div id="regular-clients-section" style="display:none; margin-bottom: 18px;">
-          <div class="panel">
-            <div class="regular-clients-header">
-              <span class="regular-clients-title">⭐ Clientes Regulares</span>
-              <span class="regular-clients-sub" id="regular-clients-count"></span>
-            </div>
-            <p class="regular-clients-desc">Clientes com maior frequência de atendimentos — os mais fiéis do seu negócio.</p>
-            <div class="table-head">
-              <div class="th">Cliente</div>
-              <div class="th">Visitas</div>
-              <div class="th">Último Atend.</div>
-              <div class="th">Total Gasto</div>
-              <div class="th">Status</div>
-            </div>
-            <div id="regular-client-list"></div>
           </div>
         </div>
 

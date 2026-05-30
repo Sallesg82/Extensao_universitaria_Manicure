@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from db.database import get_db, all_clients, get_client, create_client, update_client, delete_client
 from middleware.validation import validate_client
 from ws import socketio
+import re
 
 clients_bp = Blueprint('clients', __name__)
 
@@ -27,7 +28,15 @@ def format_client(c):
 
 @clients_bp.route('/', methods=['GET'])
 def list_clients():
-    return jsonify([format_client(c) for c in all_clients()])
+    search = request.args.get('search', '').strip().lower()
+    status = request.args.get('status', '').strip().lower()
+    clients = all_clients()
+    if status:
+        clients = [c for c in clients if c.get('status', '').lower() == status]
+    if search:
+        search_clean = re.sub(r'\D', '', search)
+        clients = [c for c in clients if search in c.get('name', '').lower() or (search_clean and search_clean in re.sub(r'\D', '', c.get('phone', '')))]
+    return jsonify([format_client(c) for c in clients])
 
 
 @clients_bp.route('/<int:client_id>', methods=['GET'])
