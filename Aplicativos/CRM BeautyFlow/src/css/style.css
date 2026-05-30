@@ -1256,6 +1256,10 @@ body {
   display: none;
 }
 
+.layout-horizontal .sidebar-collapse-btn {
+  display: none;
+}
+
 .layout-horizontal .sidebar-close {
   display: none !important;
 }
@@ -2712,7 +2716,7 @@ body {
 /* ═══════════════ FINANCEIRO ═══════════════ */
 .finance-grid {
   display: grid;
-  grid-template-columns: 1fr 300px;
+  grid-template-columns: 1fr 460px;
   gap: 14px;
   flex: 1;
   overflow: hidden;
@@ -2912,6 +2916,10 @@ body {
   gap: 14px;
 }
 
+.donut-wrap svg {
+  flex-shrink: 0;
+}
+
 .donut-legend {
   display: flex;
   flex-direction: column;
@@ -2923,12 +2931,20 @@ body {
   align-items: center;
   gap: var(--space-sm);
   font-size: var(--text-13);
-  color: #3a6080;
+  color: #1a3a5a;
+  min-width: 0;
+}
+
+.donut-legend-item .dl-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
 }
 
 .donut-legend-dot {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   flex-shrink: 0;
 }

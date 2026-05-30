@@ -30,7 +30,6 @@ def create_service():
         'name': data['name'],
         'duration': data['duration'],
         'price': float(data['price']),
-        'buffer': data.get('buffer', 15),
         'color': data.get('color', '#4a90d9'),
     }).execute()
     svc = dict(result.data[0])

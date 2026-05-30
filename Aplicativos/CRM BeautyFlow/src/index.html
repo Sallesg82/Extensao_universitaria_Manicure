@@ -129,6 +129,15 @@
         Relatórios
       </div>
 
+      <div class="nav-item" onclick="showPage('despesas', this)" data-tooltip="Despesas do Mês">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+          <path d="M2 4h12v10H2z" stroke="currentColor" stroke-width="1.2" fill="none"/>
+          <path d="M5 2v2M11 2v2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+          <path d="M4 8l2.5 2.5 3-3L12.5 11" stroke="#c05050" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Despesas do Mês
+      </div>
+
       <div class="nav-section">Sistema</div>
 
       <div class="nav-item usuarios-nav" onclick="showPage('usuarios', this)" data-tooltip="Usuários">
@@ -578,9 +587,9 @@
             <div class="panel">
               <div class="panel-header"><div class="panel-title">Receita por Serviço</div></div>
               <div class="donut-wrap">
-                <svg width="90" height="90" viewBox="0 0 90 90">
+                <svg width="130" height="130" viewBox="0 0 90 90">
                   <circle cx="45" cy="45" r="32" fill="none" stroke="#e8f2fc" stroke-width="14"/>
-                  <text x="45" y="48" text-anchor="middle" font-family="DM Serif Display,serif" font-size="13" fill="#0f2340">0%</text>
+                  <text x="45" y="49" text-anchor="middle" font-family="DM Serif Display,serif" font-size="14" fill="#0f2340" font-weight="600">0%</text>
                 </svg>
                 <div class="donut-legend">
                   <div style="color:var(--text-secondary);font-size:12px;">Nenhum serviço no período</div>
@@ -613,6 +622,44 @@
       </section>
 
       <!-- ══════════════════════════════════
+           PAGE: DESPESAS DO MÊS
+      ══════════════════════════════════ -->
+      <section class="page" id="page-despesas">
+        <div class="metrics" style="grid-template-columns:repeat(3,1fr);">
+          <div class="metric-card c1">
+            <div class="metric-label">Total de Despesas</div>
+            <div class="metric-value" id="desp-total">R$ 0</div>
+            <div class="metric-change" id="desp-count">0 despesas</div>
+          </div>
+          <div class="metric-card c2">
+            <div class="metric-label">Maior Gasto</div>
+            <div class="metric-value" id="desp-maior">R$ 0</div>
+            <div class="metric-change" id="desp-maior-cat">—</div>
+          </div>
+          <div class="metric-card c3">
+            <div class="metric-label">Média por Despesa</div>
+            <div class="metric-value" id="desp-media">R$ 0</div>
+            <div class="metric-change" id="desp-media-label">—</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;flex:1;">
+          <div class="panel">
+            <div class="panel-header"><div class="panel-title">Despesas por Categoria</div></div>
+            <div class="expense-breakdown" id="desp-cat-list">
+              <div style="padding:10px 0;color:var(--text-secondary);font-size:13px;">Carregando...</div>
+            </div>
+          </div>
+          <div class="panel" style="overflow:hidden;">
+            <div class="panel-header"><div class="panel-title">Todas as Despesas</div><span class="panel-badge" id="desp-list-badge"></span></div>
+            <div style="flex:1;overflow-y:auto;padding:0 18px 14px;" id="desp-list">
+              <div style="padding:20px;text-align:center;color:var(--text-secondary);">Carregando...</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ══════════════════════════════════
            PAGE: RELATÓRIOS
       ══════════════════════════════════ -->
       <section class="page" id="page-relatorios">
@@ -622,7 +669,7 @@
           <button class="period-btn active" onclick="loadRelatorios(30)">30 dias</button>
           <button class="period-btn" onclick="loadRelatorios(90)">3 meses</button>
           <button class="period-btn" onclick="loadRelatorios(365)">1 ano</button>
-          <button class="btn-outline" style="margin-left:auto;">
+          <button class="btn-outline" onclick="exportRelatorioPDF()" style="margin-left:auto;">
             <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="vertical-align:-1px;margin-right:4px;"><path d="M3 8h10M3 4h10M3 12h6" stroke="#1a5fab" stroke-width="1.3" stroke-linecap="round"/></svg>
             Exportar PDF
           </button>
@@ -952,7 +999,7 @@
                     </div>
                     <div class="layout-mode-option" data-layout="horizontal" onclick="setLayoutMode('horizontal', this)">
                       <div class="layout-mode-preview">
-                        <div class="lm-preview"><div class="lm-top"></div><div class="lm-body"><div class="lm-line"></div><div class="lm-line"></div></div></div>
+                        <div class="lm-preview" style="flex-direction:column;"><div class="lm-top" style="width:100%;"></div><div class="lm-body"><div class="lm-line"></div><div class="lm-line"></div></div></div>
                       </div>
                       <div class="layout-mode-name">Horizontal</div>
                       <div class="layout-mode-check">✓</div>
@@ -1248,6 +1295,80 @@
       </div>
     </div>
     <input type="hidden" id="integ-id" value="">
+  </div>
+</div>
+
+<div class="modal-overlay" id="transaction-modal-overlay" onclick="closeTransactionModal()">
+  <div class="modal-card" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title" id="tx-modal-title">Novo Lançamento</div>
+      <button class="modal-close" onclick="closeTransactionModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Tipo *</label>
+          <select class="form-input" id="tx-type">
+            <option value="income">Receita</option>
+            <option value="expense">Despesa</option>
+          </select>
+        </div>
+        <div class="form-field">
+          <label class="form-label">Valor (R$) *</label>
+          <input class="form-input" type="number" step="0.01" min="0" id="tx-amount" placeholder="0,00">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field full">
+          <label class="form-label">Descrição *</label>
+          <input class="form-input" id="tx-description" placeholder="Ex: Pagamento Maria, Aluguel, Material...">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Data *</label>
+          <input class="form-input" type="date" id="tx-date">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Categoria</label>
+          <select class="form-input" id="tx-category">
+            <option value="">Selecione...</option>
+            <option value="Serviços">Serviços</option>
+            <option value="Aluguel">Aluguel</option>
+            <option value="Material">Material</option>
+            <option value="Salários">Salários</option>
+            <option value="Água/Luz/Internet">Água/Luz/Internet</option>
+            <option value="Marketing">Marketing</option>
+            <option value="Impostos">Impostos</option>
+            <option value="Outros">Outros</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Forma de Pagamento</label>
+          <select class="form-input" id="tx-payment">
+            <option value="">Selecione...</option>
+            <option value="Dinheiro">Dinheiro</option>
+            <option value="Pix">Pix</option>
+            <option value="Cartão de Crédito">Cartão de Crédito</option>
+            <option value="Cartão de Débito">Cartão de Débito</option>
+            <option value="Boleto">Boleto</option>
+            <option value="Transferência">Transferência</option>
+          </select>
+        </div>
+        <div class="form-field" id="tx-appt-field" style="display:none;">
+          <label class="form-label">Agendamento</label>
+          <select class="form-input" id="tx-appointment"></select>
+        </div>
+      </div>
+      <div id="tx-msg" class="auth-msg"></div>
+      <div class="modal-actions">
+        <button class="btn-outline" onclick="closeTransactionModal()">Cancelar</button>
+        <button class="btn-primary" onclick="saveTransaction()" id="tx-save-btn">Salvar Lançamento</button>
+      </div>
+    </div>
+    <input type="hidden" id="tx-id" value="">
   </div>
 </div>
 

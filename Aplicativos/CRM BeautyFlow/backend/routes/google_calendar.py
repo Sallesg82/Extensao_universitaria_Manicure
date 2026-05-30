@@ -221,4 +221,12 @@ def google_sync():
     result = sync_appointment_to_google(action, data)
     if 'error' in result:
         return jsonify(result), 400
+    if result.get('status') == 'ok' and result.get('google_event_id'):
+        appt_id = data.get('appointment_id')
+        if appt_id:
+            from db.database import get_db
+            get_db().table('appointments').update({
+                'google_event_id': result['google_event_id'],
+                'google_html_link': result.get('html_link', ''),
+            }).eq('id', appt_id).execute()
     return jsonify(result)

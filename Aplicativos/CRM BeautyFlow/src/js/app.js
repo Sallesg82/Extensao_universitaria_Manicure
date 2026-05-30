@@ -26,6 +26,9 @@ function connectSocket() {
   _socket.on('client:updated', () => _requestPageRefresh('client'))
   _socket.on('client:deleted', () => _requestPageRefresh('client'))
   _socket.on('service:changed', () => _requestPageRefresh('service'))
+  _socket.on('transaction:created', () => _requestPageRefresh('transaction'))
+  _socket.on('transaction:updated', () => _requestPageRefresh('transaction'))
+  _socket.on('transaction:deleted', () => _requestPageRefresh('transaction'))
 }
 
 function _requestPageRefresh(type) {
@@ -207,12 +210,12 @@ let refreshTimer = null
 
 function startPageRefresh(pageId) {
   stopPageRefresh()
-  // Fallback polling (60s) - socket events handle real-time now
   const map = {
-    dashboard: { ms: 60000, fn: loadDashboard },
-    agenda:    { ms: 60000, fn: loadAgenda },
-    clientes:  { ms: 120000, fn: loadClients },
-    relatorios: { ms: 120000, fn: loadRelatorios },
+    dashboard: { ms: 10000, fn: loadDashboard },
+    agenda:    { ms: 10000, fn: loadAgenda },
+    clientes:  { ms: 30000, fn: loadClients },
+    relatorios: { ms: 30000, fn: loadRelatorios },
+    financeiro: { ms: 15000, fn: loadFinanceiro },
   }
   const c = map[pageId]
   if (!c) return
@@ -228,7 +231,7 @@ function startNotifPoll() {
   // Notification polling is a fallback - socket events will also trigger it
   _notifTimer = setInterval(() => {
     if (!document.hidden) loadNotifDot()
-  }, 60000)
+  }, 15000)
 }
 
 function stopPageRefresh() {
@@ -253,6 +256,7 @@ const pageConfig = {
   servicos:       { title: 'Serviços',        sub: '',      btn: '+ Novo Serviço' },
   metas:          { title: 'Metas',           sub: '',      btn: null },
   financeiro:     { title: 'Financeiro',      sub: '',      btn: '+ Novo Lançamento' },
+  despesas:       { title: 'Despesas do Mês', sub: 'Acompanhe seus gastos', btn: null },
   relatorios:     { title: 'Relatórios',      sub: 'Análise dos últimos 30 dias',      btn: '⬇ Exportar PDF' },
   usuarios:       { title: 'Usuários',        sub: 'Gerenciar contas de acesso',          btn: null },
   configuracoes:  { title: 'Configurações',   sub: 'Gerencie seu sistema BeautyFlow',      btn: null },
@@ -297,6 +301,7 @@ function showPage(pageId, navEl) {
   else if (pageId === 'metas') loadMetas()
   else if (pageId === 'agenda') loadAgenda()
   else if (pageId === 'financeiro') loadFinanceiro()
+  else if (pageId === 'despesas') loadDespesas()
   else if (pageId === 'usuarios') loadUsuarios()
   else if (pageId === 'relatorios') loadRelatorios()
   else if (pageId === 'configuracoes') updateProfileTab()
@@ -315,6 +320,7 @@ function handleTopbarBtn() {
   } else if (pageId === 'servicos') {
     openServiceModal()
   } else if (pageId === 'financeiro') {
+    openTransactionModal()
   } else if (pageId === 'relatorios') {
     loadRelatorios()
     const btn = document.getElementById('topbar-btn')
@@ -1179,14 +1185,12 @@ async function loadFinanceiro() {
     // Revenue by service (donut + legend)
     const donutLegend = finPage.querySelector('.donut-legend')
     const donutSvg = finPage.querySelector('.donut-wrap svg')
-    if (s.service_revenue_breakdown && s.service_revenue_breakdown.length > 0) {
-      const colors = ['#4a90d9', '#2563a8', '#3a7abf', '#b8d4f0', '#1a5fab']
-      const donutColors = ['#4a90d9', '#1a5fab', '#3a7abf', '#b8d4f0', '#2563a8']
-      const total = s.service_revenue_breakdown.reduce((sum, svc) => sum + svc.pct, 0) || 100
-      const circumference = 2 * Math.PI * 32
-
-      if (donutSvg) {
-        let svgContent = ''
+    const donutColors = ['#4a90d9', '#2563a8', '#3a7abf', '#b8d4f0', '#1a5fab']
+    if (donutSvg) {
+      let svgContent = ''
+      const bgCircle = '<circle cx="45" cy="45" r="32" fill="none" stroke="#e8f2fc" stroke-width="14"/>'
+      if (s.service_revenue_breakdown && s.service_revenue_breakdown.length > 0) {
+        const circumference = 2 * Math.PI * 32
         let offset = 0
         const slices = s.service_revenue_breakdown.slice(0, 4)
         slices.forEach((svc, i) => {
@@ -1198,16 +1202,23 @@ async function loadFinanceiro() {
           offset += dashLen
         })
         const topPct = s.service_revenue_breakdown[0]?.pct || 0
-        donutSvg.innerHTML = svgContent +
-          `<text x="45" y="48" text-anchor="middle" font-family="DM Serif Display,serif" font-size="13" fill="#0f2340">${topPct}%</text>`
+        donutSvg.innerHTML = bgCircle + svgContent +
+          `<text x="45" y="49" text-anchor="middle" font-family="DM Serif Display,serif" font-size="14" fill="#0f2340" font-weight="600">${topPct}%</text>`
+      } else {
+        donutSvg.innerHTML = bgCircle +
+          '<text x="45" y="49" text-anchor="middle" font-family="DM Serif Display,serif" font-size="14" fill="#0f2340" font-weight="600">0%</text>'
       }
+    }
 
-      if (donutLegend) {
+    if (donutLegend) {
+      if (s.service_revenue_breakdown && s.service_revenue_breakdown.length > 0) {
         donutLegend.innerHTML = s.service_revenue_breakdown.map((svc, i) => `
           <div class="donut-legend-item">
-            <div class="donut-legend-dot" style="background:${colors[i % colors.length]};"></div>
-            ${svc.name} <span style="margin-left:auto;color:#0f2340;font-weight:500;">${svc.pct}%</span>
+            <div class="donut-legend-dot" style="background:${donutColors[i % donutColors.length]};"></div>
+            <span class="dl-name">${svc.name}</span> <span style="margin-left:auto;color:#0f2340;font-weight:600;">${svc.pct}%</span>
           </div>`).join('')
+      } else {
+        donutLegend.innerHTML = '<div style="color:var(--text-secondary);font-size:12px;">Nenhum serviço no período</div>'
       }
     }
 
@@ -1258,29 +1269,105 @@ async function loadFinanceiro() {
   }
 }
 
+async function loadDespesas() {
+  try {
+    const res = await fetch(API + '/stats?period=30')
+    const s = await res.json()
+    const expenses = (s.recent_transactions || []).filter(t => t.type === 'expense')
+
+    const total = expenses.reduce((sum, t) => sum + Number(t.amount), 0)
+    const count = expenses.length
+    const maior = count > 0 ? Math.max(...expenses.map(t => Number(t.amount))) : 0
+    const media = count > 0 ? total / count : 0
+    const maiorCat = count > 0 ? expenses.find(t => Number(t.amount) === maior) : null
+
+    document.getElementById('desp-total').textContent = 'R$ ' + total.toFixed(2)
+    document.getElementById('desp-count').textContent = count + ' despesa' + (count !== 1 ? 's' : '')
+    document.getElementById('desp-maior').textContent = 'R$ ' + maior.toFixed(2)
+    document.getElementById('desp-maior-cat').textContent = maiorCat?.category || '—'
+    document.getElementById('desp-media').textContent = 'R$ ' + media.toFixed(2)
+    document.getElementById('desp-media-label').innerHTML = 'média por lançamento'
+
+    // Category breakdown
+    const catMap = {}
+    expenses.forEach(t => {
+      const cat = t.category || 'Outros'
+      catMap[cat] = (catMap[cat] || 0) + Number(t.amount)
+    })
+    const catTotal = Object.values(catMap).reduce((a, b) => a + b, 0)
+    const catColors = ['#c05050','#e5825c','#f0b35e','#6fa8dc','#93c47d','#a06fb5','#5a5a5a']
+    const catKeys = Object.keys(catMap)
+    const catList = document.getElementById('desp-cat-list')
+    if (catKeys.length > 0) {
+      catList.innerHTML = catKeys.map((cat, i) => {
+        const pct = ((catMap[cat] / catTotal) * 100).toFixed(1)
+        return `
+          <div class="donut-legend-item" style="padding:6px 0;">
+            <span class="dl-dot" style="background:${catColors[i % catColors.length]}"></span>
+            <span class="dl-name">${cat}</span>
+            <span class="dl-val">R$ ${catMap[cat].toFixed(2)}</span>
+            <span class="dl-pct" style="margin-left:auto;font-weight:600;">${pct}%</span>
+          </div>`
+      }).join('')
+    } else {
+      catList.innerHTML = '<div style="padding:10px 0;color:var(--text-secondary);font-size:13px;">Nenhuma despesa</div>'
+    }
+
+    // List all expenses
+    const list = document.getElementById('desp-list')
+    const badge = document.getElementById('desp-list-badge')
+    if (badge) badge.textContent = count + ' registro' + (count !== 1 ? 's' : '')
+    if (expenses.length > 0) {
+      list.innerHTML = expenses.map(t => {
+        const desc = t.description || ''
+        const dateStr = t.date ? t.date.split('-').reverse().join('/') : ''
+        return `
+          <div class="tx-row">
+            <div class="tx-icon out">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M8 4v8M4 8l4 4 4-4" stroke="#c05050" stroke-width="1.3" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <div class="tx-desc">
+              <div class="tx-name">${desc}</div>
+              <div class="tx-date">${dateStr}${t.category ? ' · ' + t.category : ''}</div>
+            </div>
+            <div class="tx-amount out">−R$ ${Number(t.amount).toFixed(2)}</div>
+          </div>`
+      }).join('')
+    } else {
+      list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);">Nenhuma despesa no mês</div>'
+    }
+  } catch (e) {
+    console.error('Erro ao carregar despesas:', e)
+  }
+}
+
 let _relPeriod = 30
 async function loadRelatorios(period) {
   if (period) _relPeriod = period
   try {
-    const res = await fetch(API + '/stats')
+    const res = await fetch(API + '/stats?period=' + _relPeriod)
     const s = await res.json()
 
     const sub = document.querySelector('.rpt-trend-sub')
     if (sub) sub.textContent = 'Últimos ' + _relPeriod + ' dias'
 
     const svg = document.getElementById('rpt-trend-svg')
-    const revs = s.weekly_revenue || []
-    if (svg && revs.length > 1) {
+    const daily = s.daily_breakdown || []
+    const revs = daily.map(d => d.revenue)
+    if (svg && revs.length > 0) {
       const w = 450, h = 130, padB = 40, padT = 20
       const maxVal = Math.max(...revs, 1)
-      const stepX = w / (revs.length - 1)
+      const count = revs.length
+      const stepX = count > 1 ? w / (count - 1) : w / 2
       const pts = revs.map((v, i) => {
-        const x = i * stepX
+        const x = count > 1 ? i * stepX : w / 2
         const y = padT + (1 - v / maxVal) * (h - padT - padB)
         return { x, y }
       })
       let lineD = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ' ' + p.y.toFixed(1)).join(' ')
-      let areaD = lineD + ' L' + (w - stepX).toFixed(1) + ' ' + (h - padB) + ' L0 ' + (h - padB) + 'Z'
+      let areaD = lineD + ' L' + pts[pts.length - 1].x.toFixed(1) + ' ' + (h - padB) + ' L0 ' + (h - padB) + 'Z'
       const defs = '<defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4a90d9"/><stop offset="100%" stop-color="#4a90d9" stop-opacity="0"/></linearGradient></defs>'
       svg.innerHTML = `
         <line x1="0" y1="20" x2="450" y2="20" stroke="#f0f5fb" stroke-width="1"/>
@@ -1360,9 +1447,68 @@ async function loadRelatorios(period) {
       }
     }
 
+    renderHeatmap(s)
+
     updatePeriodBtns()
   } catch (e) {
     console.error('Erro ao carregar relatórios:', e)
+  }
+}
+
+function renderHeatmap(s) {
+  const heatDiv = document.getElementById('rpt-heatmap')
+  if (!heatDiv) return
+  const appts = s.month_appointments || s.today_appointments || []
+  if (appts.length === 0) {
+    heatDiv.innerHTML = '<div style="padding:16px;color:var(--text-secondary);font-size:13px;text-align:center;">Sem dados de agendamento</div>'
+    return
+  }
+  try {
+    const hours = ['08h','09h','10h','11h','12h','13h','14h','15h','16h','17h']
+    const days = ['Seg','Ter','Qua','Qui','Sex','Sáb']
+    const matrix = {}
+    days.forEach(d => { matrix[d] = {}; hours.forEach(h => { matrix[d][h] = 0 }) })
+    appts.forEach(a => {
+      if (!a.appointment_date) return
+      if (a.status === 'cancelled') return
+      const d = new Date(a.appointment_date + 'T12:00')
+      const dow = d.getDay()
+      if (dow === 0) return
+      const dayLabel = days[dow - 1]
+      const h = parseInt(a.appointment_time?.split(':')[0] || '0')
+      if (h >= 8 && h <= 17) {
+        matrix[dayLabel][hours[h - 8]] = (matrix[dayLabel][hours[h - 8]] || 0) + 1
+      }
+    })
+    const maxVal = Math.max(...Object.values(matrix).flatMap(d => Object.values(d)), 1)
+    const getColor = (v) => {
+      const pct = v / maxVal
+      if (pct === 0) return '#f0f5fb'
+      if (pct <= 0.25) return '#daeaf8'
+      if (pct <= 0.5) return '#b8d4f0'
+      if (pct <= 0.75) return '#7ab0e8'
+      return '#4a90d9'
+    }
+    let html = '<div class="heatmap-hours"><div class="heatmap-day-label" style="width:24px;"></div>'
+    hours.forEach(h => { html += '<div class="heatmap-hour-label">' + h + '</div>' })
+    html += '</div>'
+    days.forEach(d => {
+      html += '<div class="heatmap-row"><div class="heatmap-day-label">' + d + '</div>'
+      hours.forEach(h => {
+        const v = matrix[d][h] || 0
+        html += '<div class="hm-cell" style="background:' + getColor(v) + ';" title="' + d + ' ' + h + ': ' + v + ' agendamento(s)"></div>'
+      })
+      html += '</div>'
+    })
+    html += '<div class="heatmap-legend"><span>Menos</span><div class="heatmap-legend-bar">'
+    ;[0, 0.25, 0.5, 0.75, 1].forEach(pct => {
+      const fakeV = Math.round(pct * maxVal) || 1
+      html += '<div class="heatmap-legend-step" style="background:' + getColor(fakeV) + ';"></div>'
+    })
+    html += '</div><span>Mais</span></div>'
+    heatDiv.innerHTML = html
+  } catch (e) {
+    heatDiv.innerHTML = '<div style="padding:16px;color:var(--text-secondary);font-size:13px;text-align:center;">Erro ao gerar mapa de calor</div>'
   }
 }
 
@@ -1370,6 +1516,74 @@ function updatePeriodBtns() {
   document.querySelectorAll('.period-btn').forEach(b => {
     b.classList.toggle('active', parseInt(b.getAttribute('onclick')?.match(/\d+/)?.[0] || '0') === _relPeriod)
   })
+}
+
+function exportRelatorioPDF() {
+  const btn = document.querySelector('.period-selector .btn-outline')
+  if (btn) { btn.textContent = '⏳ Gerando PDF...'; btn.disabled = true }
+  const content = document.getElementById('page-relatorios')
+  if (!content) return
+  const title = 'Relatorio_BeautyFlow_' + new Date().toISOString().split('T')[0]
+  const printWin = window.open('', '_blank')
+  if (!printWin) {
+    showToast('Permita pop-ups para exportar PDF.', 'info')
+    if (btn) { btn.textContent = '⬇ Exportar PDF'; btn.disabled = false }
+    return
+  }
+  const periodLabel = document.querySelector('.period-btn.active')?.textContent || '30 dias'
+  printWin.document.write('<html><head><title>' + title + '</title>')
+  printWin.document.write('<style>')
+  printWin.document.write('body { font-family: Arial, sans-serif; padding: 20px; color: #333; }')
+  printWin.document.write('h1 { color: #1a5fab; font-size: 22px; }')
+  printWin.document.write('h2 { color: #2563a8; font-size: 16px; margin-top: 20px; }')
+  printWin.document.write('table { width: 100%; border-collapse: collapse; margin: 10px 0; }')
+  printWin.document.write('th, td { padding: 8px 12px; border: 1px solid #d8e4f0; text-align: left; font-size: 12px; }')
+  printWin.document.write('th { background: #e8f2fc; color: #0f2340; }')
+  printWin.document.write('.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }')
+  printWin.document.write('.stats { display: flex; gap: 20px; margin: 16px 0; flex-wrap: wrap; }')
+  printWin.document.write('.stat-box { background: #f4f7fc; border: 1px solid #d8e4f0; border-radius: 8px; padding: 12px 20px; }')
+  printWin.document.write('.stat-box .label { font-size: 11px; color: #8aaccb; text-transform: uppercase; }')
+  printWin.document.write('.stat-box .value { font-size: 18px; color: #0f2340; font-weight: 600; }')
+  printWin.document.write('.footer { margin-top: 30px; font-size: 10px; color: #8aaccb; text-align: center; border-top: 1px solid #d8e4f0; padding-top: 10px; }')
+  printWin.document.write('</style></head><body>')
+  printWin.document.write('<div class="header"><h1>Relatório BeautyFlow</h1><span style="color:#8aaccb;font-size:12px;">' + new Date().toLocaleDateString('pt-BR') + ' · Período: ' + periodLabel + '</span></div>')
+  const totalEl = document.querySelector('.chart-stat:nth-child(1) .chart-stat-value')
+  const avgEl = document.querySelector('.chart-stat:nth-child(2) .chart-stat-value')
+  if (totalEl || avgEl) {
+    printWin.document.write('<div class="stats">')
+    if (totalEl) printWin.document.write('<div class="stat-box"><div class="label">Receita Total</div><div class="value">' + totalEl.textContent + '</div></div>')
+    if (avgEl) printWin.document.write('<div class="stat-box"><div class="label">Média/dia</div><div class="value">' + avgEl.textContent + '</div></div>')
+    printWin.document.write('</div>')
+  }
+  const topClients = document.querySelectorAll('#rpt-top-clients .top-client-row')
+  if (topClients.length > 0) {
+    printWin.document.write('<h2>Top Clientes</h2><table><tr><th>#</th><th>Cliente</th><th>Visitas</th><th>Total Gasto</th></tr>')
+    topClients.forEach((row, i) => {
+      const name = row.querySelector('.top-client-row div:nth-child(3) div:first-child')?.textContent || ''
+      const visits = row.querySelector('.top-client-row div:nth-child(3) div:last-child')?.textContent?.split('·')[0] || ''
+      const spent = row.querySelector('.top-client-row div:last-child')?.textContent || ''
+      printWin.document.write('<tr><td>' + (i + 1) + '°</td><td>' + name.replace(' visitas', '').replace('última: ', '') + '</td><td>' + visits.replace(' visitas', '') + '</td><td>' + spent + '</td></tr>')
+    })
+    printWin.document.write('</table>')
+  }
+  const svcRows = document.querySelectorAll('#rpt-services > div')
+  if (svcRows.length > 0) {
+    printWin.document.write('<h2>Serviços Mais Populares</h2><table><tr><th>Serviço</th><th>Qtd</th></tr>')
+    svcRows.forEach(row => {
+      const name = row.querySelector('span:first-child')?.textContent || ''
+      const count = row.querySelector('span:last-child')?.textContent || ''
+      printWin.document.write('<tr><td>' + name + '</td><td>' + count + '</td></tr>')
+    })
+    printWin.document.write('</table>')
+  }
+  printWin.document.write('<div class="footer">Gerado por BeautyFlow CRM em ' + new Date().toLocaleString('pt-BR') + '</div>')
+  printWin.document.write('</body></html>')
+  printWin.document.close()
+  printWin.focus()
+  setTimeout(() => {
+    printWin.print()
+    if (btn) { btn.textContent = '⬇ Exportar PDF'; btn.disabled = false }
+  }, 500)
 }
 
 // ── AGENDA ─────────────────────────────────────────
@@ -1551,7 +1765,11 @@ async function saveAppointment() {
   if (!time) { showToast('Selecione um horário.'); return }
   if (!price || Number(price) <= 0) { showToast('Informe um valor válido.'); return }
 
-  const body = { client_id: Number(clientId), service, appointment_date: date, appointment_time: time, status, price: Number(price), notes }
+  const svcSel = document.getElementById('appt-service')
+  const svcOpt = svcSel.options[svcSel.selectedIndex]
+  const duration = svcOpt?.dataset?.dur ? Number(svcOpt.dataset.dur) : 60
+
+  const body = { client_id: Number(clientId), service, appointment_date: date, appointment_time: time, status, price: Number(price), notes, duration }
 
   try {
     let res
@@ -1876,6 +2094,72 @@ function filterClients(filter) {
   if (!clientsCache.length) return
   const filtered = filter === 'all' ? clientsCache : clientsCache.filter(c => c.status === filter)
   renderClientList(filtered)
+}
+
+// ── TRANSACTION MODAL ────────────────────────────────
+
+function openTransactionModal() {
+  const overlay = document.getElementById('transaction-modal-overlay')
+  const title = document.getElementById('tx-modal-title')
+  const saveBtn = document.getElementById('tx-save-btn')
+  const idField = document.getElementById('tx-id')
+  idField.value = ''
+  title.textContent = 'Novo Lançamento'
+  saveBtn.textContent = 'Salvar Lançamento'
+  document.getElementById('tx-type').value = 'income'
+  document.getElementById('tx-amount').value = ''
+  document.getElementById('tx-description').value = ''
+  document.getElementById('tx-date').value = new Date().toISOString().split('T')[0]
+  document.getElementById('tx-category').value = ''
+  document.getElementById('tx-payment').value = ''
+  document.getElementById('tx-msg').textContent = ''
+  document.getElementById('tx-appt-field').style.display = 'none'
+  overlay.classList.add('open')
+}
+
+function closeTransactionModal() {
+  document.getElementById('transaction-modal-overlay').classList.remove('open')
+}
+
+async function saveTransaction() {
+  const type = document.getElementById('tx-type').value
+  const amount = document.getElementById('tx-amount').value
+  const description = document.getElementById('tx-description').value.trim()
+  const date = document.getElementById('tx-date').value
+  const category = document.getElementById('tx-category').value
+  const payment = document.getElementById('tx-payment').value
+  const msg = document.getElementById('tx-msg')
+
+  if (!amount || Number(amount) <= 0) { msg.textContent = 'Informe um valor válido.'; msg.className = 'auth-msg error'; return }
+  if (!description || description.length < 2) { msg.textContent = 'Informe uma descrição.'; msg.className = 'auth-msg error'; return }
+  if (!date) { msg.textContent = 'Selecione uma data.'; msg.className = 'auth-msg error'; return }
+
+  const body = {
+    type, amount: Number(amount), description, date,
+    category: category || '',
+    payment_method: payment || '',
+  }
+
+  try {
+    const r = await fetch(API + '/transactions/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    if (!r.ok) {
+      const err = await r.json()
+      msg.textContent = err.error || 'Erro ao salvar.'
+      msg.className = 'auth-msg error'
+      return
+    }
+    closeTransactionModal()
+    showToast('Lançamento salvo!', 'success')
+    loadFinanceiro()
+    loadDashboard()
+  } catch (e) {
+    msg.textContent = 'Erro de conexão.'
+    msg.className = 'auth-msg error'
+  }
 }
 
 // ── TOAST ──────────────────────────────────────────
@@ -2447,14 +2731,6 @@ document.querySelectorAll('.filter-tab').forEach(t => {
     }
   })
 })
-
-document.querySelectorAll('.period-btn').forEach(t => {
-  t.addEventListener('click', () => {
-    document.querySelectorAll('.period-btn').forEach(x => x.classList.remove('active'))
-    t.classList.add('active')
-  })
-})
-
 // ── AGENDA VIEW STATE ─────────────────────────────
 
 const _dayNames = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado']
@@ -2463,6 +2739,9 @@ const _monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julh
 
 let agendaView = 'week'
 let agendaDate = new Date()
+
+const DAYS_PT = ['segunda','terca','quarta','quinta','sexta','sabado','domingo']
+const DEFAULT_HOURS = { open: '08:00', close: '18:00', closed: false }
 
 function setAgendaView(view, el) {
   agendaView = view
@@ -2586,11 +2865,34 @@ async function populateWeekGrid(numDays) {
   if (!servicesCache.length) await loadServices()
   const todayStr = _fmt(new Date())
 
+  // Load business hours
+  let hoursMap = {}
+  try {
+    const r = await fetch(API + '/business-hours')
+    hoursMap = await r.json()
+  } catch (_) {}
+
+  // Find global min/max across visible days
+  let globalOpen = 8 * 60, globalClose = 17 * 60
+  for (let i = 0; i < numDays; i++) {
+    const day = new Date(monday)
+    day.setDate(monday.getDate() + i)
+    const dow = day.getDay()
+    const dk = DAYS_PT[dow]
+    const h = hoursMap[dk] || DEFAULT_HOURS
+    if (!h.closed) {
+      const o = parseInt(h.open) * 60 + parseInt(h.open?.split(':')[1] || '0')
+      const c = parseInt(h.close) * 60 + parseInt(h.close?.split(':')[1] || '0')
+      if (o < globalOpen) globalOpen = o
+      if (c > globalClose) globalClose = c
+    }
+  }
+
   const hourStep = isDayView ? 30 : 60
   const slotHeight = isDayView ? 26 : 52
 
   let timeHtml = '<div class="time-col-header"></div>'
-  for (let t = 8 * 60; t <= 17 * 60; t += hourStep) {
+  for (let t = globalOpen; t <= globalClose; t += hourStep) {
     const hh = Math.floor(t / 60)
     const mm = t % 60
     const label = mm === 0 ? hh + 'h' : hh + ':' + String(mm).padStart(2, '0')
@@ -2606,24 +2908,40 @@ async function populateWeekGrid(numDays) {
     const dayStr = _fmt(day)
     const isToday = dayStr === todayStr
     const dow = day.getDay()
+    const dayKey = DAYS_PT[dow]
+    const dayInfo = hoursMap[dayKey] || DEFAULT_HOURS
+    const isClosed = dayInfo.closed
+    const dayOpenMin = isClosed ? 0 : parseInt(dayInfo.open) * 60 + parseInt(dayInfo.open?.split(':')[1] || '0')
+    const dayCloseMin = isClosed ? 0 : parseInt(dayInfo.close) * 60 + parseInt(dayInfo.close?.split(':')[1] || '0')
 
     dayHtml += '<div class="day-col" style="' + (isDayView ? 'flex:1;' : '') + '">'
     dayHtml += '<div class="day-header"><div class="day-name">' + _dayShort[dow] + '</div><div class="day-num' + (isToday ? ' today' : '') + '">' + day.getDate() + '</div></div>'
     dayHtml += '<div class="day-slots">'
-    for (let t = 8 * 60; t <= 17 * 60; t += hourStep) {
-      const hh = Math.floor(t / 60)
-      dayHtml += '<div class="hour-line" style="height:' + slotHeight + 'px;" data-date="' + dayStr + '" data-hour="' + hh + '"></div>'
-    }
 
-    if (dow === 0) {
+    if (isClosed) {
       dayHtml += '<div class="folga-overlay"></div><div class="folga-label">Folga</div>'
     } else {
+      // Empty slots before open
+      for (let t = globalOpen; t < dayOpenMin; t += hourStep) {
+        dayHtml += '<div class="hour-line closed-slot" style="height:' + slotHeight + 'px;background:#f8f9fc;"></div>'
+      }
+      // Open slots
+      for (let t = dayOpenMin; t <= dayCloseMin; t += hourStep) {
+        const hh = Math.floor(t / 60)
+        const mm = t % 60
+        dayHtml += '<div class="hour-line" style="height:' + slotHeight + 'px;" data-date="' + dayStr + '" data-hour="' + String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0') + '"></div>'
+      }
+      // Empty slots after close
+      for (let t = dayCloseMin + hourStep; t <= globalClose; t += hourStep) {
+        dayHtml += '<div class="hour-line closed-slot" style="height:' + slotHeight + 'px;background:#f8f9fc;"></div>'
+      }
+
       const dayAppts = appts.filter(a => a.appointment_date === dayStr)
       const sc = { done: 'done', confirmed: 'confirmed', pending: 'pending', cancelled: 'cancelled' }
       dayAppts.forEach(a => {
         const [h, m] = a.appointment_time.split(':').map(Number)
-        const top = (h - 8) * 52 + (m / 60) * 52
-        const height = Math.max(slotHeight, (a.duration / 60) * 52)
+        const top = ((h * 60 + m) - globalOpen) / hourStep * slotHeight
+        const height = Math.max(slotHeight, (a.duration / hourStep) * slotHeight)
         dayHtml += '<div class="cal-event ' + (sc[a.status] || 'pending') + '" style="top:' + top + 'px;height:' + height + 'px;cursor:pointer;" data-id="' + a.id + '">'
         dayHtml += '<div class="ev-name">' + a.client_name + '</div><div class="ev-svc">' + a.service + '</div></div>'
       })
@@ -2640,9 +2958,9 @@ async function populateWeekGrid(numDays) {
   document.querySelectorAll('#agenda-days-grid .cal-event').forEach(el => {
     el.addEventListener('click', function(e) { e.stopPropagation(); openAppointmentDetail(+this.dataset.id) })
   })
-  document.querySelectorAll('#agenda-days-grid .hour-line').forEach(el => {
+  document.querySelectorAll('#agenda-days-grid .hour-line:not(.closed-slot)').forEach(el => {
     el.style.cursor = 'pointer'
-    el.addEventListener('click', function() { openAppointmentModal(this.dataset.date, String(+this.dataset.hour).padStart(2,'0')+':00') })
+    el.addEventListener('click', function() { openAppointmentModal(this.dataset.date, this.dataset.hour) })
   })
 }
 

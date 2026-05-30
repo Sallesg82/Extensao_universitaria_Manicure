@@ -13,6 +13,7 @@ from routes.users import users_bp
 from routes.google_calendar import google_bp
 from routes.notifications import notifications_bp
 from routes.integrations import integrations_bp
+from routes.transactions import transactions_bp
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src')
 
@@ -27,6 +28,7 @@ app.register_blueprint(users_bp, url_prefix='/api/users')
 app.register_blueprint(google_bp, url_prefix='/api/google')
 app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
 app.register_blueprint(integrations_bp, url_prefix='/api/integrations')
+app.register_blueprint(transactions_bp, url_prefix='/api/transactions')
 
 
 # ─── Helpers de configuração n8n ────────────────────────────────────────────
@@ -366,7 +368,8 @@ def js(filename):
 
 @ app.route('/api/stats')
 def stats():
-    data = get_stats()
+    period = request.args.get('period', 0, type=int)
+    data = get_stats(period=period if period > 0 else None)
     data['notifications_unread'] = unread_notifications_count()
 
     if data.get('month_revenue', 0) >= data.get('meta_mensal', 0) and data.get('meta_mensal', 0) > 0:

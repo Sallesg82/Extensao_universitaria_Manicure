@@ -96,10 +96,14 @@ def update_setting(key, value):
     supabase.table(TABLE_SETTINGS).upsert({'key': key, 'value': str(value)}).execute()
 
 
-def get_stats():
+def get_stats(period=None):
     now = datetime.now()
     today = now.strftime('%Y-%m-%d')
-    month_start = now.strftime('%Y-%m-01')
+    if period:
+        from datetime import timedelta
+        month_start = (now - timedelta(days=period)).strftime('%Y-%m-%d')
+    else:
+        month_start = now.strftime('%Y-%m-01')
     prev_month = now.replace(day=1)
     if prev_month.month == 1:
         prev_month = prev_month.replace(year=prev_month.year - 1, month=12)
@@ -160,6 +164,19 @@ def get_stats():
         cl = supabase.table(TABLE_CLIENTS).select('name,phone').eq('id', a['client_id']).single().execute()
         a['appointment_time'] = a['appointment_time'][:5] if a.get('appointment_time') and len(a['appointment_time']) >= 5 else (a.get('appointment_time') or '')
         today_full.append({**a, 'client_name': cl.data['name'], 'client_phone': cl.data.get('phone', '')})
+
+    # Month appointments with times (for heatmap)
+    month_full = []
+    for a in month_appts.data:
+        if a.get('appointment_time'):
+            a['appointment_time'] = a['appointment_time'][:5]
+        month_full.append({
+            'appointment_date': a.get('appointment_date', ''),
+            'appointment_time': a.get('appointment_time', ''),
+            'status': a.get('status', ''),
+            'service': a.get('service', ''),
+            'price': a.get('price', 0),
+        })
 
     # Service breakdown
     svc_counts = {}
@@ -280,6 +297,7 @@ def get_stats():
         'recent_transactions': recent_transactions,
         'expenses_by_category': expenses_by_category,
         'month_revenue_prev': month_revenue_prev,
+        'month_appointments': month_full,
     }
 
 
