@@ -99,9 +99,21 @@ def update_setting(key, value):
 def get_stats(period=None):
     now = datetime.now()
     today = now.strftime('%Y-%m-%d')
-    if period:
+    if period == 7:
         from datetime import timedelta
-        month_start = (now - timedelta(days=period)).strftime('%Y-%m-%d')
+        start = now - timedelta(days=(now.weekday() + 1) % 7)
+        month_start = start.strftime('%Y-%m-%d')
+    elif period == 30:
+        month_start = now.strftime('%Y-%m-01')
+    elif period == 90:
+        m = now.month - 3
+        y = now.year
+        while m < 1:
+            m += 12
+            y -= 1
+        month_start = f'{y}-{m:02d}-01'
+    elif period == 365:
+        month_start = f'{now.year}-01-01'
     else:
         month_start = now.strftime('%Y-%m-01')
     prev_month = now.replace(day=1)
@@ -146,15 +158,16 @@ def get_stats(period=None):
         meta_mensal = float(meta_result.data[0]['value'])
         meta_pct = round((month_revenue / meta_mensal) * 100, 1) if meta_mensal > 0 else 0
 
-    # Top clients
+    # Top clients (scoped to period)
     all_clients_data = supabase.table(TABLE_CLIENTS).select('id,name,avatar_initials,avatar_bg,avatar_color').execute()
     top_clients = []
     for cl in all_clients_data.data:
-        ca = supabase.table(TABLE_APPOINTMENTS).select('price', 'appointment_date', count='exact').eq('client_id', cl['id']).neq('status', 'cancelled').execute()
+        ca = supabase.table(TABLE_APPOINTMENTS).select('price', 'appointment_date', count='exact').eq('client_id', cl['id']).neq('status', 'cancelled').gte('appointment_date', month_start).lte('appointment_date', today).execute()
         visits = ca.count or 0
         total_spent = sum(a['price'] for a in ca.data)
         last_visit = max((a['appointment_date'] for a in ca.data if a.get('appointment_date')), default=None)
-        top_clients.append({**cl, 'visits': visits, 'total_spent': total_spent, 'last_visit': last_visit})
+        if visits > 0:
+            top_clients.append({**cl, 'visits': visits, 'total_spent': total_spent, 'last_visit': last_visit})
     top_clients.sort(key=lambda x: -x['total_spent'])
     top_clients = top_clients[:5]
 
@@ -523,16 +536,6 @@ CREATE TABLE IF NOT EXISTS business_hours (
 CREATE TRIGGER IF NOT EXISTS trg_business_hours_updated_at
     BEFORE UPDATE ON business_hours
     FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();
-
-INSERT INTO business_hours (day, open, close, closed) VALUES
-    ('segunda', '08:00', '18:00', FALSE),
-    ('terca',   '08:00', '18:00', FALSE),
-    ('quarta',  '08:00', '18:00', FALSE),
-    ('quinta',  '08:00', '18:00', FALSE),
-    ('sexta',   '08:00', '18:00', FALSE),
-    ('sabado',  '08:00', '13:00', FALSE),
-    ('domingo', '',      '',      TRUE)
-ON CONFLICT (day) DO NOTHING;
 """
 
 

@@ -53,6 +53,7 @@ function _requestPageRefresh(type) {
     else if (currentPageId === 'relatorios') loadRelatorios()
     else if (currentPageId === 'financeiro') loadFinanceiro()
     else if (currentPageId === 'servicos') loadServicos()
+    else if (currentPageId === 'despesas') loadDespesas()
   }, 300)
 }
 
@@ -256,8 +257,8 @@ const pageConfig = {
   servicos:       { title: 'Serviços',        sub: '',      btn: '+ Novo Serviço' },
   metas:          { title: 'Metas',           sub: '',      btn: null },
   financeiro:     { title: 'Financeiro',      sub: '',      btn: '+ Novo Lançamento' },
-  despesas:       { title: 'Despesas do Mês', sub: 'Acompanhe seus gastos', btn: null },
-  relatorios:     { title: 'Relatórios',      sub: 'Análise dos últimos 30 dias',      btn: '⬇ Exportar PDF' },
+  despesas:       { title: 'Despesas do Mês', sub: 'Acompanhe seus gastos do mês', btn: '+ Nova Despesa' },
+  relatorios:     { title: 'Relatórios',      sub: 'Análise - Mês',      btn: '⬇ Exportar PDF' },
   usuarios:       { title: 'Usuários',        sub: 'Gerenciar contas de acesso',          btn: null },
   configuracoes:  { title: 'Configurações',   sub: 'Gerencie seu sistema BeautyFlow',      btn: null },
 }
@@ -320,13 +321,11 @@ function handleTopbarBtn() {
   } else if (pageId === 'servicos') {
     openServiceModal()
   } else if (pageId === 'financeiro') {
-    openTransactionModal()
+    openTransactionModal('income')
+  } else if (pageId === 'despesas') {
+    openTransactionModal('expense')
   } else if (pageId === 'relatorios') {
-    loadRelatorios()
-    const btn = document.getElementById('topbar-btn')
-    const orig = btn.textContent
-    btn.textContent = '⏳ Exportando...'
-    setTimeout(() => { btn.textContent = orig }, 2000)
+    exportRelatorioPDF()
   } else if (pageId === 'usuarios') {
     loadUsuarios()
   }
@@ -1008,61 +1007,55 @@ async function loadDashboard() {
 
     const metrics = document.querySelectorAll('.metric-card')
     if (metrics.length >= 4) {
-      metrics[0].querySelector('.metric-value').textContent = 'R$ ' + stats.today_revenue.toFixed(0)
-      metrics[1].querySelector('.metric-value').textContent = stats.today_count
-      metrics[2].querySelector('.metric-value').textContent = stats.active_clients
-      metrics[3].querySelector('.metric-value').textContent = 'R$ ' + stats.avg_ticket.toFixed(0)
-      metrics[3].querySelector('.metric-label').textContent = 'Ticket Médio'
+      const setMetric = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val }
+      setMetric('metric-receita', 'R$ ' + stats.today_revenue.toFixed(0))
+      setMetric('metric-atendimentos', stats.today_count)
+      setMetric('metric-clientes', stats.active_clients)
+      setMetric('metric-ticket', 'R$ ' + stats.avg_ticket.toFixed(0))
     }
 
     // ── Fluxo de Caixa ──
-    const financePanel = document.querySelector('.finance-panel')
-    if (financePanel) {
-      const monthSub = financePanel.querySelector('.panel-subtitle')
-      if (monthSub) monthSub.textContent = stats.month_label + ' 2026'
+    const monthSub = document.getElementById('fluxo-subtitle')
+    if (monthSub) monthSub.textContent = stats.month_label + ' ' + (stats.month_year || new Date().getFullYear())
 
-      const profit = stats.month_revenue - stats.month_expenses
-      const financeNum = financePanel.querySelector('.finance-number')
-      if (financeNum) financeNum.textContent = 'R$ ' + profit.toLocaleString('pt-BR', {minimumFractionDigits: 0})
+    const profit = stats.month_revenue - stats.month_expenses
+    const lucroEl = document.getElementById('fluxo-lucro')
+    if (lucroEl) lucroEl.textContent = 'R$ ' + profit.toLocaleString('pt-BR', {minimumFractionDigits: 0})
 
-      const financeSub = financePanel.querySelector('.finance-sub')
-      if (financeSub) {
-        if (stats.meta_mensal > 0) {
-          const above = profit >= stats.meta_mensal
-          const diff = Math.abs(profit - stats.meta_mensal)
-          financeSub.innerHTML = (above ? '↑' : '↓') + ' ' + diff.toLocaleString('pt-BR', {minimumFractionDigits: 0}) + ' ' + (above ? 'acima da meta' : 'abaixo da meta')
-        } else {
-          financeSub.textContent = ''
+    const metaEl = document.getElementById('fluxo-meta')
+    if (metaEl) {
+      if (stats.meta_mensal > 0) {
+        const above = profit >= stats.meta_mensal
+        const diff = Math.abs(profit - stats.meta_mensal)
+        metaEl.innerHTML = (above ? '↑' : '↓') + ' ' + diff.toLocaleString('pt-BR', {minimumFractionDigits: 0}) + ' ' + (above ? 'acima da meta' : 'abaixo da meta')
+      } else {
+        metaEl.textContent = ''
+      }
+    }
+
+    const bars = document.querySelectorAll('.bar-fill')
+    if (stats.weekly_revenue && stats.weekly_revenue.length > 0) {
+      const maxVal = Math.max(...stats.weekly_revenue, 1)
+      stats.weekly_revenue.forEach((val, i) => {
+        if (bars[i]) {
+          const pct = Math.round((val / maxVal) * 60)
+          bars[i].style.height = Math.max(8, pct) + 'px'
         }
-      }
+      })
+    }
 
-      const bars = financePanel.querySelectorAll('.bar-fill')
-      if (stats.weekly_revenue && stats.weekly_revenue.length > 0) {
-        const maxVal = Math.max(...stats.weekly_revenue, 1)
-        stats.weekly_revenue.forEach((val, i) => {
-          if (bars[i]) {
-            const pct = Math.round((val / maxVal) * 60)
-            bars[i].style.height = Math.max(8, pct) + 'px'
-          }
-        })
-      }
-
-      const srvRows = financePanel.querySelectorAll('.service-row')
-      if (stats.service_breakdown && stats.service_breakdown.length > 0) {
-        const colors = ['#4a90d9', '#2563a8', '#3a7abf', '#b8d4f0', '#1a5fab']
-        stats.service_breakdown.forEach((svc, i) => {
-          if (srvRows[i]) {
-            srvRows[i].querySelector('.service-dot').style.background = colors[i % colors.length]
-            srvRows[i].querySelector('.service-name').textContent = svc.name
-            srvRows[i].querySelector('.service-bar-fill').style.width = svc.pct + '%'
-            srvRows[i].querySelector('.service-bar-fill').style.background = colors[i % colors.length]
-            srvRows[i].querySelector('.service-pct').textContent = svc.pct + '%'
-          }
-        })
-        for (let i = stats.service_breakdown.length; i < srvRows.length; i++) {
-          srvRows[i].style.display = 'none'
-        }
-      }
+    const srvContainer = document.getElementById('fluxo-servicos')
+    if (srvContainer && stats.service_breakdown && stats.service_breakdown.length > 0) {
+      const colors = ['#4a90d9', '#2563a8', '#3a7abf', '#b8d4f0', '#1a5fab']
+      srvContainer.innerHTML = '<div class="services-list-title">Serviços</div>' +
+        stats.service_breakdown.map((svc, i) => `
+          <div class="service-row">
+            <div class="service-dot" style="background:${colors[i % colors.length]}"></div>
+            <div class="service-name">${svc.name}</div>
+            <div class="service-bar-bg"><div class="service-bar-fill" style="width:${svc.pct}%;background:${colors[i % colors.length]}"></div></div>
+            <div class="service-pct">${svc.pct}%</div>
+          </div>
+        `).join('')
     }
 
     // ── Alertas Inteligentes ──
@@ -1079,12 +1072,14 @@ async function loadDashboard() {
     }
 
     const apptList = document.querySelector('.appt-list')
+    const apptBadge = document.getElementById('today-appt-badge')
     if (apptList && stats.today_appointments) {
       const statusMap = { done: 'Concluído', confirmed: 'Confirmado', pending: 'Pendente', cancelled: 'Cancelado' }
       const statusClassMap = { done: 'status-done', confirmed: 'status-confirmed', pending: 'status-pending', cancelled: 'status-pending' }
       const colorMap = { done: '#4e8f6a', confirmed: '#4a90d9', pending: '#c9894a', cancelled: '#c05050' }
 
       if (stats.today_appointments.length > 0) {
+        if (apptBadge) apptBadge.textContent = stats.today_appointments.length + ' agendado' + (stats.today_appointments.length !== 1 ? 's' : '')
         apptList.innerHTML = stats.today_appointments.map(a => `
           <div class="appt-item" onclick="openAppointmentDetail(${a.id})" style="cursor:pointer;">
             <div class="appt-time">${a.appointment_time}</div>
@@ -1098,6 +1093,7 @@ async function loadDashboard() {
           </div>
         `).join('')
       } else {
+        if (apptBadge) apptBadge.textContent = ''
         apptList.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);">Nenhum agendamento para hoje</div>'
       }
     }
@@ -1271,22 +1267,26 @@ async function loadFinanceiro() {
 
 async function loadDespesas() {
   try {
-    const res = await fetch(API + '/stats?period=30')
-    const s = await res.json()
-    const expenses = (s.recent_transactions || []).filter(t => t.type === 'expense')
+    const now = new Date()
+    const monthStart = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01'
+    const today = now.toISOString().split('T')[0]
+    const pageSub = document.getElementById('page-sub')
+    if (pageSub) pageSub.textContent = _monthNames[now.getMonth()] + ' ' + now.getFullYear()
+    const res = await fetch(API + '/transactions/?type=expense&date_from=' + monthStart + '&date_to=' + today)
+    const expenses = await res.json()
 
-    const total = expenses.reduce((sum, t) => sum + Number(t.amount), 0)
+    const total = expenses.reduce((s, t) => s + Number(t.amount), 0)
     const count = expenses.length
     const maior = count > 0 ? Math.max(...expenses.map(t => Number(t.amount))) : 0
     const media = count > 0 ? total / count : 0
-    const maiorCat = count > 0 ? expenses.find(t => Number(t.amount) === maior) : null
+    const maiorTx = count > 0 ? expenses.find(t => Number(t.amount) === maior) : null
 
-    document.getElementById('desp-total').textContent = 'R$ ' + total.toFixed(2)
+    document.getElementById('desp-total').textContent = 'R$ ' + total.toLocaleString('pt-BR', {minimumFractionDigits: 2})
     document.getElementById('desp-count').textContent = count + ' despesa' + (count !== 1 ? 's' : '')
-    document.getElementById('desp-maior').textContent = 'R$ ' + maior.toFixed(2)
-    document.getElementById('desp-maior-cat').textContent = maiorCat?.category || '—'
-    document.getElementById('desp-media').textContent = 'R$ ' + media.toFixed(2)
-    document.getElementById('desp-media-label').innerHTML = 'média por lançamento'
+    document.getElementById('desp-maior').textContent = 'R$ ' + maior.toLocaleString('pt-BR', {minimumFractionDigits: 2})
+    document.getElementById('desp-maior-label').textContent = maiorTx?.description || '—'
+    document.getElementById('desp-media').textContent = 'R$ ' + media.toLocaleString('pt-BR', {minimumFractionDigits: 2})
+    document.getElementById('desp-media-label').textContent = 'média por lançamento'
 
     // Category breakdown
     const catMap = {}
@@ -1294,24 +1294,36 @@ async function loadDespesas() {
       const cat = t.category || 'Outros'
       catMap[cat] = (catMap[cat] || 0) + Number(t.amount)
     })
-    const catTotal = Object.values(catMap).reduce((a, b) => a + b, 0)
-    const catColors = ['#c05050','#e5825c','#f0b35e','#6fa8dc','#93c47d','#a06fb5','#5a5a5a']
     const catKeys = Object.keys(catMap)
+    const catTotal = Object.values(catMap).reduce((a, b) => a + b, 0)
+    const maxCatAmount = Math.max(...Object.values(catMap), 1)
+
+    // Top category
+    const topCat = catKeys.length > 0 ? catKeys.reduce((a, b) => catMap[a] > catMap[b] ? a : b) : null
+    document.getElementById('desp-top-cat').textContent = topCat || '—'
+    document.getElementById('desp-top-cat-val').textContent = topCat ? 'R$ ' + catMap[topCat].toLocaleString('pt-BR', {minimumFractionDigits: 2}) : ''
+
+    const catColors = ['#c05050','#e5825c','#f0b35e','#6fa8dc','#93c47d','#a06fb5','#5a5a5a']
     const catList = document.getElementById('desp-cat-list')
     if (catKeys.length > 0) {
       catList.innerHTML = catKeys.map((cat, i) => {
         const pct = ((catMap[cat] / catTotal) * 100).toFixed(1)
+        const barW = Math.round((catMap[cat] / maxCatAmount) * 100)
         return `
-          <div class="donut-legend-item" style="padding:6px 0;">
-            <span class="dl-dot" style="background:${catColors[i % catColors.length]}"></span>
-            <span class="dl-name">${cat}</span>
-            <span class="dl-val">R$ ${catMap[cat].toFixed(2)}</span>
-            <span class="dl-pct" style="margin-left:auto;font-weight:600;">${pct}%</span>
+          <div class="exp-row">
+            <div class="service-dot" style="background:${catColors[i % catColors.length]};"></div>
+            <div class="exp-name">${cat}</div>
+            <div class="exp-bar-bg"><div class="exp-bar-fill" style="width:${barW}%;background:${catColors[i % catColors.length]};"></div></div>
+            <div class="exp-val">R$ ${catMap[cat].toLocaleString('pt-BR', {minimumFractionDigits: 0})}</div>
+            <div class="exp-pct" style="font-size:11px;color:#8aaccb;min-width:30px;text-align:right;">${pct}%</div>
           </div>`
       }).join('')
     } else {
-      catList.innerHTML = '<div style="padding:10px 0;color:var(--text-secondary);font-size:13px;">Nenhuma despesa</div>'
+      catList.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);font-size:13px;">Nenhuma despesa neste mês</div>'
     }
+
+    // Load categories into the transaction modal dropdown
+    loadDespesaCatDropdown()
 
     // List all expenses
     const list = document.getElementById('desp-list')
@@ -1332,14 +1344,62 @@ async function loadDespesas() {
               <div class="tx-name">${desc}</div>
               <div class="tx-date">${dateStr}${t.category ? ' · ' + t.category : ''}</div>
             </div>
-            <div class="tx-amount out">−R$ ${Number(t.amount).toFixed(2)}</div>
+            <div class="tx-amount out">−R$ ${Number(t.amount).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
           </div>`
       }).join('')
     } else {
-      list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);">Nenhuma despesa no mês</div>'
+      list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);font-size:13px;">Nenhuma despesa neste mês</div>'
     }
   } catch (e) {
     console.error('Erro ao carregar despesas:', e)
+  }
+}
+
+async function loadDespesaCatDropdown() {
+  try {
+    const r = await fetch(API + '/expense-categories')
+    const cats = await r.json()
+    const txSel = document.getElementById('tx-category')
+    if (txSel) {
+      txSel.innerHTML = '<option value="">Selecione...</option>'
+      cats.forEach(c => {
+        txSel.innerHTML += '<option value="' + c.name + '">' + c.name + '</option>'
+      })
+    }
+  } catch (_) {}
+}
+
+function openCategoryModal() {
+  document.getElementById('cat-name').value = ''
+  document.getElementById('cat-msg').textContent = ''
+  document.getElementById('category-modal-overlay').classList.add('open')
+}
+
+function closeCategoryModal() {
+  document.getElementById('category-modal-overlay').classList.remove('open')
+}
+
+async function saveCategory() {
+  const name = document.getElementById('cat-name').value.trim()
+  if (!name) { document.getElementById('cat-msg').textContent = 'Informe o nome da categoria.'; document.getElementById('cat-msg').className = 'auth-msg error'; return }
+  try {
+    const r = await fetch(API + '/expense-categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    })
+    if (!r.ok) {
+      const err = await r.json()
+      document.getElementById('cat-msg').textContent = err.error || 'Erro ao salvar.'
+      document.getElementById('cat-msg').className = 'auth-msg error'
+      return
+    }
+    closeCategoryModal()
+    showToast('Categoria criada!', 'success')
+    loadDespesas()
+  } catch (_) {
+    document.getElementById('cat-msg').textContent = 'Erro de conexão.'
+    document.getElementById('cat-msg').className = 'auth-msg error'
   }
 }
 
@@ -1350,45 +1410,89 @@ async function loadRelatorios(period) {
     const res = await fetch(API + '/stats?period=' + _relPeriod)
     const s = await res.json()
 
+    const periodLabel = _relPeriod === 7 ? 'Semana' : _relPeriod === 30 ? 'Mês' : _relPeriod === 90 ? 'Últimos 3 Meses' : 'Esse ano'
+    const pageSub = document.getElementById('page-sub')
+    if (pageSub) pageSub.textContent = 'Análise - ' + periodLabel
     const sub = document.querySelector('.rpt-trend-sub')
-    if (sub) sub.textContent = 'Últimos ' + _relPeriod + ' dias'
+    if (sub) sub.textContent = periodLabel
+    const svcSub = document.querySelector('.rpt-services-sub')
+    if (svcSub) svcSub.textContent = periodLabel
+    const topSub = document.querySelector('.rpt-topclients-sub')
+    if (topSub) topSub.textContent = periodLabel + ' · Por receita gerada'
 
     const svg = document.getElementById('rpt-trend-svg')
     const daily = s.daily_breakdown || []
     const revs = daily.map(d => d.revenue)
     if (svg && revs.length > 0) {
-      const w = 450, h = 130, padB = 40, padT = 20
+      const w = 450, h = 130, pad = { t: 8, r: 8, b: 28, l: 32 }
+      const innerW = w - pad.l - pad.r
+      const innerH = h - pad.t - pad.b
       const maxVal = Math.max(...revs, 1)
       const count = revs.length
-      const stepX = count > 1 ? w / (count - 1) : w / 2
+      const stepX = count > 1 ? innerW / (count - 1) : innerW / 2
       const pts = revs.map((v, i) => {
-        const x = count > 1 ? i * stepX : w / 2
-        const y = padT + (1 - v / maxVal) * (h - padT - padB)
+        const x = pad.l + (count > 1 ? i * stepX : innerW / 2)
+        const y = pad.t + (1 - v / maxVal) * innerH
         return { x, y }
       })
-      let lineD = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ' ' + p.y.toFixed(1)).join(' ')
-      let areaD = lineD + ' L' + pts[pts.length - 1].x.toFixed(1) + ' ' + (h - padB) + ' L0 ' + (h - padB) + 'Z'
+
+      // Y-axis labels
+      const yTicks = [0, 0.25, 0.5, 0.75, 1]
+      let yHtml = yTicks.map(pct => {
+        const yPos = pad.t + (1 - pct) * innerH
+        const val = Math.round(maxVal * pct)
+        return `<text x="${pad.l - 4}" y="${yPos + 3}" text-anchor="end" font-size="8" fill="#8aaccb">${val}</text>`
+      }).join('')
+
+      // Grid lines
+      let gridHtml = yTicks.map(pct => {
+        const yPos = pad.t + (1 - pct) * innerH
+        return `<line x1="${pad.l}" y1="${yPos}" x2="${w - pad.r}" y2="${yPos}" stroke="#f0f5fb" stroke-width="1"/>`
+      }).join('')
+
+      // Line path (straight segments)
+      const lineD = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ' ' + p.y.toFixed(1)).join(' ')
+      const areaD = lineD + ' L' + pts[pts.length - 1].x.toFixed(1) + ' ' + (pad.t + innerH) + ' L' + pad.l + ' ' + (pad.t + innerH) + 'Z'
       const defs = '<defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4a90d9"/><stop offset="100%" stop-color="#4a90d9" stop-opacity="0"/></linearGradient></defs>'
-      svg.innerHTML = `
-        <line x1="0" y1="20" x2="450" y2="20" stroke="#f0f5fb" stroke-width="1"/>
-        <line x1="0" y1="55" x2="450" y2="55" stroke="#f0f5fb" stroke-width="1"/>
-        <line x1="0" y1="90" x2="450" y2="90" stroke="#f0f5fb" stroke-width="1"/>
-        <path d="${areaD}" fill="url(#g1)" opacity="0.3"/>
+
+      let dotsHtml = pts.map((p, i) => {
+        const isLast = i === pts.length - 1
+        return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${isLast ? 3.5 : 2.5}" fill="${isLast ? '#fff' : '#4a90d9'}" stroke="#4a90d9" stroke-width="${isLast ? 2 : 1.5}"/>`
+      }).join('')
+
+      svg.innerHTML = gridHtml + yHtml + `
+        <path d="${areaD}" fill="url(#g1)" opacity="0.25"/>
         <path d="${lineD}" fill="none" stroke="#4a90d9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-        <circle cx="${pts[pts.length - 1].x.toFixed(1)}" cy="${pts[pts.length - 1].y.toFixed(1)}" r="4" fill="#4a90d9"/>
+        ${dotsHtml}
         ${defs}`
     }
 
     const labels = document.getElementById('rpt-trend-labels')
     if (labels) {
-      const now = new Date()
-      const endStr = now.getDate() + ' ' + now.toLocaleString('pt-BR', { month: 'short' })
-      const start = new Date(now)
-      start.setDate(start.getDate() - _relPeriod)
-      const startStr = start.getDate() + ' ' + start.toLocaleString('pt-BR', { month: 'short' })
-      labels.innerHTML = `
-        <span style="font-size:9px;color:#8aaccb;">${startStr}</span>
-        <span style="font-size:9px;color:#8aaccb;">${endStr}</span>`
+      const dates = daily.map(d => {
+        const p = d.date.split('-')
+        return parseInt(p[2]) + ' ' + ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][parseInt(p[1]) - 1]
+      })
+      if (dates.length > 0) {
+        const first = dates[0]
+        const last = dates[dates.length - 1]
+        if (dates.length <= 5) {
+          labels.innerHTML = dates.map((d, i) => {
+            const pct = dates.length > 1 ? (i / (dates.length - 1)) * 100 : 50
+            return `<span style="position:absolute;left:${pct.toFixed(0)}%;transform:translateX(-50%);font-size:9px;color:#8aaccb;">${d}</span>`
+          }).join('')
+          labels.style.position = 'relative'
+          labels.style.height = '14px'
+        } else {
+          const mid = dates[Math.floor(dates.length / 2)]
+          labels.innerHTML = `
+            <span style="font-size:9px;color:#8aaccb;">${first}</span>
+            <span style="font-size:9px;color:#8aaccb;">${mid}</span>
+            <span style="font-size:9px;color:#8aaccb;">${last}</span>`
+        }
+      } else {
+        labels.innerHTML = '<span style="font-size:9px;color:#8aaccb;">—</span>'
+      }
     }
 
     const total = revs.reduce((a, b) => a + b, 0)
@@ -1519,7 +1623,7 @@ function updatePeriodBtns() {
 }
 
 function exportRelatorioPDF() {
-  const btn = document.querySelector('.period-selector .btn-outline')
+  const btn = document.getElementById('topbar-btn')
   if (btn) { btn.textContent = '⏳ Gerando PDF...'; btn.disabled = true }
   const content = document.getElementById('page-relatorios')
   if (!content) return
@@ -2107,18 +2211,19 @@ function filterClients(filter) {
 
 // ── TRANSACTION MODAL ────────────────────────────────
 
-function openTransactionModal() {
+function openTransactionModal(type) {
   const overlay = document.getElementById('transaction-modal-overlay')
   const title = document.getElementById('tx-modal-title')
   const saveBtn = document.getElementById('tx-save-btn')
   const idField = document.getElementById('tx-id')
   idField.value = ''
-  title.textContent = 'Novo Lançamento'
-  saveBtn.textContent = 'Salvar Lançamento'
-  document.getElementById('tx-type').value = 'income'
+  title.textContent = type === 'expense' ? 'Nova Despesa' : 'Novo Lançamento'
+  saveBtn.textContent = type === 'expense' ? 'Salvar Despesa' : 'Salvar Lançamento'
+  document.getElementById('tx-type').value = type || 'income'
   document.getElementById('tx-amount').value = ''
   document.getElementById('tx-description').value = ''
   document.getElementById('tx-date').value = new Date().toISOString().split('T')[0]
+  loadDespesaCatDropdown()
   document.getElementById('tx-category').value = ''
   document.getElementById('tx-payment').value = ''
   document.getElementById('tx-msg').textContent = ''
@@ -2162,9 +2267,11 @@ async function saveTransaction() {
       return
     }
     closeTransactionModal()
-    showToast('Lançamento salvo!', 'success')
+    const savedType = body.type
+    showToast(savedType === 'expense' ? 'Despesa salva!' : 'Lançamento salvo!', 'success')
     loadFinanceiro()
     loadDashboard()
+    if (savedType === 'expense') loadDespesas()
   } catch (e) {
     msg.textContent = 'Erro de conexão.'
     msg.className = 'auth-msg error'
@@ -2753,7 +2860,7 @@ const _monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julh
 let agendaView = 'week'
 let agendaDate = new Date()
 
-const DAYS_PT = ['segunda','terca','quarta','quinta','sexta','sabado','domingo']
+const DAYS_PT = ['domingo','segunda','terca','quarta','quinta','sexta','sabado']
 const DEFAULT_HOURS = { open: '08:00', close: '18:00', closed: false }
 
 function setAgendaView(view, el) {
@@ -2857,24 +2964,24 @@ async function renderDayView() {
 }
 
 async function populateWeekGrid(numDays) {
-  const monday = new Date(agendaDate)
+  const weekStart = new Date(agendaDate)
   if (numDays === 7) {
-    monday.setDate(agendaDate.getDate() - (agendaDate.getDay() === 0 ? 6 : agendaDate.getDay() - 1))
+    weekStart.setDate(agendaDate.getDate() - agendaDate.getDay())
   }
-  const sunday = new Date(monday)
-  sunday.setDate(monday.getDate() + numDays - 1)
+  const weekEnd = new Date(weekStart)
+  weekEnd.setDate(weekStart.getDate() + numDays - 1)
 
   const isDayView = numDays === 1
   if (isDayView) {
     updateSub(_dayNames[agendaDate.getDay()] + ', ' + agendaDate.getDate() + ' de ' + _monthNames[agendaDate.getMonth()] + ' de ' + agendaDate.getFullYear())
   } else {
-    updateSub(_fmtBR(monday) + ' – ' + _fmtBR(sunday) + ' ' + sunday.getFullYear())
+    updateSub(_fmtBR(weekStart) + ' – ' + _fmtBR(weekEnd) + ' ' + weekEnd.getFullYear())
   }
 
   const weekGrid = document.getElementById('agenda-week-grid')
   weekGrid.classList.toggle('day-view', isDayView)
 
-  const appts = await fetchAppts(_fmt(monday), _fmt(sunday))
+  const appts = await fetchAppts(_fmt(weekStart), _fmt(weekEnd))
   if (!servicesCache.length) await loadServices()
   const todayStr = _fmt(new Date())
 
@@ -2888,8 +2995,8 @@ async function populateWeekGrid(numDays) {
   // Find global min/max across visible days
   let globalOpen = 8 * 60, globalClose = 17 * 60
   for (let i = 0; i < numDays; i++) {
-    const day = new Date(monday)
-    day.setDate(monday.getDate() + i)
+    const day = new Date(weekStart)
+    day.setDate(weekStart.getDate() + i)
     const dow = day.getDay()
     const dk = DAYS_PT[dow]
     const h = hoursMap[dk] || DEFAULT_HOURS
@@ -2915,8 +3022,8 @@ async function populateWeekGrid(numDays) {
 
   let dayHtml = ''
   for (let i = 0; i < numDays; i++) {
-    const day = new Date(monday)
-    day.setDate(monday.getDate() + i)
+    const day = new Date(weekStart)
+    day.setDate(weekStart.getDate() + i)
     if (isDayView && i === 0) { const d2 = new Date(agendaDate); d2.setHours(12); day.setTime(d2.getTime()) }
     const dayStr = _fmt(day)
     const isToday = dayStr === todayStr

@@ -3,6 +3,7 @@ import datetime
 import requests
 from flask import Flask, jsonify, send_from_directory, request
 from flask_cors import CORS
+import json
 from ws import socketio
 from db.database import get_db, get_settings, update_setting, get_stats, unread_notifications_count, create_notification, load_business_hours, save_business_hours, _migrate_business_hours, DAYS_PT
 from postgrest.exceptions import APIError
@@ -397,7 +398,38 @@ def migrate_sql():
         return jsonify({'error': 'Arquivo de schema SQL não encontrado'}), 404
 
 
-@ app.errorhandler(404)
+@app.route('/api/expense-categories', methods=['GET'])
+def list_expense_categories():
+    settings = get_settings()
+    raw = settings.get('expense_categories', '[]')
+    try:
+        cats = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        cats = []
+    return jsonify(cats)
+
+
+@app.route('/api/expense-categories', methods=['POST'])
+def create_expense_category():
+    data = request.get_json()
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'Nome da categoria é obrigatório'}), 400
+    settings = get_settings()
+    raw = settings.get('expense_categories', '[]')
+    try:
+        cats = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        cats = []
+    if any(c['name'].lower() == name.lower() for c in cats):
+        return jsonify({'error': 'Categoria já existe'}), 409
+    new_cat = {'name': name, 'id': str(len(cats) + 1)}
+    cats.append(new_cat)
+    update_setting('expense_categories', json.dumps(cats, ensure_ascii=False))
+    return jsonify(new_cat), 201
+
+
+@app.errorhandler(404)
 def not_found(e):
     return jsonify({'error': 'Rota não encontrada'}), 404
 

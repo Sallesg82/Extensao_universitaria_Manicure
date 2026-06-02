@@ -1,10 +1,7 @@
 -- ═══════════════════════════════════════════════════════════════
 --  BeautyFlow CRM — Schema Completo Supabase (PostgreSQL)
 --  ═══════════════════════════════════════════════════════════════
---  1. Execute este SQL no SQL Editor do seu projeto Supabase
---  2. Depois execute os seeds (final deste arquivo)
---  3. Para self-hosted, conecte diretamente no PostgreSQL:
---     psql postgresql://postgres:postgres@localhost:54322/postgres -f supabase_schema.sql
+--  Execute este SQL no SQL Editor do seu projeto Supabase.
 --  ═══════════════════════════════════════════════════════════════
 
 -- ═══════════════════════════════════════════════════════════════
@@ -137,16 +134,6 @@ CREATE TABLE IF NOT EXISTS business_hours (
 CREATE TRIGGER trg_business_hours_updated_at
     BEFORE UPDATE ON business_hours
     FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();
-
-INSERT INTO business_hours (day, open, close, closed) VALUES
-    ('segunda', '08:00', '18:00', FALSE),
-    ('terca',   '08:00', '18:00', FALSE),
-    ('quarta',  '08:00', '18:00', FALSE),
-    ('quinta',  '08:00', '18:00', FALSE),
-    ('sexta',   '08:00', '18:00', FALSE),
-    ('sabado',  '08:00', '13:00', FALSE),
-    ('domingo', '',      '',      TRUE)
-ON CONFLICT (day) DO NOTHING;
 
 -- ═══════════════════════════════════════════════════════════════
 --  TABELA: notifications (notificações do sistema)
