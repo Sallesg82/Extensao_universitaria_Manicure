@@ -498,16 +498,24 @@ async function loadUsuarios() {
       tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text-secondary);">Nenhum usuário cadastrado</td></tr>'
       return
     }
+    const isAdmin = currentUser && currentUser.role === 'admin'
     tbody.innerHTML = users.map(u => {
       const date = u.created_at ? u.created_at.split('T')[0].split('-').reverse().join('/') : '—'
       const isSelf = currentUser && currentUser.id === u.id
+      let actions = ''
+      if (isAdmin && !isSelf) {
+        actions += `<button class="btn-outline btn-sm" style="margin-right:4px;" onclick="showEditUserModal(${u.id})">Editar</button>`
+      }
+      if (u.role !== 'admin' || !isSelf) {
+        actions += `<button class="btn-outline btn-sm btn-danger" onclick="deleteUser(${u.id},'${u.name}')">Remover</button>`
+      }
       return `<tr>
         <td><div class="user-cell-name">${u.name}${isSelf ? ' <span style="color:var(--primary-500);font-size:11px;">(você)</span>' : ''}</div></td>
         <td>${u.email}</td>
         <td>${u.phone || '—'}</td>
         <td>${u.role === 'admin' ? 'Administradora' : 'Usuário'}</td>
         <td>${date}</td>
-        <td>${u.role !== 'admin' || !isSelf ? `<button class="btn-outline btn-sm btn-danger" onclick="deleteUser(${u.id},'${u.name}')">Remover</button>` : ''}</td>
+        <td>${actions}</td>
       </tr>`
     }).join('')
   } catch (e) {
@@ -576,6 +584,68 @@ async function deleteUser(id, name) {
     const r = await fetch(API + '/users/' + id, { method: 'DELETE' })
     if (r.ok) loadUsuarios()
   } catch (e) {}
+}
+
+function showEditUserModal(userId) {
+  fetch(API + '/users/' + userId).then(r => r.json()).then(u => {
+    const html = `
+      <div class="modal-overlay" id="edit-user-overlay" onclick="if(event.target===this)closeEditUserModal()">
+        <div class="modal-card" style="max-width:420px;">
+          <div class="modal-header"><div class="modal-title">Editar Usuário</div><button class="modal-close" onclick="closeEditUserModal()">×</button></div>
+          <div class="modal-body">
+            <input type="hidden" id="eu-id" value="${u.id}">
+            <div class="form-row"><div class="form-field full"><label class="form-label">Nome</label><input class="form-input" id="eu-name" value="${u.name.replace(/"/g,'&quot;')}"></div></div>
+            <div class="form-row"><div class="form-field full"><label class="form-label">Email</label><input class="form-input" id="eu-email" type="email" value="${u.email}"></div></div>
+            <div class="form-row"><div class="form-field full"><label class="form-label">Telefone</label><input class="form-input" id="eu-phone" value="${u.phone || ''}"></div></div>
+            <div class="form-row"><div class="form-field full"><label class="form-label">Nova senha (deixe em branco para manter)</label><input class="form-input" id="eu-password" type="password" placeholder="••••••"></div></div>
+            <div class="form-row"><div class="form-field full"><label class="form-label">Tipo</label><select class="form-input" id="eu-role"><option value="user"${u.role === 'user' ? ' selected' : ''}>Comum</option><option value="admin"${u.role === 'admin' ? ' selected' : ''}>Administrador</option></select></div></div>
+            <div id="eu-msg" class="auth-msg"></div>
+          </div>
+          <div class="modal-footer"><button class="btn-outline" onclick="closeEditUserModal()">Cancelar</button><button class="btn-primary" onclick="saveEditUser()">Salvar</button></div>
+        </div>
+      </div>`
+    const div = document.createElement('div')
+    div.innerHTML = html
+    document.body.appendChild(div)
+    requestAnimationFrame(() => document.getElementById('edit-user-overlay').classList.add('open'))
+    document.getElementById('eu-name').focus()
+    ;['eu-name','eu-email','eu-phone','eu-password','eu-role'].forEach(id => {
+      document.getElementById(id)?.addEventListener('keydown', e => {
+        if (e.key === 'Enter') saveEditUser()
+      })
+    })
+  })
+}
+
+function closeEditUserModal() {
+  const el = document.getElementById('edit-user-overlay')
+  if (el) {
+    el.classList.remove('open')
+    setTimeout(() => el.remove(), 200)
+  }
+}
+
+async function saveEditUser() {
+  const id = document.getElementById('eu-id').value
+  const name = document.getElementById('eu-name').value.trim()
+  const email = document.getElementById('eu-email').value.trim()
+  const phone = document.getElementById('eu-phone').value.trim()
+  const password = document.getElementById('eu-password').value
+  const role = document.getElementById('eu-role').value
+  const msg = document.getElementById('eu-msg')
+  if (!name || !email) { msg.textContent = 'Nome e email são obrigatórios.'; msg.className = 'auth-msg error'; return }
+  try {
+    const body = { name, email, phone, role }
+    if (password) body.password = password
+    const r = await fetch(API + '/users/' + id, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    })
+    const data = await r.json()
+    if (r.ok) { closeEditUserModal(); loadUsuarios() }
+    else { msg.textContent = data.error || 'Erro ao salvar.'; msg.className = 'auth-msg error' }
+  } catch (e) { msg.textContent = 'Erro de conexão.'; msg.className = 'auth-msg error' }
 }
 
 async function changePassword() {
@@ -882,7 +952,9 @@ async function loadClients() {
     const res = await fetch(API + '/clients/')
     const clients = await res.json()
     clientsCache = clients
-    renderClientList(clients)
+    const activeTab = document.querySelector('.filter-tab.active')
+    const filter = activeTab?.getAttribute('data-filter') || 'all'
+    filterClients(filter)
     pageConfig.clientes.sub = clients.length + ' clientes cadastrados'
     document.getElementById('page-sub').textContent = pageConfig.clientes.sub
   } catch (e) {
@@ -902,17 +974,18 @@ function renderClientList(clients) {
 
   list.innerHTML = clients.map((c, i) => {
     const lastDate = c.last_visit ? c.last_visit.split('T')[0].split('-').reverse().join('/') : '—'
-    const statusMap = { frequente: 'Frequente', regular: 'Regular', novo: 'Novo', inativo: 'Inativo' }
-    const statusClassMap = { frequente: 'status-done', regular: 'status-confirmed', novo: 'status-pending', inativo: 'status-pending' }
+    const statusMap = { frequente: 'Frequente', regular: 'Regular', novo: 'Novo', inativo: 'Inativo', inadimplente: 'Inadimplente' }
+    const statusClassMap = { frequente: 'status-done', regular: 'status-confirmed', novo: 'status-pending', inativo: 'status-pending', inadimplente: 'status-cancelled' }
     const label = statusMap[c.status] || c.status
     const cls = statusClassMap[c.status] || 'status-pending'
     const spent = 'R$ ' + Number(c.total_spent).toLocaleString('pt-BR', {minimumFractionDigits: 0})
+    const caloteiroIcon = c.status === 'inadimplente' ? '<span style="color:#c05050;font-size:13px;margin-right:4px;" title="Inadimplente">⚠</span>' : ''
     return `
       <div class="client-row${i === 0 ? ' selected' : ''}" onclick="selectClient(this, ${c.id})">
         <div class="client-info-cell">
           <div class="client-av" style="background:${c.avatar_bg};color:${c.avatar_color};">${c.avatar_initials}</div>
           <div>
-            <div class="client-name-cell">${c.name}</div>
+            <div class="client-name-cell">${caloteiroIcon}${c.name}</div>
             <div class="client-phone">${c.phone}</div>
           </div>
         </div>
@@ -951,6 +1024,20 @@ async function selectClient(row, clientId) {
     const avg = c.visits > 0 ? c.total_spent / c.visits : 0
     document.getElementById('cd-ticket').textContent = 'R$ ' + avg.toFixed(0)
     document.getElementById('cd-last').textContent = c.last_visit || '—'
+
+    const btnCal = document.getElementById('btn-caloteiro')
+    const btnText = document.getElementById('btn-caloteiro-text')
+    if (btnCal && btnText) {
+      if (c.status === 'inadimplente') {
+        btnCal.style.borderColor = '#c05050'
+        btnCal.style.color = '#c05050'
+        btnText.textContent = 'Desmarcar Inadimplente'
+      } else {
+        btnCal.style.borderColor = ''
+        btnCal.style.color = ''
+        btnText.textContent = 'Inadimplente'
+      }
+    }
 
     const hist = document.getElementById('cd-history')
     if (c.appointments && c.appointments.length > 0) {
@@ -1059,17 +1146,22 @@ async function loadDashboard() {
     }
 
     // ── Alertas Inteligentes ──
-    const metaText = document.getElementById('meta-alert-text')
-    if (metaText) {
-      const falta = Math.max(0, stats.meta_mensal - stats.month_revenue)
-      const metaVal = 'R$ ' + Number(stats.meta_mensal).toLocaleString('pt-BR', {minimumFractionDigits: 0})
-      const receita = 'R$ ' + stats.month_revenue.toLocaleString('pt-BR', {minimumFractionDigits: 0})
-      if (stats.month_revenue >= stats.meta_mensal) {
-        metaText.innerHTML = '<b style="font-weight:500;">Meta de ' + metaVal + ' atingida!</b> 🎉 Receita atual: ' + receita
-      } else {
-        metaText.innerHTML = '<b style="font-weight:500;">' + stats.meta_pct + '% da meta</b> — Faltam R$ ' + falta.toLocaleString('pt-BR', {minimumFractionDigits: 0}) + ' de ' + metaVal
-      }
+    const iv = id => document.getElementById(id)
+
+    const pct = Math.round(stats.month_revenue >= stats.meta_mensal ? 100 : stats.meta_pct)
+    const metaVal = iv('insight-meta-value')
+    if (metaVal) metaVal.textContent = pct + '%'
+    const metaBar = iv('insight-meta-bar')
+    if (metaBar) metaBar.style.width = pct + '%'
+
+    const inactVal = iv('insight-inactive-value')
+    if (inactVal) {
+      const rev = stats.inactive_revenue || 0
+      inactVal.textContent = stats.inactive_clients + ' · R$ ' + rev.toFixed(0)
     }
+
+    const pendVal = iv('insight-pending-value')
+    if (pendVal) pendVal.textContent = stats.pending_future || '0'
 
     const apptList = document.querySelector('.appt-list')
     const apptBadge = document.getElementById('today-appt-badge')
@@ -1239,20 +1331,33 @@ async function loadFinanceiro() {
     // Meta progress
     const metaPanel = finPage.querySelector('.finance-right .panel:last-child')
     if (metaPanel) {
+      const pctInt = Math.round(s.meta_pct)
       const badge = metaPanel.querySelector('.panel-badge')
-      if (badge) badge.textContent = s.meta_pct + '%'
+      if (badge) badge.textContent = pctInt + '%'
       const labelEl = metaPanel.querySelector('.meta-progress-label')
       const targetEl = metaPanel.querySelector('.meta-progress-target')
       if (labelEl) labelEl.textContent = 'R$ ' + s.month_revenue.toLocaleString('pt-BR', {minimumFractionDigits: 0}) + ' arrecadado'
       if (targetEl) targetEl.textContent = 'Meta: R$ ' + s.meta_mensal.toLocaleString('pt-BR', {minimumFractionDigits: 0})
       const fill = metaPanel.querySelector('.meta-progress-fill')
-      if (fill) fill.style.width = Math.min(s.meta_pct, 100) + '%'
+      if (fill) fill.style.width = Math.min(pctInt, 100) + '%'
       const note = metaPanel.querySelector('.meta-progress-note')
       if (note) {
-        const falta = Math.max(0, s.meta_mensal - s.month_revenue)
-        note.textContent = falta > 0
-          ? 'Faltam R$ ' + falta.toLocaleString('pt-BR', {minimumFractionDigits: 0}) + ' para bater a meta!'
-          : 'Meta atingida!'
+        const msgs = {
+          100: ['Meta atingida! Parabens!', 'Voce conseguiu! Incrivel!', 'Meta batida! Show!', 'Perfeito! Meta alcancada!', 'Parabens! Voce e demais!'],
+          90:  ['Falta pouco! Quase la!', 'Ja esta quase no topo!', 'Mais um esforco e chega!', 'Foco total! Voce esta chegando!', 'A reta final e sua!'],
+          75:  ['Passou dos 75%! Continue!', 'Rumo aos 100%! Vamos!', 'Mais 25% e voce chega!', 'A meta esta ao alcance!', 'Nao pare agora! Continue!'],
+          50:  ['Metade do caminho! Vai!', 'Voce ja percorreu 50%!', 'Continue assim! Esta no meio!', 'Metade vencida! A meta vem!', 'Ja passou da metade! Rumo ao topo!'],
+          25:  ['Primeiros 25%! Bora!', 'Bom comeco! Continue firme!', '25% concluidos! Vai!', 'Ja comecou! Nao pare!', 'O primeiro quarto foi! Continue!'],
+          5:   ['Ja comecou! Cada passo conta!', 'Primeiro passo dado! Vamos!', 'Toda jornada comeca assim!', 'O comeco e o mais importante!', 'Foco! Voce ja esta no jogo!'],
+          0:   ['Vamos comecar! Tudo e possivel!', 'Primeiro passo rumo a meta!', 'A jornada comeca agora!', 'Pronto para alcancar seus objetivos!', 'Toda grande conquista comeca aqui!'],
+        }
+        const keys = Object.keys(msgs).map(Number).sort((a, b) => b - a)
+        for (const k of keys) {
+          if (pctInt >= k) {
+            note.textContent = msgs[k][Math.floor(Math.random() * msgs[k].length)]
+            break
+          }
+        }
       }
     }
 
@@ -1424,7 +1529,7 @@ async function loadRelatorios(period) {
     const daily = s.daily_breakdown || []
     const revs = daily.map(d => d.revenue)
     if (svg && revs.length > 0) {
-      const w = 450, h = 130, pad = { t: 8, r: 8, b: 28, l: 32 }
+      const w = 450, h = 130, pad = { t: 8, r: 8, b: 26, l: 36 }
       const innerW = w - pad.l - pad.r
       const innerH = h - pad.t - pad.b
       const maxVal = Math.max(...revs, 1)
@@ -1441,7 +1546,7 @@ async function loadRelatorios(period) {
       let yHtml = yTicks.map(pct => {
         const yPos = pad.t + (1 - pct) * innerH
         const val = Math.round(maxVal * pct)
-        return `<text x="${pad.l - 4}" y="${yPos + 3}" text-anchor="end" font-size="8" fill="#8aaccb">${val}</text>`
+        return `<text x="${pad.l - 4}" y="${yPos + 3}" text-anchor="end" font-size="9" fill="#8aaccb">${val}</text>`
       }).join('')
 
       // Grid lines
@@ -1450,7 +1555,30 @@ async function loadRelatorios(period) {
         return `<line x1="${pad.l}" y1="${yPos}" x2="${w - pad.r}" y2="${yPos}" stroke="#f0f5fb" stroke-width="1"/>`
       }).join('')
 
-      // Line path (straight segments)
+      // X-axis date labels inside SVG
+      const dates = daily.map(d => {
+        const p = d.date.split('-')
+        return parseInt(p[2]) + ' ' + ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][parseInt(p[1]) - 1]
+      })
+      let xHtml = ''
+      if (dates.length > 0) {
+        if (dates.length <= 5) {
+          xHtml = dates.map((d, i) => {
+            const pct = dates.length > 1 ? i / (dates.length - 1) : 0.5
+            const xPos = pad.l + pct * innerW
+            return `<text x="${xPos.toFixed(1)}" y="${h - 2}" text-anchor="middle" font-size="9" fill="#8aaccb">${d}</text>`
+          }).join('')
+        } else {
+          const indices = [0, Math.floor(dates.length / 2), dates.length - 1]
+          indices.forEach(idx => {
+            const pct = idx / (dates.length - 1)
+            const xPos = pad.l + pct * innerW
+            xHtml += `<text x="${xPos.toFixed(1)}" y="${h - 2}" text-anchor="middle" font-size="9" fill="#8aaccb">${dates[idx]}</text>`
+          })
+        }
+      }
+
+      // Line path
       const lineD = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ' ' + p.y.toFixed(1)).join(' ')
       const areaD = lineD + ' L' + pts[pts.length - 1].x.toFixed(1) + ' ' + (pad.t + innerH) + ' L' + pad.l + ' ' + (pad.t + innerH) + 'Z'
       const defs = '<defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4a90d9"/><stop offset="100%" stop-color="#4a90d9" stop-opacity="0"/></linearGradient></defs>'
@@ -1460,39 +1588,11 @@ async function loadRelatorios(period) {
         return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${isLast ? 3.5 : 2.5}" fill="${isLast ? '#fff' : '#4a90d9'}" stroke="#4a90d9" stroke-width="${isLast ? 2 : 1.5}"/>`
       }).join('')
 
-      svg.innerHTML = gridHtml + yHtml + `
+      svg.innerHTML = gridHtml + yHtml + xHtml + `
         <path d="${areaD}" fill="url(#g1)" opacity="0.25"/>
         <path d="${lineD}" fill="none" stroke="#4a90d9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         ${dotsHtml}
         ${defs}`
-    }
-
-    const labels = document.getElementById('rpt-trend-labels')
-    if (labels) {
-      const dates = daily.map(d => {
-        const p = d.date.split('-')
-        return parseInt(p[2]) + ' ' + ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'][parseInt(p[1]) - 1]
-      })
-      if (dates.length > 0) {
-        const first = dates[0]
-        const last = dates[dates.length - 1]
-        if (dates.length <= 5) {
-          labels.innerHTML = dates.map((d, i) => {
-            const pct = dates.length > 1 ? (i / (dates.length - 1)) * 100 : 50
-            return `<span style="position:absolute;left:${pct.toFixed(0)}%;transform:translateX(-50%);font-size:9px;color:#8aaccb;">${d}</span>`
-          }).join('')
-          labels.style.position = 'relative'
-          labels.style.height = '14px'
-        } else {
-          const mid = dates[Math.floor(dates.length / 2)]
-          labels.innerHTML = `
-            <span style="font-size:9px;color:#8aaccb;">${first}</span>
-            <span style="font-size:9px;color:#8aaccb;">${mid}</span>
-            <span style="font-size:9px;color:#8aaccb;">${last}</span>`
-        }
-      } else {
-        labels.innerHTML = '<span style="font-size:9px;color:#8aaccb;">—</span>'
-      }
     }
 
     const total = revs.reduce((a, b) => a + b, 0)
@@ -2336,6 +2436,24 @@ async function deleteClient() {
   }
 }
 
+async function toggleCaloteiro() {
+  if (!selectedClientId) { showToast('Selecione um cliente primeiro.'); return }
+  try {
+    const res = await fetch(API + '/clients/' + selectedClientId)
+    const c = await res.json()
+    const newStatus = c.status === 'inadimplente' ? 'regular' : 'inadimplente'
+    const upd = await fetch(API + '/clients/' + selectedClientId, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus })
+    })
+    if (!upd.ok) { showToast('Erro ao atualizar status.'); return }
+    loadClients()
+  } catch (e) {
+    showToast('Erro ao atualizar status.')
+  }
+}
+
 // ── NOTIFICAÇÕES ────────────────────────────────────
 
 document.querySelectorAll('.hour-toggle').forEach(t => {
@@ -3009,7 +3127,26 @@ async function populateWeekGrid(numDays) {
   }
 
   const hourStep = isDayView ? 30 : 60
-  const slotHeight = isDayView ? 26 : 52
+  const numSlots = Math.max(1, Math.round((globalClose - globalOpen) / hourStep) + 1)
+
+  // Calculate slot height to fill available viewport space
+  function calcSlotHeight() {
+    const topbarEl = document.querySelector('.topbar')
+    const toolbarEl = document.querySelector('.agenda-toolbar')
+    const legendEl = document.querySelector('.agenda-legend')
+    if (!topbarEl || !toolbarEl || !legendEl) return isDayView ? 26 : 52
+    const topbarH = topbarEl.offsetHeight
+    const toolbarH = toolbarEl.offsetHeight
+    const legendH = legendEl.offsetHeight + 4
+    const contentPad = 48 // 24px top + 24px bottom
+    const pageGap = 20
+    const borderH = 2
+    const headerH = 44
+    const available = window.innerHeight - topbarH - contentPad - pageGap - toolbarH - legendH - borderH - headerH
+    const perSlot = Math.floor(available / numSlots)
+    return Math.max(isDayView ? 26 : 30, perSlot)
+  }
+  const slotHeight = calcSlotHeight()
 
   let timeHtml = '<div class="time-col-header"></div>'
   for (let t = globalOpen; t <= globalClose; t += hourStep) {

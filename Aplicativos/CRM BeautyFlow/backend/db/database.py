@@ -36,7 +36,7 @@ def all_clients():
         c['visits'] = a.count or 0
         fin = supabase.table(TABLE_APPOINTMENTS).select(
             'price'
-        ).eq('client_id', c['id']).neq('status', 'cancelled').execute()
+        ).eq('client_id', c['id']).neq('status', 'cancelled').neq('status', 'pending').execute()
         c['total_spent'] = sum(row.get('price', 0) or 0 for row in fin.data)
         last = supabase.table(TABLE_APPOINTMENTS).select(
             'appointment_date'
@@ -50,7 +50,7 @@ def get_client(client_id):
     c = r.data
     a = supabase.table(TABLE_APPOINTMENTS).select('*').eq('client_id', client_id).order('appointment_date', desc=True).order('appointment_time', desc=True).execute()
     visit_count = supabase.table(TABLE_APPOINTMENTS).select('id', count='exact').eq('client_id', client_id).execute()
-    fin = supabase.table(TABLE_APPOINTMENTS).select('price').eq('client_id', client_id).neq('status', 'cancelled').execute()
+    fin = supabase.table(TABLE_APPOINTMENTS).select('price').eq('client_id', client_id).neq('status', 'cancelled').neq('status', 'pending').execute()
     last = supabase.table(TABLE_APPOINTMENTS).select('appointment_date').eq('client_id', client_id).order('appointment_date', desc=True).limit(1).execute()
     c['visits'] = visit_count.count or 0
     c['total_spent'] = sum(row.get('price', 0) or 0 for row in fin.data)
@@ -127,12 +127,12 @@ def get_stats(period=None):
     # Today
     today_appts = supabase.table(TABLE_APPOINTMENTS).select('*').eq('appointment_date', today).order('appointment_time').execute()
     today_count = len(today_appts.data)
-    today_revenue = sum(a['price'] for a in today_appts.data if a['status'] != 'cancelled')
+    today_revenue = sum(a['price'] for a in today_appts.data if a['status'] not in ('cancelled', 'pending'))
     today_pending = sum(1 for a in today_appts.data if a['status'] == 'pending')
 
     # Month
     month_appts = supabase.table(TABLE_APPOINTMENTS).select('*').gte('appointment_date', month_start).lte('appointment_date', today).execute()
-    month_revenue = sum(a['price'] for a in month_appts.data if a['status'] != 'cancelled')
+    month_revenue = sum(a['price'] for a in month_appts.data if a['status'] not in ('cancelled', 'pending'))
     month_appointments_count = len(month_appts.data)
 
     month_trans = supabase.table(TABLE_TRANSACTIONS).select('*').gte('date', month_start).lte('date', today).execute()
@@ -142,7 +142,7 @@ def get_stats(period=None):
     month_clients_count = len(set(a['client_id'] for a in month_clients.data))
 
     # All time
-    all_appts = supabase.table(TABLE_APPOINTMENTS).select('price').neq('status', 'cancelled').execute()
+    all_appts = supabase.table(TABLE_APPOINTMENTS).select('price').neq('status', 'cancelled').neq('status', 'pending').execute()
     total_revenue_all = sum(a['price'] for a in all_appts.data)
     avg_ticket = round(total_revenue_all / len(all_appts.data), 2) if all_appts.data else 0
 
@@ -162,7 +162,7 @@ def get_stats(period=None):
     all_clients_data = supabase.table(TABLE_CLIENTS).select('id,name,avatar_initials,avatar_bg,avatar_color').execute()
     top_clients = []
     for cl in all_clients_data.data:
-        ca = supabase.table(TABLE_APPOINTMENTS).select('price', 'appointment_date', count='exact').eq('client_id', cl['id']).neq('status', 'cancelled').gte('appointment_date', month_start).lte('appointment_date', today).execute()
+        ca = supabase.table(TABLE_APPOINTMENTS).select('price', 'appointment_date', count='exact').eq('client_id', cl['id']).neq('status', 'cancelled').neq('status', 'pending').gte('appointment_date', month_start).lte('appointment_date', today).execute()
         visits = ca.count or 0
         total_spent = sum(a['price'] for a in ca.data)
         last_visit = max((a['appointment_date'] for a in ca.data if a.get('appointment_date')), default=None)
@@ -195,7 +195,7 @@ def get_stats(period=None):
     svc_counts = {}
     svc_revenue = {}
     for a in month_appts.data:
-        if a['status'] == 'cancelled':
+        if a['status'] in ('cancelled', 'pending'):
             continue
         svc_counts[a['service']] = svc_counts.get(a['service'], 0) + 1
         svc_revenue[a['service']] = svc_revenue.get(a['service'], 0) + a['price']
@@ -213,7 +213,7 @@ def get_stats(period=None):
     # Weekly revenue
     weekly_rev = {}
     for a in month_appts.data:
-        if a['status'] == 'cancelled':
+        if a['status'] in ('cancelled', 'pending'):
             continue
         try:
             d = datetime.strptime(a['appointment_date'], '%Y-%m-%d')
@@ -228,7 +228,7 @@ def get_stats(period=None):
     daily_rev = {}
     daily_exp = {}
     for a in month_appts.data:
-        if a['status'] != 'cancelled':
+        if a['status'] not in ('cancelled', 'pending'):
             daily_rev[a['appointment_date']] = daily_rev.get(a['appointment_date'], 0) + a['price']
     for t in month_trans.data:
         if t['type'] == 'expense':
@@ -277,8 +277,25 @@ def get_stats(period=None):
     ]
 
     # Previous month revenue
-    prev_appts = supabase.table(TABLE_APPOINTMENTS).select('price').gte('appointment_date', prev_month_start).lt('appointment_date', prev_month_end).neq('status', 'cancelled').execute()
+    prev_appts = supabase.table(TABLE_APPOINTMENTS).select('price').gte('appointment_date', prev_month_start).lt('appointment_date', prev_month_end).neq('status', 'cancelled').neq('status', 'pending').execute()
     month_revenue_prev = sum(a['price'] for a in prev_appts.data)
+
+    # Inactive clients (30+ days since last visit or never visited)
+    inactive_count = 0
+    inactive_revenue = 0
+    try:
+        v_clients = supabase.table('v_clients').select('id,total_spent,last_visit').execute()
+        thirty_days_ago = (now - timedelta(days=30)).strftime('%Y-%m-%d')
+        for cl in v_clients.data:
+            if not cl.get('last_visit') or cl['last_visit'] < thirty_days_ago:
+                inactive_count += 1
+                inactive_revenue += cl['total_spent'] or 0
+    except:
+        pass
+
+    # Future pending appointments needing confirmation
+    future_pending = supabase.table(TABLE_APPOINTMENTS).select('id', count='exact').eq('status', 'pending').gte('appointment_date', today).execute()
+    pending_future_count = future_pending.count or 0
 
     month_label_pt = {
         1: 'Janeiro', 2: 'Fevereiro', 3: 'Marco', 4: 'Abril',
@@ -311,6 +328,9 @@ def get_stats(period=None):
         'expenses_by_category': expenses_by_category,
         'month_revenue_prev': month_revenue_prev,
         'month_appointments': month_full,
+        'inactive_clients': inactive_count,
+        'inactive_revenue': inactive_revenue,
+        'pending_future': pending_future_count,
     }
 
 
