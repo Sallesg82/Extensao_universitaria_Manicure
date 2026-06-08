@@ -1,6 +1,7 @@
 import os
 import datetime
 import requests
+from dotenv import load_dotenv
 from flask import Flask, jsonify, send_from_directory, request
 from flask_cors import CORS
 import json
@@ -15,6 +16,8 @@ from routes.google_calendar import google_bp
 from routes.notifications import notifications_bp
 from routes.integrations import integrations_bp
 from routes.transactions import transactions_bp
+
+load_dotenv()
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src')
 
