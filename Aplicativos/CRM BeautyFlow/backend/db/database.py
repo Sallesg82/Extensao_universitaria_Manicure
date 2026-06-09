@@ -1,6 +1,6 @@
 import os
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from supabase import create_client
 from postgrest import APIError
 
@@ -21,6 +21,136 @@ TABLE_NOTIFICATIONS = 'notifications'
 TABLE_INTEGRATIONS = 'integrations'
 TABLE_BUSINESS_HOURS = 'business_hours'
 
+# Receita financeira só conta após o atendimento ser concluído
+REVENUE_APPOINTMENT_STATUS = 'done'
+
+
+def counts_as_revenue(status):
+    return status == REVENUE_APPOINTMENT_STATUS
+
+
+def _tx_amount(tx):
+    return float(tx.get('amount', 0) or 0)
+
+
+def _income_transactions(date_from=None, date_to=None):
+    query = supabase.table(TABLE_TRANSACTIONS).select('*').eq('type', 'income')
+    if date_from:
+        query = query.gte('date', date_from)
+    if date_to:
+        query = query.lte('date', date_to)
+    return query.execute().data
+
+
+def _sum_income(transactions):
+    return sum(_tx_amount(t) for t in transactions)
+
+
+def _transaction_service_name(tx):
+    service = (tx.get('service') or '').strip()
+    if service:
+        return service
+    desc = (tx.get('description') or '').strip()
+    if ' — ' in desc:
+        return desc.split(' — ', 1)[0].strip()
+    if ' - ' in desc:
+        return desc.split(' - ', 1)[0].strip()
+    return desc or 'Outros'
+
+
+def _transaction_client_name(tx):
+    name = (tx.get('client_name') or '').strip()
+    if name:
+        return name
+    desc = (tx.get('description') or '').strip()
+    if ' — ' in desc:
+        return desc.split(' — ', 1)[1].strip()
+    if ' - ' in desc:
+        parts = desc.split(' - ', 1)
+        if len(parts) > 1:
+            return parts[1].strip()
+    return desc
+
+
+def _appointment_income_payload(appt, client_name):
+    service = appt.get('service', '')
+    return {
+        'type': 'income',
+        'amount': float(appt.get('price', 0) or 0),
+        'date': appt['appointment_date'],
+        'description': f"{service} — {client_name}",
+        'category': 'Serviços',
+        'payment_method': '',
+        'appointment_id': appt['id'],
+        'client_id': appt.get('client_id'),
+        'client_name': client_name,
+        'service': service,
+    }
+
+
+def _insert_transaction(payload):
+    try:
+        return supabase.table(TABLE_TRANSACTIONS).insert(payload).execute()
+    except APIError:
+        minimal = {
+            k: payload[k]
+            for k in ('type', 'amount', 'date', 'description', 'category', 'payment_method', 'appointment_id')
+            if k in payload
+        }
+        return supabase.table(TABLE_TRANSACTIONS).insert(minimal).execute()
+
+
+def _update_transaction(tx_id, payload):
+    try:
+        return supabase.table(TABLE_TRANSACTIONS).update(payload).eq('id', tx_id).execute()
+    except APIError:
+        minimal = {
+            k: payload[k]
+            for k in ('type', 'amount', 'date', 'description', 'category', 'payment_method', 'appointment_id')
+            if k in payload
+        }
+        return supabase.table(TABLE_TRANSACTIONS).update(minimal).eq('id', tx_id).execute()
+
+
+def sync_appointment_income(appt_id):
+    """Lançamento financeiro imutável ao concluir; não some se cliente/agendamento for removido depois."""
+    r = supabase.table(TABLE_APPOINTMENTS).select('*').eq('id', appt_id).limit(1).execute()
+    if not r.data:
+        return None
+
+    appt = r.data[0]
+    client_name = 'Cliente'
+    try:
+        cl = supabase.table(TABLE_CLIENTS).select('name').eq('id', appt['client_id']).limit(1).execute()
+        if cl.data:
+            client_name = cl.data[0].get('name') or client_name
+    except APIError:
+        pass
+
+    existing = supabase.table(TABLE_TRANSACTIONS).select('id').eq('appointment_id', appt_id).eq('type', 'income').execute()
+
+    if counts_as_revenue(appt.get('status')):
+        payload = _appointment_income_payload(appt, client_name)
+        if existing.data:
+            _update_transaction(existing.data[0]['id'], payload)
+            return existing.data[0]['id']
+        result = _insert_transaction(payload)
+        return result.data[0]['id'] if result.data else None
+
+    for tx in existing.data:
+        supabase.table(TABLE_TRANSACTIONS).delete().eq('id', tx['id']).execute()
+    return None
+
+
+def backfill_appointment_income_transactions():
+    """Cria lançamentos para atendimentos concluídos que ainda não têm receita financeira."""
+    done = supabase.table(TABLE_APPOINTMENTS).select('id').eq('status', REVENUE_APPOINTMENT_STATUS).execute()
+    for row in done.data:
+        appt_id = row['id']
+        linked = supabase.table(TABLE_TRANSACTIONS).select('id').eq('appointment_id', appt_id).eq('type', 'income').limit(1).execute()
+        if not linked.data:
+            sync_appointment_income(appt_id)
+
 
 def get_db():
     return supabase
@@ -36,7 +166,7 @@ def all_clients():
         c['visits'] = a.count or 0
         fin = supabase.table(TABLE_APPOINTMENTS).select(
             'price'
-        ).eq('client_id', c['id']).neq('status', 'cancelled').neq('status', 'pending').execute()
+        ).eq('client_id', c['id']).eq('status', REVENUE_APPOINTMENT_STATUS).execute()
         c['total_spent'] = sum(row.get('price', 0) or 0 for row in fin.data)
         last = supabase.table(TABLE_APPOINTMENTS).select(
             'appointment_date'
@@ -50,7 +180,7 @@ def get_client(client_id):
     c = r.data
     a = supabase.table(TABLE_APPOINTMENTS).select('*').eq('client_id', client_id).order('appointment_date', desc=True).order('appointment_time', desc=True).execute()
     visit_count = supabase.table(TABLE_APPOINTMENTS).select('id', count='exact').eq('client_id', client_id).execute()
-    fin = supabase.table(TABLE_APPOINTMENTS).select('price').eq('client_id', client_id).neq('status', 'cancelled').neq('status', 'pending').execute()
+    fin = supabase.table(TABLE_APPOINTMENTS).select('price').eq('client_id', client_id).eq('status', REVENUE_APPOINTMENT_STATUS).execute()
     last = supabase.table(TABLE_APPOINTMENTS).select('appointment_date').eq('client_id', client_id).order('appointment_date', desc=True).limit(1).execute()
     c['visits'] = visit_count.count or 0
     c['total_spent'] = sum(row.get('price', 0) or 0 for row in fin.data)
@@ -59,6 +189,15 @@ def get_client(client_id):
         {**row, 'appointment_time': row['appointment_time'][:5] if row.get('appointment_time') and len(row['appointment_time']) >= 5 else (row.get('appointment_time') or '')}
         for row in a.data
     ]
+    svc_usage = {}
+    for row in a.data:
+        if counts_as_revenue(row.get('status')):
+            svc = row.get('service') or 'Outros'
+            svc_usage[svc] = svc_usage.get(svc, 0) + 1
+    c['service_usage'] = sorted(
+        [{'service': name, 'count': count} for name, count in svc_usage.items()],
+        key=lambda x: -x['count']
+    )
     return c
 
 
@@ -100,7 +239,6 @@ def get_stats(period=None):
     now = datetime.now()
     today = now.strftime('%Y-%m-%d')
     if period == 7:
-        from datetime import timedelta
         start = now - timedelta(days=(now.weekday() + 1) % 7)
         month_start = start.strftime('%Y-%m-%d')
     elif period == 30:
@@ -122,29 +260,30 @@ def get_stats(period=None):
     else:
         prev_month = prev_month.replace(month=prev_month.month - 1)
     prev_month_start = prev_month.strftime('%Y-%m-01')
-    prev_month_end = now.strftime('%Y-%m-01')
 
-    # Today
+    # Agendamentos (operacional / por cliente)
     today_appts = supabase.table(TABLE_APPOINTMENTS).select('*').eq('appointment_date', today).order('appointment_time').execute()
     today_count = len(today_appts.data)
-    today_revenue = sum(a['price'] for a in today_appts.data if a['status'] not in ('cancelled', 'pending'))
     today_pending = sum(1 for a in today_appts.data if a['status'] == 'pending')
 
-    # Month
     month_appts = supabase.table(TABLE_APPOINTMENTS).select('*').gte('appointment_date', month_start).lte('appointment_date', today).execute()
-    month_revenue = sum(a['price'] for a in month_appts.data if a['status'] not in ('cancelled', 'pending'))
     month_appointments_count = len(month_appts.data)
-
-    month_trans = supabase.table(TABLE_TRANSACTIONS).select('*').gte('date', month_start).lte('date', today).execute()
-    month_expenses = sum(t['amount'] for t in month_trans.data if t['type'] == 'expense')
 
     month_clients = supabase.table(TABLE_APPOINTMENTS).select('client_id').gte('appointment_date', month_start).execute()
     month_clients_count = len(set(a['client_id'] for a in month_clients.data))
 
-    # All time
-    all_appts = supabase.table(TABLE_APPOINTMENTS).select('price').neq('status', 'cancelled').neq('status', 'pending').execute()
-    total_revenue_all = sum(a['price'] for a in all_appts.data)
-    avg_ticket = round(total_revenue_all / len(all_appts.data), 2) if all_appts.data else 0
+    # Receita financeira (lançamentos — independente de clientes cadastrados)
+    month_income = _income_transactions(month_start, today)
+    today_income = [t for t in month_income if t.get('date') == today]
+    today_revenue = _sum_income(today_income)
+    month_revenue = _sum_income(month_income)
+
+    month_trans = supabase.table(TABLE_TRANSACTIONS).select('*').gte('date', month_start).lte('date', today).execute()
+    month_expenses = sum(_tx_amount(t) for t in month_trans.data if t['type'] == 'expense')
+
+    all_income = _income_transactions()
+    total_revenue_all = _sum_income(all_income)
+    avg_ticket = round(total_revenue_all / len(all_income), 2) if all_income else 0
 
     # Active clients
     active = supabase.table(TABLE_CLIENTS).select('id', count='exact').execute()
@@ -158,11 +297,11 @@ def get_stats(period=None):
         meta_mensal = float(meta_result.data[0]['value'])
         meta_pct = round((month_revenue / meta_mensal) * 100, 1) if meta_mensal > 0 else 0
 
-    # Top clients (scoped to period)
+    # Top clientes — métrica por cliente (some se o cliente for excluído)
     all_clients_data = supabase.table(TABLE_CLIENTS).select('id,name,avatar_initials,avatar_bg,avatar_color').execute()
     top_clients = []
     for cl in all_clients_data.data:
-        ca = supabase.table(TABLE_APPOINTMENTS).select('price', 'appointment_date', count='exact').eq('client_id', cl['id']).neq('status', 'cancelled').neq('status', 'pending').gte('appointment_date', month_start).lte('appointment_date', today).execute()
+        ca = supabase.table(TABLE_APPOINTMENTS).select('price', 'appointment_date', count='exact').eq('client_id', cl['id']).eq('status', REVENUE_APPOINTMENT_STATUS).gte('appointment_date', month_start).lte('appointment_date', today).execute()
         visits = ca.count or 0
         total_spent = sum(a['price'] for a in ca.data)
         last_visit = max((a['appointment_date'] for a in ca.data if a.get('appointment_date')), default=None)
@@ -191,50 +330,49 @@ def get_stats(period=None):
             'price': a.get('price', 0),
         })
 
-    # Service breakdown
+    # Serviços mais usados — por clientes ativos (agendamentos concluídos)
     svc_counts = {}
-    svc_revenue = {}
     for a in month_appts.data:
-        if a['status'] in ('cancelled', 'pending'):
+        if not counts_as_revenue(a['status']):
             continue
-        svc_counts[a['service']] = svc_counts.get(a['service'], 0) + 1
-        svc_revenue[a['service']] = svc_revenue.get(a['service'], 0) + a['price']
+        svc = a.get('service') or 'Outros'
+        svc_counts[svc] = svc_counts.get(svc, 0) + 1
     total_svc = sum(svc_counts.values()) or 1
-    total_svc_rev = sum(svc_revenue.values()) or 1
     service_breakdown = sorted([
         {'name': k, 'count': v, 'pct': round(v / total_svc * 100, 1)}
         for k, v in svc_counts.items()
     ], key=lambda x: -x['count'])[:5]
+
+    # Receita por serviço — financeiro (lançamentos)
+    svc_revenue = {}
+    for t in month_income:
+        svc = _transaction_service_name(t)
+        svc_revenue[svc] = svc_revenue.get(svc, 0) + _tx_amount(t)
+    total_svc_rev = sum(svc_revenue.values()) or 1
     service_revenue_breakdown = sorted([
         {'name': k, 'revenue': v, 'pct': round(v / total_svc_rev * 100, 1)}
         for k, v in svc_revenue.items()
     ], key=lambda x: -x['revenue'])[:5]
 
-    # Weekly revenue
+    # Receita semanal / diária — financeiro
     weekly_rev = {}
-    for a in month_appts.data:
-        if a['status'] in ('cancelled', 'pending'):
-            continue
+    for t in month_income:
         try:
-            d = datetime.strptime(a['appointment_date'], '%Y-%m-%d')
+            d = datetime.strptime(t['date'], '%Y-%m-%d')
             week = (d.day - 1) // 7
-            weekly_rev[week] = weekly_rev.get(week, 0) + a['price']
+            weekly_rev[week] = weekly_rev.get(week, 0) + _tx_amount(t)
         except (ValueError, TypeError):
             pass
     weekly_revenue = [weekly_rev.get(i, 0) for i in range(max(weekly_rev.keys()) + 1)] if weekly_rev else []
 
-    # Daily breakdown
     day_names_pt = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab']
     daily_rev = {}
     daily_exp = {}
-    for a in month_appts.data:
-        if a['status'] not in ('cancelled', 'pending'):
-            daily_rev[a['appointment_date']] = daily_rev.get(a['appointment_date'], 0) + a['price']
+    for t in month_income:
+        daily_rev[t['date']] = daily_rev.get(t['date'], 0) + _tx_amount(t)
     for t in month_trans.data:
         if t['type'] == 'expense':
-            daily_exp[t['date']] = daily_exp.get(t['date'], 0) + t['amount']
-        else:
-            daily_rev[t['date']] = daily_rev.get(t['date'], 0) + t['amount']
+            daily_exp[t['date']] = daily_exp.get(t['date'], 0) + _tx_amount(t)
     all_days = sorted(set(list(daily_rev.keys()) + list(daily_exp.keys())))
     daily_breakdown = []
     for d in all_days:
@@ -258,11 +396,8 @@ def get_stats(period=None):
     recent_tx = supabase.table(TABLE_TRANSACTIONS).select('*').gte('date', month_start).order('date', desc=True).order('id', desc=True).limit(10).execute()
     recent_transactions = []
     for t in recent_tx.data:
-        if t.get('appointment_id'):
-            a = supabase.table(TABLE_APPOINTMENTS).select('client_id').eq('id', t['appointment_id']).single().execute()
-            if a.data:
-                cl = supabase.table(TABLE_CLIENTS).select('name').eq('id', a.data['client_id']).single().execute()
-                t['client_name'] = cl.data['name'] if cl.data else None
+        if not t.get('client_name'):
+            t['client_name'] = _transaction_client_name(t)
         recent_transactions.append(t)
 
     # Expenses by category
@@ -276,9 +411,9 @@ def get_stats(period=None):
         for cat, val in sorted(cat_totals.items(), key=lambda x: -x[1])
     ]
 
-    # Previous month revenue
-    prev_appts = supabase.table(TABLE_APPOINTMENTS).select('price').gte('appointment_date', prev_month_start).lt('appointment_date', prev_month_end).neq('status', 'cancelled').neq('status', 'pending').execute()
-    month_revenue_prev = sum(a['price'] for a in prev_appts.data)
+    prev_month_last = (now.replace(day=1) - timedelta(days=1)).strftime('%Y-%m-%d')
+    prev_income = _income_transactions(prev_month_start, prev_month_last)
+    month_revenue_prev = _sum_income(prev_income)
 
     # Inactive clients (30+ days since last visit or never visited)
     inactive_count = 0

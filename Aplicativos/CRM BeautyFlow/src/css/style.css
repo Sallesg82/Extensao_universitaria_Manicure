@@ -3255,6 +3255,71 @@ body {
 .rank-badge.gold { background: #fdf3dc; color: #8c6120; }
 .rank-badge.silver { background: #f0f4f8; color: #4a6888; }
 
+.dashboard-peak-panel {
+  margin-top: var(--space-md);
+}
+
+.peak-hours-summary {
+  padding: 0 18px var(--space-sm);
+}
+
+.peak-hours-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.peak-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: #f4f8ff;
+  border: 1px solid #daeaf8;
+  font-size: var(--text-13);
+}
+
+.peak-chip-top {
+  background: #e8f2fc;
+  border-color: #4a90d9;
+}
+
+.peak-chip-rank {
+  font-size: var(--text-11);
+  font-weight: 700;
+  color: #4a90d9;
+  min-width: 18px;
+}
+
+.peak-chip-label {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.peak-chip-count {
+  color: var(--text-secondary);
+  font-size: var(--text-12);
+}
+
+.peak-hours-note {
+  font-size: var(--text-12);
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.peak-hours-empty {
+  padding: 8px 0 12px;
+  font-size: var(--text-13);
+  color: var(--text-secondary);
+}
+
+.dashboard-heatmap .hm-cell {
+  width: 28px;
+  height: 20px;
+}
+
 .heatmap-grid {
   padding: var(--space-md) 18px;
 }
