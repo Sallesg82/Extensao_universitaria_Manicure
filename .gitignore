@@ -1,5 +1,12 @@
-backend/.venv/
+# Ambientes virtuais do Python (em qualquer subpasta)
+.venv/
+venv/
+**/__pycache__/
+**/*.pyc
+
+# Arquivos de sistema e OS
 .DS_Store
-backend/.venv/
-.DS_Store
-Extensao_universitaria_Manicure/
+Thumbs.db
+
+# Se quiser ignorar a pasta inteira do backend em algum momento (opcional)
+# Aplicativos/CRM BeautyFlow/backend/.venv/
