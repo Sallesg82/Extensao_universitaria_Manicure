@@ -6,7 +6,14 @@ venv/
 
 # Arquivos de sistema e OS
 .DS_Store
+<<<<<<< HEAD
 Thumbs.db
 
 # Se quiser ignorar a pasta inteira do backend em algum momento (opcional)
 # Aplicativos/CRM BeautyFlow/backend/.venv/
+=======
+backend/.venv/
+.DS_Store
+Extensao_universitaria_Manicure/
+Aplicativos/CRM BeautyFlow/venv/
+>>>>>>> origin/porfavordebom

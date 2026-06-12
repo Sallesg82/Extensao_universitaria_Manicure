@@ -3,7 +3,7 @@ import threading
 import requests
 import datetime
 from flask import Blueprint, request, jsonify
-from db.database import get_db, get_settings, create_notification, validate_appointment_hours
+from db.database import get_db, get_settings, create_notification, validate_appointment_hours, sync_appointment_income
 from middleware.validation import validate_appointment
 from ws import socketio
 
@@ -269,6 +269,9 @@ def update_appointment(appt_id):
         get_db().table('appointments').update(update_data).eq('id', appt_id).execute()
 
     a = _get_appt(appt_id)
+    if 'status' in update_data or 'price' in update_data or 'appointment_date' in update_data or 'service' in update_data:
+        sync_appointment_income(appt_id)
+        a = _get_appt(appt_id)
     if update_data.get('status') == 'cancelled':
         if a.get('google_event_id'):
             _sync_google(a, 'delete')

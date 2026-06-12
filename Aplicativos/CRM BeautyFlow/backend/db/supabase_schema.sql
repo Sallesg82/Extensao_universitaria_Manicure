@@ -100,6 +100,9 @@ CREATE TABLE IF NOT EXISTS transactions (
     payment_method    TEXT DEFAULT '',
     date              DATE NOT NULL,
     appointment_id    INTEGER REFERENCES appointments(id) ON DELETE SET NULL,
+    client_id         INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+    client_name       TEXT DEFAULT '',
+    service           TEXT DEFAULT '',
     created_at        TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -107,6 +110,8 @@ CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions (date);
 CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions (type);
 CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions (category);
 CREATE INDEX IF NOT EXISTS idx_transactions_appointment ON transactions (appointment_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_client ON transactions (client_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_service ON transactions (service);
 
 -- ═══════════════════════════════════════════════════════════════
 --  TABELA: settings (configurações chave/valor)
@@ -202,9 +207,9 @@ SELECT c.*,
 FROM clients c
 LEFT JOIN LATERAL (
     SELECT
-        COUNT(*) AS visits,
-        COALESCE(SUM(price), 0) AS total_spent,
-        MAX(appointment_date) AS last_visit
+        COUNT(*) FILTER (WHERE status = 'done') AS visits,
+        COALESCE(SUM(price) FILTER (WHERE status = 'done'), 0) AS total_spent,
+        MAX(appointment_date) FILTER (WHERE status = 'done') AS last_visit
     FROM appointments
     WHERE client_id = c.id AND status != 'cancelled'
 ) a ON true;
@@ -215,13 +220,20 @@ LEFT JOIN LATERAL (
 
 CREATE OR REPLACE VIEW v_month_stats AS
 SELECT
-    COALESCE(SUM(CASE WHEN a.status != 'cancelled' THEN a.price ELSE 0 END), 0) AS month_revenue,
+    COALESCE((
+        SELECT SUM(amount) FROM transactions
+        WHERE type = 'income'
+          AND DATE_TRUNC('month', date) = DATE_TRUNC('month', CURRENT_DATE)
+    ), 0) AS month_revenue,
     COUNT(*) AS month_appointments,
     COUNT(*) FILTER (WHERE a.status = 'pending') AS month_pending,
-    COALESCE(SUM(t.amount) FILTER (WHERE t.type = 'expense'), 0) AS month_expenses,
+    COALESCE((
+        SELECT SUM(amount) FROM transactions
+        WHERE type = 'expense'
+          AND DATE_TRUNC('month', date) = DATE_TRUNC('month', CURRENT_DATE)
+    ), 0) AS month_expenses,
     COUNT(DISTINCT a.client_id) AS month_clients
 FROM appointments a
-LEFT JOIN transactions t ON t.date = a.appointment_date
 WHERE DATE_TRUNC('month', a.appointment_date) = DATE_TRUNC('month', CURRENT_DATE);
 
 -- ═══════════════════════════════════════════════════════════════
@@ -230,12 +242,26 @@ WHERE DATE_TRUNC('month', a.appointment_date) = DATE_TRUNC('month', CURRENT_DATE
 
 CREATE OR REPLACE VIEW v_daily_stats AS
 SELECT
-    a.appointment_date AS date,
-    COALESCE(SUM(CASE WHEN a.status != 'cancelled' THEN a.price ELSE 0 END), 0) AS revenue,
-    COALESCE(SUM(t.amount) FILTER (WHERE t.type = 'expense'), 0) AS expense
-FROM appointments a
-LEFT JOIN transactions t ON t.date = a.appointment_date
-WHERE DATE_TRUNC('month', a.appointment_date) = DATE_TRUNC('month', CURRENT_DATE)
-GROUP BY a.appointment_date
-ORDER BY a.appointment_date;
+    d.date,
+    COALESCE(i.revenue, 0) AS revenue,
+    COALESCE(e.expense, 0) AS expense
+FROM (
+    SELECT DISTINCT date FROM transactions
+    WHERE DATE_TRUNC('month', date) = DATE_TRUNC('month', CURRENT_DATE)
+) d
+LEFT JOIN (
+    SELECT date, SUM(amount) AS revenue
+    FROM transactions
+    WHERE type = 'income'
+      AND DATE_TRUNC('month', date) = DATE_TRUNC('month', CURRENT_DATE)
+    GROUP BY date
+) i ON i.date = d.date
+LEFT JOIN (
+    SELECT date, SUM(amount) AS expense
+    FROM transactions
+    WHERE type = 'expense'
+      AND DATE_TRUNC('month', date) = DATE_TRUNC('month', CURRENT_DATE)
+    GROUP BY date
+) e ON e.date = d.date
+ORDER BY d.date;
 
