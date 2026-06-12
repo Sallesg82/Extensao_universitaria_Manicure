@@ -338,12 +338,14 @@ function showSettingsTab(navEl, tabId) {
   }
   document.querySelectorAll('.settings-nav-item').forEach(n => n.classList.remove('active'))
   navEl.classList.add('active')
-  ;['tab-perfil','tab-horarios','tab-notif','tab-integ','tab-aparencia'].forEach(id => {
-    document.getElementById(id).style.display = id === tabId ? '' : 'none'
+  ;['tab-perfil','tab-horarios','tab-notif','tab-integ','tab-aparencia','tab-empresa'].forEach(id => {
+    const el = document.getElementById(id)
+    if (el) el.style.display = id === tabId ? '' : 'none'
   })
   if (tabId === 'tab-perfil') updateProfileTab()
   if (tabId === 'tab-integ') { loadIntegrations() }
   if (tabId === 'tab-horarios') { loadBusinessHours() }
+  if (tabId === 'tab-empresa') { loadCompanyInfo() }
 }
 
 // ── BUSINESS HOURS ──────────────────────────────────
@@ -1018,7 +1020,8 @@ async function selectClient(row, clientId) {
     document.getElementById('cd-av').style.color = c.avatar_color
     document.getElementById('cd-name').textContent = c.name
     const since = c.created_at ? c.created_at.split('T')[0] : ''
-    document.getElementById('cd-phone').textContent = c.phone + (since ? ' · Cliente desde ' + since : '')
+    const cpfStr = c.cpf ? ' · CPF: ' + c.cpf.replace(/^(\d{3})\d{3}(\d{3}\d{2})$/, '$1.***.***.**-$2') : ''
+    document.getElementById('cd-phone').textContent = c.phone + cpfStr + (since ? ' · Cliente desde ' + since : '')
     document.getElementById('cd-visits').textContent = c.visits
     document.getElementById('cd-total').textContent = 'R$ ' + Number(c.total_spent).toLocaleString('pt-BR', {minimumFractionDigits:0})
     const avg = c.visits > 0 ? c.total_spent / c.visits : 0
@@ -1182,6 +1185,7 @@ async function loadDashboard() {
             </div>
             <div class="appt-price">R$ ${Number(a.price).toFixed(0)}</div>
             <span class="appt-status ${statusClassMap[a.status] || 'status-pending'}">${statusMap[a.status] || a.status}</span>
+            <span class="appt-status ${a.payment_status === 'paid' ? 'status-paid' : 'status-unpaid'}" style="margin-left:4px;">${a.payment_status === 'paid' ? 'Pago' : 'Não Pago'}</span>
           </div>
         `).join('')
       } else {
@@ -1722,72 +1726,242 @@ function updatePeriodBtns() {
   })
 }
 
-function exportRelatorioPDF() {
+async function exportRelatorioPDF() {
   const btn = document.getElementById('topbar-btn')
   if (btn) { btn.textContent = '⏳ Gerando PDF...'; btn.disabled = true }
   const content = document.getElementById('page-relatorios')
-  if (!content) return
+  if (!content) { if (btn) { btn.textContent = '⬇ Exportar PDF'; btn.disabled = false }; return }
   const title = 'Relatorio_BeautyFlow_' + new Date().toISOString().split('T')[0]
+
+  // ── Fetch data ──────────────────────────────────
+  let stats, settings, clients
+  try {
+    ;[stats, settings] = await Promise.all([
+      fetch(API + '/stats?period=' + _relPeriod).then(r => r.json()),
+      fetch(API + '/settings/').then(r => r.json())
+    ])
+    const clRes = await fetch(API + '/clients/')
+    clients = await clRes.json()
+  } catch (e) {
+    showToast('Erro ao carregar dados para o PDF.', 'error')
+    if (btn) { btn.textContent = '⬇ Exportar PDF'; btn.disabled = false }
+    return
+  }
+
+  // ── Company info from settings ──────────────────
+  const company = {
+    legalName: settings.company_legal_name || 'Nome da Empresa Ltda',
+    tradeName: settings.company_trade_name || 'Nome Fantasia',
+    cnpj: settings.company_cnpj || '00.000.000/0001-00',
+    municipalReg: settings.company_municipal_reg || '000.000',
+    address: settings.company_address || 'Endereço, nº 000 - Bairro, Cidade - UF',
+    phone: settings.company_phone || '(11) 0000-0000',
+    email: settings.company_email || 'contato@empresa.com.br',
+  }
+
+  // ── CPF map: client_id → masked CPF ────────────
+  const cpfMap = {}
+  ;(clients || []).forEach(c => {
+    if (c.cpf) {
+      const raw = c.cpf.replace(/\D/g, '')
+      cpfMap[c.id] = raw.length === 11
+        ? '***.' + raw.slice(3, 6) + '.***.**'
+        : c.cpf
+    } else {
+      cpfMap[c.id] = '—'
+    }
+  })
+
+  // ── Period ──────────────────────────────────────
+  const periodDays = _relPeriod || 30
+  const periodEnd = new Date()
+  const periodStart = new Date()
+  periodStart.setDate(periodStart.getDate() - periodDays)
+  const fmtPeriod = (d) => d.toLocaleDateString('pt-BR')
+  const fmtDateTime = (d) => d.toLocaleString('pt-BR')
+
+  // ── KPI calculations ────────────────────────────
+  const grossRevenue = stats.month_revenue || 0
+  const totalAppts = stats.month_appointments_count || 0
+  const uniqueClients = stats.month_clients || 0
+  const avgTicket = uniqueClients > 0 ? grossRevenue / uniqueClients : 0
+
+  // ── Top clients (with CPF) ──────────────────────
+  const topClients = (stats.top_clients || []).slice(0, 10)
+
+  // ── Service breakdown ───────────────────────────
+  const svcBreakdown = stats.service_breakdown || []
+  const svcRevenue = stats.service_revenue_breakdown || []
+  const svcRevenueMap = {}
+  svcRevenue.forEach(s => { svcRevenueMap[s.name] = s.revenue })
+  const totalSvcRevenue = svcRevenue.reduce((a, b) => a + b.revenue, 0)
+
+  // Merge service data
+  const mergedServices = svcBreakdown.map(s => {
+    const rev = svcRevenueMap[s.name] || 0
+    return {
+      name: s.name,
+      count: s.count,
+      unitPrice: s.count > 0 ? rev / s.count : 0,
+      revenue: rev,
+      pct: totalSvcRevenue > 0 ? (rev / totalSvcRevenue) * 100 : 0
+    }
+  })
+
+  // ── Build PDF HTML ─────────────────────────────
   const printWin = window.open('', '_blank')
   if (!printWin) {
     showToast('Permita pop-ups para exportar PDF.', 'info')
     if (btn) { btn.textContent = '⬇ Exportar PDF'; btn.disabled = false }
     return
   }
-  const periodLabel = document.querySelector('.period-btn.active')?.textContent || '30 dias'
-  printWin.document.write('<html><head><title>' + title + '</title>')
-  printWin.document.write('<style>')
-  printWin.document.write('body { font-family: Arial, sans-serif; padding: 20px; color: #333; }')
-  printWin.document.write('h1 { color: #1a5fab; font-size: 22px; }')
-  printWin.document.write('h2 { color: #2563a8; font-size: 16px; margin-top: 20px; }')
-  printWin.document.write('table { width: 100%; border-collapse: collapse; margin: 10px 0; }')
-  printWin.document.write('th, td { padding: 8px 12px; border: 1px solid #d8e4f0; text-align: left; font-size: 12px; }')
-  printWin.document.write('th { background: #e8f2fc; color: #0f2340; }')
-  printWin.document.write('.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }')
-  printWin.document.write('.stats { display: flex; gap: 20px; margin: 16px 0; flex-wrap: wrap; }')
-  printWin.document.write('.stat-box { background: #f4f7fc; border: 1px solid #d8e4f0; border-radius: 8px; padding: 12px 20px; }')
-  printWin.document.write('.stat-box .label { font-size: 11px; color: #8aaccb; text-transform: uppercase; }')
-  printWin.document.write('.stat-box .value { font-size: 18px; color: #0f2340; font-weight: 600; }')
-  printWin.document.write('.footer { margin-top: 30px; font-size: 10px; color: #8aaccb; text-align: center; border-top: 1px solid #d8e4f0; padding-top: 10px; }')
-  printWin.document.write('</style></head><body>')
-  printWin.document.write('<div class="header"><h1>Relatório BeautyFlow</h1><span style="color:#8aaccb;font-size:12px;">' + new Date().toLocaleDateString('pt-BR') + ' · Período: ' + periodLabel + '</span></div>')
-  const totalEl = document.querySelector('.chart-stat:nth-child(1) .chart-stat-value')
-  const avgEl = document.querySelector('.chart-stat:nth-child(2) .chart-stat-value')
-  if (totalEl || avgEl) {
-    printWin.document.write('<div class="stats">')
-    if (totalEl) printWin.document.write('<div class="stat-box"><div class="label">Receita Total</div><div class="value">' + totalEl.textContent + '</div></div>')
-    if (avgEl) printWin.document.write('<div class="stat-box"><div class="label">Média/dia</div><div class="value">' + avgEl.textContent + '</div></div>')
-    printWin.document.write('</div>')
+
+  printWin.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>' + title + '</title>')
+  printWin.document.write(`
+<style>
+  @page { margin: 20mm 15mm 25mm; }
+  @media print {
+    body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 10pt; color: #1a1a2e; line-height: 1.5; }
+    .no-break { page-break-inside: avoid; }
   }
-  const topClients = document.querySelectorAll('#rpt-top-clients .top-client-row')
-  if (topClients.length > 0) {
-    printWin.document.write('<h2>Top Clientes</h2><table><tr><th>#</th><th>Cliente</th><th>Visitas</th><th>Total Gasto</th></tr>')
-    topClients.forEach((row, i) => {
-      const name = row.querySelector('.top-client-row div:nth-child(3) div:first-child')?.textContent || ''
-      const visits = row.querySelector('.top-client-row div:nth-child(3) div:last-child')?.textContent?.split('·')[0] || ''
-      const spent = row.querySelector('.top-client-row div:last-child')?.textContent || ''
-      printWin.document.write('<tr><td>' + (i + 1) + '°</td><td>' + name.replace(' visitas', '').replace('última: ', '') + '</td><td>' + visits.replace(' visitas', '') + '</td><td>' + spent + '</td></tr>')
-    })
-    printWin.document.write('</table>')
-  }
-  const svcRows = document.querySelectorAll('#rpt-services > div')
-  if (svcRows.length > 0) {
-    printWin.document.write('<h2>Serviços Mais Populares</h2><table><tr><th>Serviço</th><th>Qtd</th></tr>')
-    svcRows.forEach(row => {
-      const name = row.querySelector('span:first-child')?.textContent || ''
-      const count = row.querySelector('span:last-child')?.textContent || ''
-      printWin.document.write('<tr><td>' + name + '</td><td>' + count + '</td></tr>')
-    })
-    printWin.document.write('</table>')
-  }
-  printWin.document.write('<div class="footer">Gerado por BeautyFlow CRM em ' + new Date().toLocaleString('pt-BR') + '</div>')
-  printWin.document.write('</body></html>')
+  body { font-family: 'Helvetica', 'Arial', sans-serif; padding: 0; margin: 0; color: #1a1a2e; font-size: 10pt; line-height: 1.5; }
+  .page { padding: 20px 30px; }
+  .header-separator { border: none; border-top: 3px solid #1a3a6b; margin: 10px 0 18px; }
+
+  /* ── Cabeçalho Corporativo ── */
+  .corp-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px; }
+  .corp-left h1 { font-size: 16pt; color: #1a3a6b; margin: 0 0 2px; font-weight: 700; }
+  .corp-left h2 { font-size: 11pt; color: #4a6a8b; margin: 0 0 8px; font-weight: 400; }
+  .corp-left .info { font-size: 7.5pt; color: #6a7a8b; line-height: 1.6; }
+  .corp-right { text-align: right; font-size: 7.5pt; color: #4a6a8b; }
+  .corp-right strong { color: #1a3a6b; }
+  .doc-title { font-size: 13pt; color: #1a3a6b; font-weight: 700; text-align: center; margin: 16px 0 4px; }
+  .doc-period { font-size: 8pt; color: #6a7a8b; text-align: center; margin-bottom: 16px; }
+
+  /* ── KPIs ── */
+  .kpi-grid { display: flex; gap: 12px; margin: 14px 0; flex-wrap: wrap; }
+  .kpi-card { flex: 1; min-width: 120px; background: #f4f7fc; border: 1px solid #d8e4f0; border-radius: 6px; padding: 12px 14px; text-align: center; }
+  .kpi-label { font-size: 7pt; color: #6a7a8b; text-transform: uppercase; letter-spacing: 0.3px; }
+  .kpi-value { font-size: 14pt; color: #1a3a6b; font-weight: 700; margin-top: 2px; }
+  .kpi-sub { font-size: 6.5pt; color: #8a9aab; margin-top: 2px; }
+
+  /* ── Tabelas ── */
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 16px; }
+  th { background: #1a3a6b; color: #fff; font-size: 7.5pt; font-weight: 600; padding: 7px 10px; text-align: left; text-transform: uppercase; letter-spacing: 0.3px; }
+  td { padding: 6px 10px; border-bottom: 1px solid #e0e6ee; font-size: 8pt; }
+  tr:nth-child(even) td { background: #f8fafc; }
+  tr:last-child td { border-bottom: 1px solid #c8d4e0; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .pct { text-align: right; color: #4a7a5a; }
+
+  /* ── Rodapé ── */
+  .footer { margin-top: 28px; border-top: 1px solid #c8d4e0; padding-top: 10px; text-align: center; }
+  .footer-legal { font-size: 6.5pt; color: #8a9aab; line-height: 1.6; }
+  .footer-page { font-size: 7pt; color: #6a7a8b; margin-top: 6px; }
+  .section-title { font-size: 10pt; color: #1a3a6b; font-weight: 700; margin: 18px 0 6px; padding-bottom: 4px; border-bottom: 2px solid #d8e4f0; }
+</style>
+</head><body>
+<div class="page">
+
+  <!-- ═══════════ CABEÇALHO CORPORATIVO ═══════════ -->
+  <div class="corp-header">
+    <div class="corp-left">
+      <h1>` + company.tradeName + `</h1>
+      <h2>` + company.legalName + `</h2>
+      <div class="info">
+        CNPJ: ` + company.cnpj + ` · Insc. Municipal: ` + company.municipalReg + `<br>
+        ` + company.address + `<br>
+        E-mail: ` + company.email + ` · Tel: ` + company.phone + `
+      </div>
+    </div>
+    <div class="corp-right">
+      <strong>Emissão:</strong><br>` + fmtDateTime(new Date()) + `
+    </div>
+  </div>
+  <hr class="header-separator">
+
+  <div class="doc-title">Relatório Gerencial de Faturamento</div>
+  <div class="doc-period">Período de apuração: ` + fmtPeriod(periodStart) + ` a ` + fmtPeriod(periodEnd) + `</div>
+
+  <!-- ═══════════ MÉTRICAS (KPIs) ═══════════ -->
+  <div class="kpi-grid no-break">
+    <div class="kpi-card">
+      <div class="kpi-label">Faturamento Bruto</div>
+      <div class="kpi-value">R$ ` + grossRevenue.toLocaleString('pt-BR', {minimumFractionDigits: 2}) + `</div>
+      <div class="kpi-sub">Período apurado</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Ticket Médio</div>
+      <div class="kpi-value">R$ ` + avgTicket.toLocaleString('pt-BR', {minimumFractionDigits: 2}) + `</div>
+      <div class="kpi-sub">Por cliente único</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Atendimentos</div>
+      <div class="kpi-value">` + totalAppts + `</div>
+      <div class="kpi-sub">Serviços realizados</div>
+    </div>
+    <div class="kpi-card">
+      <div class="kpi-label">Clientes Únicos</div>
+      <div class="kpi-value">` + uniqueClients + `</div>
+      <div class="kpi-sub">Atendidos no período</div>
+    </div>
+  </div>
+
+  <!-- ═══════════ TOP CLIENTES ═══════════ -->
+  <div class="section-title no-break">Top Clientes</div>
+  <table class="no-break">
+    <thead>
+      <tr><th style="width:36px;">#</th><th>Nome Completo</th><th>CPF</th><th style="width:70px;" class="num">Visitas</th><th style="width:110px;" class="num">Total Pago (R$)</th></tr>
+    </thead>
+    <tbody>
+` + (topClients.length > 0
+      ? topClients.map((c, i) => {
+          const cpf = cpfMap[c.id] || '—'
+          return '<tr><td>' + (i + 1) + '°</td><td>' + (c.name || '—') + '</td><td>' + cpf + '</td><td class="num">' + (c.visits || 0) + '</td><td class="num">R$ ' + (c.total_spent || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2}) + '</td></tr>'
+        }).join('')
+      : '<tr><td colspan="5" style="text-align:center;color:#8a9aab;">Nenhum cliente no período</td></tr>'
+) + `
+    </tbody>
+  </table>
+
+  <!-- ═══════════ SERVIÇOS MAIS POPULARES ═══════════ -->
+  <div class="section-title no-break">Serviços Mais Populares</div>
+  <table class="no-break">
+    <thead>
+      <tr><th>Serviço</th><th style="width:60px;" class="num">Qtd</th><th style="width:90px;" class="num">Preço Unit. Médio (R$)</th><th style="width:100px;" class="num">Faturamento (R$)</th><th style="width:60px;" class="num">%</th></tr>
+    </thead>
+    <tbody>
+` + (mergedServices.length > 0
+      ? mergedServices.map(s => {
+          return '<tr><td>' + s.name + '</td><td class="num">' + s.count + '</td><td class="num">R$ ' + s.unitPrice.toLocaleString('pt-BR', {minimumFractionDigits: 2}) + '</td><td class="num">R$ ' + s.revenue.toLocaleString('pt-BR', {minimumFractionDigits: 2}) + '</td><td class="num pct">' + s.pct.toFixed(1) + '%</td></tr>'
+        }).join('')
+      : '<tr><td colspan="5" style="text-align:center;color:#8a9aab;">Nenhum serviço no período</td></tr>'
+) + `
+    </tbody>
+  </table>
+
+  <!-- ═══════════ RODAPÉ ═══════════ -->
+  <div class="footer">
+    <div class="footer-legal">
+      Este documento é um relatório gerencial interno extraído do sistema BeautyFlow CRM e não substitui a emissão de<br>
+      Nota Fiscal de Serviços Eletrônica (NFS-e), conforme legislação vigente.
+    </div>
+    <div class="footer-page" id="pdf-page">Página <span class="page-num"></span></div>
+  </div>
+
+</div>
+<script>
+  var pageNum = 1
+  document.querySelector('.page-num').textContent = pageNum
+</script>
+</body></html>`)
+
   printWin.document.close()
   printWin.focus()
   setTimeout(() => {
     printWin.print()
     if (btn) { btn.textContent = '⬇ Exportar PDF'; btn.disabled = false }
-  }, 500)
+  }, 600)
 }
 
 // ── AGENDA ─────────────────────────────────────────
@@ -1912,6 +2086,7 @@ async function openAppointmentModal(date, time) {
   document.getElementById('appt-date').value = date || new Date().toISOString().split('T')[0]
   document.getElementById('appt-time').value = time || '09:00'
   document.getElementById('appt-status').value = 'pending'
+  document.getElementById('appt-payment-status').value = 'unpaid'
   document.getElementById('appt-price').value = ''
   document.getElementById('appt-notes').value = ''
 
@@ -1960,6 +2135,7 @@ async function saveAppointment() {
   const date = document.getElementById('appt-date').value
   const time = document.getElementById('appt-time').value
   const status = document.getElementById('appt-status').value
+  const paymentStatus = document.getElementById('appt-payment-status').value
   const price = document.getElementById('appt-price').value
   const notes = document.getElementById('appt-notes').value
 
@@ -1973,7 +2149,7 @@ async function saveAppointment() {
   const svcOpt = svcSel.options[svcSel.selectedIndex]
   const duration = svcOpt?.dataset?.dur ? Number(svcOpt.dataset.dur) : 60
 
-  const body = { client_id: Number(clientId), service, appointment_date: date, appointment_time: time, status, price: Number(price), notes, duration }
+  const body = { client_id: Number(clientId), service, appointment_date: date, appointment_time: time, status, payment_status: paymentStatus, price: Number(price), notes, duration }
 
   try {
     let res
@@ -1995,6 +2171,7 @@ async function saveAppointment() {
     showToast(idField.value ? 'Agendamento atualizado!' : 'Agendamento criado!', 'success')
     loadAgenda()
     loadDashboard()
+    loadFinanceiro()
   } catch (e) {
     showToast('Erro ao salvar agendamento.')
   }
@@ -2026,6 +2203,14 @@ async function openAppointmentDetail(apptId) {
     statusEl.innerHTML = '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' +
       (statusColors[a.status] || '#999') + ';margin-right:6px;vertical-align:middle;"></span>' +
       (statusLabels[a.status] || a.status)
+
+    const paymentLabels = { paid: 'Pago', unpaid: 'Não Pago' }
+    const paymentColors = { paid: '#4e8f6a', unpaid: '#a03030' }
+    const paymentEl = document.getElementById('detail-payment-status')
+    const ps = a.payment_status || 'unpaid'
+    paymentEl.innerHTML = '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' +
+      (paymentColors[ps] || '#999') + ';margin-right:6px;vertical-align:middle;"></span>' +
+      (paymentLabels[ps] || ps)
 
     document.getElementById('detail-price').textContent = 'R$ ' + Number(a.price).toFixed(2)
     document.getElementById('detail-notes').textContent = a.notes || '—'
@@ -2129,6 +2314,7 @@ async function editFromDetail() {
     document.getElementById('appt-date').value = a.appointment_date
     document.getElementById('appt-time').value = a.appointment_time
     document.getElementById('appt-status').value = a.status
+    document.getElementById('appt-payment-status').value = a.payment_status || 'unpaid'
     document.getElementById('appt-price').value = a.price
     document.getElementById('appt-notes').value = a.notes || ''
 
@@ -2151,6 +2337,7 @@ function openClientModal() {
   overlay.querySelector('.btn-primary').textContent = 'Salvar Cliente'
   document.getElementById('client-name').value = ''
   document.getElementById('client-phone').value = ''
+  document.getElementById('client-cpf').value = ''
   document.getElementById('client-email').value = ''
   document.getElementById('client-status').value = 'regular'
   document.getElementById('client-notes').value = ''
@@ -2165,6 +2352,7 @@ function closeClientModal() {
 async function saveClient() {
   const name = document.getElementById('client-name').value.trim()
   const phone = document.getElementById('client-phone').value.trim()
+  const cpf = document.getElementById('client-cpf').value.trim()
   const email = document.getElementById('client-email').value.trim()
   const status = document.getElementById('client-status').value
   const notes = document.getElementById('client-notes').value.trim()
@@ -2179,7 +2367,7 @@ async function saveClient() {
       res = await fetch(API + '/clients/' + isEdit, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, phone, email, status, notes })
+        body: JSON.stringify({ name, phone, cpf, email, status, notes })
       })
     } else {
       res = await fetch(API + '/clients/', {
@@ -2498,6 +2686,57 @@ async function loadNotifDot() {
       dot.classList.toggle('hidden', !data.count)
     }
   } catch {}
+}
+
+// ── EMPRESA (company info) ─────────────────────────
+
+function loadCompanyInfo() {
+  const tab = document.getElementById('tab-empresa')
+  if (!tab || tab.style.display === 'none') return
+  fetchSettings()
+}
+
+async function fetchSettings() {
+  try {
+    const res = await fetch(API + '/settings/')
+    const s = await res.json()
+    const map = {
+      'company-legal-name': 'company_legal_name',
+      'company-trade-name': 'company_trade_name',
+      'company-cnpj': 'company_cnpj',
+      'company-municipal-reg': 'company_municipal_reg',
+      'company-address': 'company_address',
+      'company-phone': 'company_phone',
+      'company-email': 'company_email',
+    }
+    Object.entries(map).forEach(([id, key]) => {
+      const el = document.getElementById(id)
+      if (el) el.value = s[key] || ''
+    })
+  } catch {}
+}
+
+async function saveCompanyInfo() {
+  const data = {
+    company_legal_name: document.getElementById('company-legal-name')?.value || '',
+    company_trade_name: document.getElementById('company-trade-name')?.value || '',
+    company_cnpj: document.getElementById('company-cnpj')?.value || '',
+    company_municipal_reg: document.getElementById('company-municipal-reg')?.value || '',
+    company_address: document.getElementById('company-address')?.value || '',
+    company_phone: document.getElementById('company-phone')?.value || '',
+    company_email: document.getElementById('company-email')?.value || '',
+  }
+  try {
+    const res = await fetch(API + '/settings/', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    })
+    if (!res.ok) { showToast('Erro ao salvar dados da empresa.'); return }
+    showToast('Dados da empresa salvos!', 'success')
+  } catch {
+    showToast('Erro ao salvar dados da empresa.')
+  }
 }
 
 // ── INTEGRAÇÕES ─────────────────────────────────────
@@ -3062,6 +3301,8 @@ async function renderDayView() {
     appts.forEach(a => {
       const cls = sc[a.status] || 'pending'
       const color = statusColors[a.status] || '#999'
+      const payCls = a.payment_status === 'paid' ? 'status-paid' : 'status-unpaid'
+      const payLabel = a.payment_status === 'paid' ? 'Pago' : 'Não Pago'
       html += '<div class="day-view-card" onclick="openAppointmentDetail(' + a.id + ')">'
       html += '<div class="dvc-time">' + a.appointment_time + '</div>'
       html += '<div class="dvc-dot" style="background:' + color + '"></div>'
@@ -3071,6 +3312,7 @@ async function renderDayView() {
       html += '</div>'
       html += '<div class="dvc-price">R$ ' + Number(a.price).toFixed(2) + '</div>'
       html += '<span class="appt-status status-' + cls + '">' + (statusLabels[a.status] || a.status) + '</span>'
+      html += '<span class="appt-status ' + payCls + '" style="margin-left:4px;">' + payLabel + '</span>'
       html += '</div>'
     })
   }
@@ -3199,8 +3441,9 @@ async function populateWeekGrid(numDays) {
         const [h, m] = a.appointment_time.split(':').map(Number)
         const top = ((h * 60 + m) - globalOpen) / hourStep * slotHeight
         const height = Math.max(slotHeight, (a.duration / hourStep) * slotHeight)
-        dayHtml += '<div class="cal-event ' + (sc[a.status] || 'pending') + '" style="top:' + top + 'px;height:' + height + 'px;cursor:pointer;" data-id="' + a.id + '">'
-        dayHtml += '<div class="ev-name">' + a.client_name + '</div><div class="ev-svc">' + a.service + '</div></div>'
+        const payMark = a.payment_status === 'paid' ? '✓' : '✗'
+        dayHtml += '<div class="cal-event ' + (sc[a.status] || 'pending') + ' ' + (a.payment_status === 'paid' ? 'pay-paid' : 'pay-unpaid') + '" style="top:' + top + 'px;height:' + height + 'px;cursor:pointer;" data-id="' + a.id + '">'
+        dayHtml += '<div class="ev-name">' + a.client_name + '<span class="ev-pay-mark">' + payMark + '</span></div><div class="ev-svc">' + a.service + '</div></div>'
       })
     }
     dayHtml += '</div></div>'

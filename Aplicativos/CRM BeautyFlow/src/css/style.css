@@ -1932,6 +1932,8 @@ body {
 .status-confirmed { background: var(--info-bg); color: var(--info); }
 .status-pending   { background: var(--warning-bg); color: #8c6120; }
 .status-done      { background: var(--success-bg); color: var(--success-text); }
+.status-paid      { background: var(--success-bg); color: var(--success-text); }
+.status-unpaid    { background: #fde8e8; color: #a03030; }
 .status-cancelled { background: var(--danger-bg); color: var(--danger); }
 
 /* ═══════════════ DASHBOARD ═══════════════ */
@@ -2477,6 +2479,14 @@ body {
   color: #7a5010;
   border-left-color: var(--warning);
 }
+
+.cal-event .ev-pay-mark {
+  margin-left: 4px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.cal-event.pay-paid .ev-pay-mark { color: #2e7d32; }
+.cal-event.pay-unpaid .ev-pay-mark { color: #c05050; }
 
 .agenda-legend {
   display: flex;

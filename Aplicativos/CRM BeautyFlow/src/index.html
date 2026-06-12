@@ -365,6 +365,12 @@
           <div class="legend-item">
             <div class="legend-swatch" style="background:var(--warning-bg);border:1px solid var(--warning);"></div>Pendente
           </div>
+          <div class="legend-item">
+            <div class="legend-swatch" style="background:#fde8e8;border:1px solid #c05050;"></div>Não Pago
+          </div>
+          <div class="legend-item">
+            <div class="legend-swatch" style="background:var(--success-bg);border:1px solid var(--success);"></div>Pago
+          </div>
           <div class="agenda-summary" id="agenda-summary">—</div>
         </div>
       </section>
@@ -675,6 +681,10 @@
               <svg class="settings-nav-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2M4.5 4.5l1.4 1.4M10.1 10.1l1.4 1.4M10.1 4.5l-1.4 1.4M4.5 10.1l1.4 1.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
               Aparência
             </div>
+            <div class="settings-nav-item" onclick="showSettingsTab(this,'tab-empresa')">
+              <svg class="settings-nav-icon" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="12" height="12" rx="1.5" stroke="currentColor" stroke-width="1.2"/><path d="M5 6h6M5 9h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
+              Empresa
+            </div>
           </div>
 
           <div class="settings-content">
@@ -918,6 +928,56 @@
               </div>
             </div>
 
+            <div id="tab-empresa" style="display:none;">
+              <div class="settings-section">
+                <div class="settings-section-header">
+                  <div class="settings-section-title">Dados da Empresa</div>
+                  <div class="settings-section-sub">Informações exibidas no cabeçalho dos relatórios em PDF</div>
+                </div>
+                <div class="settings-body">
+                  <div class="form-row">
+                    <div class="form-field">
+                      <label class="form-label">Razão Social</label>
+                      <input class="form-input" id="company-legal-name" placeholder="Empresa Ltda">
+                    </div>
+                    <div class="form-field">
+                      <label class="form-label">Nome Fantasia</label>
+                      <input class="form-input" id="company-trade-name" placeholder="Nome Fantasia">
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-field">
+                      <label class="form-label">CNPJ</label>
+                      <input class="form-input" id="company-cnpj" placeholder="00.000.000/0001-00">
+                    </div>
+                    <div class="form-field">
+                      <label class="form-label">Inscrição Municipal</label>
+                      <input class="form-input" id="company-municipal-reg" placeholder="000.000">
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-field full">
+                      <label class="form-label">Endereço Completo</label>
+                      <input class="form-input" id="company-address" placeholder="Rua, nº - Bairro, Cidade - UF">
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-field">
+                      <label class="form-label">Telefone</label>
+                      <input class="form-input" id="company-phone" placeholder="(11) 0000-0000">
+                    </div>
+                    <div class="form-field">
+                      <label class="form-label">E-mail</label>
+                      <input class="form-input" type="email" id="company-email" placeholder="contato@empresa.com">
+                    </div>
+                  </div>
+                  <div class="save-bar">
+                    <button class="btn-primary" onclick="saveCompanyInfo()">Salvar Dados da Empresa</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </section>
@@ -1017,7 +1077,7 @@
       </div>
       <div class="form-row">
         <div class="form-field">
-          <label class="form-label">Status</label>
+          <label class="form-label">Status do Serviço</label>
           <select class="form-input" id="appt-status">
             <option value="pending">Pendente</option>
             <option value="confirmed">Confirmado</option>
@@ -1026,9 +1086,19 @@
           </select>
         </div>
         <div class="form-field">
+          <label class="form-label">Pagamento</label>
+          <select class="form-input" id="appt-payment-status">
+            <option value="unpaid">Não Pago</option>
+            <option value="paid">Pago</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field">
           <label class="form-label">Valor (R$)</label>
           <input class="form-input" type="number" step="0.01" min="0" id="appt-price" placeholder="0,00">
         </div>
+        <div class="form-field"></div>
       </div>
       <div class="form-row">
         <div class="form-field full">
@@ -1057,7 +1127,8 @@
         <div class="detail-row"><span class="detail-label">Serviço</span><span class="detail-value" id="detail-service"></span></div>
         <div class="detail-row"><span class="detail-label">Data</span><span class="detail-value" id="detail-date"></span></div>
         <div class="detail-row"><span class="detail-label">Horário</span><span class="detail-value" id="detail-time"></span></div>
-        <div class="detail-row"><span class="detail-label">Status</span><span class="detail-value" id="detail-status"></span></div>
+        <div class="detail-row"><span class="detail-label">Status do Serviço</span><span class="detail-value" id="detail-status"></span></div>
+        <div class="detail-row"><span class="detail-label">Pagamento</span><span class="detail-value" id="detail-payment-status"></span></div>
         <div class="detail-row"><span class="detail-label">Valor</span><span class="detail-value" id="detail-price"></span></div>
         <div class="detail-row"><span class="detail-label">Observações</span><span class="detail-value" id="detail-notes"></span></div>
       </div>
@@ -1097,10 +1168,16 @@
       </div>
       <div class="form-row">
         <div class="form-field">
+          <label class="form-label">CPF</label>
+          <input class="form-input" id="client-cpf" placeholder="000.000.000-00" maxlength="14">
+        </div>
+        <div class="form-field">
           <label class="form-label">E-mail</label>
           <input class="form-input" type="email" id="client-email" placeholder="cliente@email.com" maxlength="120">
         </div>
-        <div class="form-field">
+      </div>
+      <div class="form-row">
+        <div class="form-field full">
           <label class="form-label">Status</label>
           <select class="form-input" id="client-status">
             <option value="regular">Regular</option>

@@ -24,6 +24,9 @@ def _get_appt(appt_id):
     if isinstance(a.get('clients'), dict):
         a['client_name'] = a['clients'].get('name', '')
         a['client_phone'] = a['clients'].get('phone', '')
+    else:
+        a['client_name'] = '(Cliente removido)' if not a.get('client_id') else ''
+        a['client_phone'] = ''
     return a
 
 
@@ -41,6 +44,7 @@ def format_appt(a):
         'appointment_date': a['appointment_date'],
         'appointment_time': _fmt_time(a.get('appointment_time')),
         'status': a['status'],
+        'payment_status': a.get('payment_status', 'unpaid'),
         'price': a['price'],
         'duration': a['duration'],
         'notes': a.get('notes', ''),
@@ -146,7 +150,7 @@ def _fire_n8n(a, action='create'):
 @appointments_bp.route('/', methods=['GET'])
 def list_appointments():
     supabase = get_db()
-    query = supabase.table('appointments').select('*, clients!inner(name, phone)')
+    query = supabase.table('appointments').select('*, clients(name, phone)')
     date = request.args.get('date')
     client_id = request.args.get('client_id')
     status = request.args.get('status')
@@ -167,8 +171,12 @@ def list_appointments():
     result = query.order('appointment_date').order('appointment_time').execute()
     rows = []
     for a in result.data:
-        a['client_name'] = a.get('clients', {}).get('name', '') if isinstance(a.get('clients'), dict) else ''
-        a['client_phone'] = a.get('clients', {}).get('phone', '') if isinstance(a.get('clients'), dict) else ''
+        if isinstance(a.get('clients'), dict):
+            a['client_name'] = a['clients'].get('name', '')
+            a['client_phone'] = a['clients'].get('phone', '')
+        else:
+            a['client_name'] = '(Cliente removido)' if not a.get('client_id') else ''
+            a['client_phone'] = ''
         rows.append(a)
     return jsonify([format_appt(r) for r in rows])
 
@@ -212,6 +220,7 @@ def create_appointment():
         'appointment_date': data['appointment_date'],
         'appointment_time': data['appointment_time'],
         'status': data.get('status', 'pending'),
+        'payment_status': data.get('payment_status', 'unpaid'),
         'price': float(data['price']),
         'duration': data.get('duration', 60),
         'notes': data.get('notes', ''),
@@ -243,8 +252,11 @@ def update_appointment(appt_id):
         return jsonify({'error': 'Agendamento n\u00e3o encontrado'}), 404
 
     data = request.get_json()
+    if 'payment_status' in data and data['payment_status'] not in ('paid', 'unpaid'):
+        return jsonify({'error': 'Status de pagamento inv\u00e1lido'}), 400
+
     update_data = {}
-    for field in ['client_id', 'service', 'appointment_date', 'appointment_time', 'status', 'duration', 'notes', 'google_event_id', 'google_html_link']:
+    for field in ['client_id', 'service', 'appointment_date', 'appointment_time', 'status', 'payment_status', 'duration', 'notes', 'google_event_id', 'google_html_link']:
         if field in data and data[field] is not None:
             update_data[field] = data[field]
     if 'price' in data and data['price'] is not None:

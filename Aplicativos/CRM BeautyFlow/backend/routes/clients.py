@@ -13,6 +13,7 @@ def format_client(c):
         'name': c['name'],
         'phone': c['phone'],
         'email': c['email'],
+        'cpf': c.get('cpf') or '',
         'avatar_initials': c['avatar_initials'],
         'avatar_bg': c['avatar_bg'],
         'avatar_color': c['avatar_color'],
@@ -57,6 +58,7 @@ def create_client_route():
     c = create_client(
         name=data['name'], phone=data['phone'],
         email=data.get('email', ''),
+        cpf=data.get('cpf', ''),
         avatar_initials=data.get('avatar_initials', ''),
         avatar_bg=data.get('avatar_bg', '#daeaf8'),
         avatar_color=data.get('avatar_color', '#1a5fab'),

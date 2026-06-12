@@ -28,6 +28,7 @@ CREATE TABLE IF NOT EXISTS clients (
     avatar_initials TEXT NOT NULL,
     avatar_bg       TEXT NOT NULL DEFAULT '#daeaf8',
     avatar_color    TEXT NOT NULL DEFAULT '#1a5fab',
+    cpf             TEXT DEFAULT '',
     notes           TEXT DEFAULT '',
     status          TEXT DEFAULT 'regular',
     created_at      TIMESTAMPTZ DEFAULT NOW(),
@@ -48,11 +49,12 @@ CREATE TRIGGER trg_clients_updated_at
 
 CREATE TABLE IF NOT EXISTS appointments (
     id                SERIAL PRIMARY KEY,
-    client_id         INTEGER NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
+    client_id         INTEGER REFERENCES clients(id) ON DELETE SET NULL,
     service           TEXT NOT NULL,
     appointment_date  DATE NOT NULL,
     appointment_time  TIME NOT NULL,
     status            TEXT NOT NULL DEFAULT 'pending',
+    payment_status    TEXT NOT NULL DEFAULT 'unpaid' CHECK(payment_status IN ('paid', 'unpaid')),
     price             REAL NOT NULL DEFAULT 0,
     duration          INTEGER DEFAULT 60,
     notes             TEXT DEFAULT '',
@@ -65,6 +67,7 @@ CREATE TABLE IF NOT EXISTS appointments (
 CREATE INDEX IF NOT EXISTS idx_appointments_client ON appointments (client_id);
 CREATE INDEX IF NOT EXISTS idx_appointments_date ON appointments (appointment_date);
 CREATE INDEX IF NOT EXISTS idx_appointments_status ON appointments (status);
+CREATE INDEX IF NOT EXISTS idx_appointments_payment_status ON appointments (payment_status);
 CREATE INDEX IF NOT EXISTS idx_appointments_client_date ON appointments (client_id, appointment_date);
 
 CREATE TRIGGER trg_appointments_updated_at
@@ -203,10 +206,10 @@ FROM clients c
 LEFT JOIN LATERAL (
     SELECT
         COUNT(*) AS visits,
-        COALESCE(SUM(price), 0) AS total_spent,
-        MAX(appointment_date) AS last_visit
-    FROM appointments
-    WHERE client_id = c.id AND status != 'cancelled'
+        COALESCE(SUM(CASE WHEN a2.payment_status = 'paid' THEN a2.price ELSE 0 END), 0) AS total_spent,
+        MAX(a2.appointment_date) AS last_visit
+    FROM appointments a2
+    WHERE a2.client_id = c.id AND a2.status != 'cancelled'
 ) a ON true;
 
 -- ═══════════════════════════════════════════════════════════════
@@ -215,7 +218,7 @@ LEFT JOIN LATERAL (
 
 CREATE OR REPLACE VIEW v_month_stats AS
 SELECT
-    COALESCE(SUM(CASE WHEN a.status != 'cancelled' THEN a.price ELSE 0 END), 0) AS month_revenue,
+    COALESCE(SUM(CASE WHEN a.payment_status = 'paid' THEN a.price ELSE 0 END), 0) AS month_revenue,
     COUNT(*) AS month_appointments,
     COUNT(*) FILTER (WHERE a.status = 'pending') AS month_pending,
     COALESCE(SUM(t.amount) FILTER (WHERE t.type = 'expense'), 0) AS month_expenses,
@@ -231,7 +234,7 @@ WHERE DATE_TRUNC('month', a.appointment_date) = DATE_TRUNC('month', CURRENT_DATE
 CREATE OR REPLACE VIEW v_daily_stats AS
 SELECT
     a.appointment_date AS date,
-    COALESCE(SUM(CASE WHEN a.status != 'cancelled' THEN a.price ELSE 0 END), 0) AS revenue,
+    COALESCE(SUM(CASE WHEN a.payment_status = 'paid' THEN a.price ELSE 0 END), 0) AS revenue,
     COALESCE(SUM(t.amount) FILTER (WHERE t.type = 'expense'), 0) AS expense
 FROM appointments a
 LEFT JOIN transactions t ON t.date = a.appointment_date
