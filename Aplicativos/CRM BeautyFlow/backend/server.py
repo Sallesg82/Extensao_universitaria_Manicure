@@ -6,7 +6,7 @@ from flask import Flask, jsonify, send_from_directory, request
 from flask_cors import CORS
 import json
 from ws import socketio
-from db.database import get_db, get_settings, update_setting, get_stats, unread_notifications_count, create_notification, load_business_hours, save_business_hours, _migrate_business_hours, DAYS_PT
+from db.database import get_db, get_settings, update_setting, get_stats, unread_notifications_count, create_notification, load_business_hours, save_business_hours, _migrate_business_hours, DAYS_PT, backfill_appointment_income_transactions
 from postgrest.exceptions import APIError
 from routes.clients import clients_bp
 from routes.appointments import appointments_bp
@@ -240,6 +240,11 @@ def handle_settings():
 # ══════════════════════════════════════════════════════════════════════════════
 
 _migrate_business_hours()
+
+try:
+    backfill_appointment_income_transactions()
+except Exception:
+    pass
 
 @app.route('/api/business-hours', methods=['GET', 'PUT'])
 def business_hours():

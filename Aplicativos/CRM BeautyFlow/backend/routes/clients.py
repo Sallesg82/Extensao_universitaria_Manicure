@@ -48,6 +48,7 @@ def get_client_by_id(client_id):
         return jsonify({'error': 'Cliente n\u00e3o encontrado'}), 404
     result = format_client(c)
     result['appointments'] = c.get('appointments', [])
+    result['service_usage'] = c.get('service_usage', [])
     return jsonify(result)
 
 
