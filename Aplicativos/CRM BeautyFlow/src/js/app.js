@@ -1166,6 +1166,11 @@ async function loadDashboard() {
     const pendVal = iv('insight-pending-value')
     if (pendVal) pendVal.textContent = stats.pending_future || '0'
 
+    const peakSub = document.getElementById('peak-hours-subtitle')
+    if (peakSub) peakSub.textContent = (stats.month_label || 'Este mês') + ' ' + (stats.month_year || '')
+
+    renderPeakHoursDashboard(stats)
+
     const apptList = document.querySelector('.appt-list')
     const apptBadge = document.getElementById('today-appt-badge')
     if (apptList && stats.today_appointments) {
@@ -1527,7 +1532,7 @@ async function loadRelatorios(period) {
     const svcSub = document.querySelector('.rpt-services-sub')
     if (svcSub) svcSub.textContent = periodLabel
     const topSub = document.querySelector('.rpt-topclients-sub')
-    if (topSub) topSub.textContent = periodLabel + ' · Por receita gerada'
+    if (topSub) topSub.textContent = periodLabel + ' · Por cliente (cadastro ativo)'
 
     const svg = document.getElementById('rpt-trend-svg')
     const daily = s.daily_breakdown || []
@@ -1655,7 +1660,7 @@ async function loadRelatorios(period) {
       }
     }
 
-    renderHeatmap(s)
+    renderHeatmap(s, 'rpt-heatmap')
 
     updatePeriodBtns()
   } catch (e) {
@@ -1663,8 +1668,69 @@ async function loadRelatorios(period) {
   }
 }
 
-function renderHeatmap(s) {
-  const heatDiv = document.getElementById('rpt-heatmap')
+function _peakHoursFromAppointments(appts) {
+  const hours = ['08h','09h','10h','11h','12h','13h','14h','15h','16h','17h']
+  const days = ['Seg','Ter','Qua','Qui','Sex','Sáb']
+  const hourCounts = {}
+  const slotCounts = {}
+  hours.forEach(h => { hourCounts[h] = 0 })
+  appts.forEach(a => {
+    if (!a.appointment_date || a.status === 'cancelled') return
+    const d = new Date(a.appointment_date + 'T12:00')
+    const dow = d.getDay()
+    if (dow === 0) return
+    const dayLabel = days[dow - 1]
+    const h = parseInt(a.appointment_time?.split(':')[0] || '0', 10)
+    if (h < 8 || h > 17) return
+    const hourLabel = hours[h - 8]
+    hourCounts[hourLabel] = (hourCounts[hourLabel] || 0) + 1
+    const slotKey = dayLabel + ' ' + hourLabel
+    slotCounts[slotKey] = (slotCounts[slotKey] || 0) + 1
+  })
+  const topHours = Object.entries(hourCounts)
+    .filter(([, c]) => c > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([label, count]) => ({ label, count }))
+  const topSlots = Object.entries(slotCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([label, count]) => ({ label, count }))
+  return { topHours, topSlots }
+}
+
+function renderPeakHoursDashboard(s) {
+  const summary = document.getElementById('dashboard-peak-summary')
+  const appts = s.month_appointments || []
+  const { topHours, topSlots } = _peakHoursFromAppointments(appts)
+
+  if (summary) {
+    if (topSlots.length === 0) {
+      summary.innerHTML = '<div class="peak-hours-empty">Sem agendamentos no mês para calcular horários de pico.</div>'
+    } else {
+      summary.innerHTML =
+        '<div class="peak-hours-chips">' +
+        topSlots.map((slot, i) =>
+          '<div class="peak-chip' + (i === 0 ? ' peak-chip-top' : '') + '">' +
+            '<span class="peak-chip-rank">' + (i + 1) + 'º</span>' +
+            '<span class="peak-chip-label">' + slot.label + '</span>' +
+            '<span class="peak-chip-count">' + slot.count + ' agend.</span>' +
+          '</div>'
+        ).join('') +
+        '</div>' +
+        (topHours.length > 0
+          ? '<div class="peak-hours-note">Horários mais movimentados: ' +
+            topHours.map(h => h.label + ' (' + h.count + ')').join(' · ') +
+            '</div>'
+          : '')
+    }
+  }
+
+  renderHeatmap(s, 'dashboard-heatmap')
+}
+
+function renderHeatmap(s, targetId = 'rpt-heatmap') {
+  const heatDiv = document.getElementById(targetId)
   if (!heatDiv) return
   const appts = s.month_appointments || s.today_appointments || []
   if (appts.length === 0) {

@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from db.database import get_db
+from db.database import get_db, _insert_transaction
 from ws import socketio
 
 transactions_bp = Blueprint('transactions', __name__)
@@ -31,8 +31,7 @@ def create_transaction():
         return jsonify({'error': f'Campos obrigatórios: {", ".join(missing)}'}), 400
     if data['type'] not in ('income', 'expense'):
         return jsonify({'error': 'Tipo deve ser income ou expense'}), 400
-    supabase = get_db()
-    result = supabase.table('transactions').insert({
+    payload = {
         'type': data['type'],
         'amount': float(data['amount']),
         'date': data['date'],
@@ -40,7 +39,11 @@ def create_transaction():
         'category': data.get('category', ''),
         'payment_method': data.get('payment_method', ''),
         'appointment_id': data.get('appointment_id'),
-    }).execute()
+        'client_id': data.get('client_id'),
+        'client_name': data.get('client_name', ''),
+        'service': data.get('service', ''),
+    }
+    result = _insert_transaction(payload)
     tx = result.data[0]
     socketio.emit('transaction:created', tx)
     socketio.emit('data:changed', {'type': 'transaction', 'action': 'created'})
