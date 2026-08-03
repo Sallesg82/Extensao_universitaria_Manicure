@@ -1,26 +1,61 @@
 services:
-  crm:
+  postgres:
+    image: postgres:16-alpine
+    container_name: beautyflow-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: beautyflow
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: beautyflow_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - "../CRM BeautyFlow/backend/db/schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d beautyflow"]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+    networks:
+      - beautyflow-net
+
+  crm-backend:
     build:
       context: "../CRM BeautyFlow"
-      dockerfile: instalacao/Dockerfile
+      dockerfile: "../instalacao/Dockerfile.crm"
     container_name: beautyflow-crm
+    restart: unless-stopped
     ports:
       - "3001:3001"
-    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://postgres:beautyflow_pass@postgres:5432/beautyflow
+      N8N_WEBHOOK_URL: https://mirianfiorini.app.n8n.cloud/webhook/calendar-webhook
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
-      - beautyflow_net
+      - beautyflow-net
 
-  agenda:
+  agendamento-app:
     build:
       context: "../agendamento Vinicius"
-      dockerfile: instalacao/Dockerfile
+      dockerfile: "../instalacao/Dockerfile.agendamento"
+      args:
+        VITE_API_URL: ${VITE_API_URL:-http://localhost:3001/api}
     container_name: beautyflow-agendamento
+    restart: unless-stopped
     ports:
       - "5173:80"
-    restart: unless-stopped
+    depends_on:
+      crm-backend:
+        condition: service_started
     networks:
-      - beautyflow_net
+      - beautyflow-net
 
 networks:
-  beautyflow_net:
+  beautyflow-net:
     driver: bridge
+
+volumes:
+  postgres_data:

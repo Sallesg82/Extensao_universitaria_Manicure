@@ -1,15 +1,54 @@
 import os
+import re
 import json
-from datetime import datetime, timedelta
-from supabase import create_client
-from postgrest import APIError
+from datetime import datetime, timedelta, date, time
+from decimal import Decimal
+from psycopg_pool import ConnectionPool
+from psycopg.rows import dict_row
 
-SUPABASE_URL = os.environ.get('SUPABASE_URL', 'https://omtqedkinvyslsucryze.supabase.co')
-SUPABASE_KEY = os.environ.get('SUPABASE_KEY',
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tdHFlZGtpbnZ5c2xzdWNyeXplIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3ODg3MjEwNywiZXhwIjoyMDk0NDQ4MTA3fQ.9-oTfqWZQKIil_9N_zddYm6-VvA9rOLDyfPZ0HpTAis'
-)
+DATABASE_URL = os.environ.get('DATABASE_URL',
+                              'postgresql://postgres:beautyflow_pass@localhost:5432/beautyflow')
 
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+_pool = None
+
+
+def _get_pool():
+    global _pool
+    if _pool is None:
+        _pool = ConnectionPool(DATABASE_URL, min_size=1, max_size=10,
+                               open=False, kwargs={'row_factory': dict_row})
+        _pool.open(wait=True, timeout=30)
+    return _pool
+
+
+class DataNotFound(Exception):
+    pass
+
+
+def _conv(v):
+    if isinstance(v, datetime):
+        return v.strftime('%Y-%m-%dT%H:%M:%S')
+    if isinstance(v, date):
+        return v.strftime('%Y-%m-%d')
+    if isinstance(v, time):
+        return v.strftime('%H:%M:%S')
+    if isinstance(v, Decimal):
+        return float(v)
+    return v
+
+
+def _rows(rows):
+    return [{k: _conv(v) for k, v in r.items()} for r in rows]
+
+
+def _run(sql, params=()):
+    with _get_pool().connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            if cur.description:
+                return cur.fetchall()
+            return []
+
 
 TABLE_CLIENTS = 'clients'
 TABLE_APPOINTMENTS = 'appointments'
@@ -29,17 +68,508 @@ def counts_as_revenue(status):
     return status == REVENUE_APPOINTMENT_STATUS
 
 
+class Result:
+    def __init__(self, data, count=None):
+        self.data = data
+        self.count = count
+
+
+class TableBuilder:
+    _JOIN_RE = re.compile(r'^(.+?)\s*,\s*(\w+)\s*\(\s*([^)]*)\)\s*$')
+
+    def __init__(self, table):
+        self.table = table
+        self._op = 'select'
+        self._cols = '*'
+        self._count_exact = False
+        self._filters = []
+        self._orders = []
+        self._limit_n = None
+        self._single = False
+        self._payload = None
+        self._conflict = None
+
+    # ── método chain ─────────────────────────────────────────────────────
+
+    def select(self, *cols, count=None):
+        self._op = 'select'
+        self._cols = ','.join(cols) if cols else '*'
+        if count == 'exact':
+            self._count_exact = True
+        return self
+
+    def eq(self, col, val):
+        self._filters.append(('=', col, val))
+        return self
+
+    def neq(self, col, val):
+        self._filters.append(('<>', col, val))
+        return self
+
+    def gte(self, col, val):
+        self._filters.append(('>=', col, val))
+        return self
+
+    def lte(self, col, val):
+        self._filters.append(('<=', col, val))
+        return self
+
+    def order(self, col, desc=False):
+        self._orders.append((col, 'DESC' if desc else 'ASC'))
+        return self
+
+    def limit(self, n):
+        self._limit_n = n
+        return self
+
+    def single(self):
+        self._single = True
+        return self
+
+    def insert(self, payload):
+        self._op = 'insert'
+        self._payload = payload
+        return self
+
+    def upsert(self, payload, on_conflict=None):
+        self._op = 'upsert'
+        self._payload = payload
+        self._conflict = on_conflict
+        return self
+
+    def update(self, payload):
+        self._op = 'update'
+        self._payload = payload
+        return self
+
+    def delete(self):
+        self._op = 'delete'
+        return self
+
+    # ── execução ─────────────────────────────────────────────────────────
+
+    def _where_sql(self, qualify=False):
+        if not self._filters:
+            return '', []
+        clauses = []
+        params = []
+        for op, col, val in self._filters:
+            col_ref = f'"{self.table}"."{col}"' if qualify else f'"{col}"'
+            clauses.append(f'{col_ref} {op} %s')
+            params.append(val)
+        return ' WHERE ' + ' AND '.join(clauses), params
+
+    def _order_sql(self, qualify=False):
+        if not self._orders:
+            return ''
+        parts = []
+        for c, d in self._orders:
+            col_ref = f'"{self.table}"."{c}"' if qualify else f'"{c}"'
+            parts.append(f'{col_ref} {d}')
+        return ' ORDER BY ' + ', '.join(parts)
+
+    def execute(self):
+        if self._op == 'select':
+            return self._exec_select()
+        if self._op == 'insert':
+            return self._exec_insert()
+        if self._op == 'upsert':
+            return self._exec_upsert()
+        if self._op == 'update':
+            return self._exec_update()
+        if self._op == 'delete':
+            return self._exec_delete()
+        raise RuntimeError('Operação não suportada')
+
+    def _exec_select(self):
+        main_cols = self._cols
+        join_table = None
+        join_cols = None
+        m = self._JOIN_RE.match(self._cols)
+        if m:
+            main_cols, join_table, join_cols = m.group(1).strip(), m.group(2), [c.strip() for c in m.group(3).split(',') if c.strip()]
+
+        where, params = self._where_sql(qualify=bool(join_table))
+
+        if self._count_exact and not join_table:
+            count_rows = _run(
+                f'SELECT COUNT(*) AS total FROM "{self.table}"{where}',
+                params
+            )
+            total = count_rows[0]['total'] if count_rows else 0
+        else:
+            total = None
+
+        select_parts = ['"{0}".*'.format(self.table) if main_cols.strip() == '*' else main_cols]
+        if join_table:
+            alias = 'j'
+            select_parts.append(', '.join(
+                f'{alias}."{c}" AS "__j_{c}"' for c in join_cols
+            ))
+        if self._count_exact and join_table:
+            select_parts.append('COUNT(*) OVER() AS "__bf_count"')
+
+        sql = f'SELECT {", ".join(select_parts)} FROM "{self.table}"'
+        if join_table:
+            singular = join_table[:-1] if join_table.endswith('s') else join_table
+            sql += f' LEFT JOIN "{join_table}" {alias} ON {alias}.id = "{self.table}"."{singular}_id"'
+        sql += where + self._order_sql(qualify=bool(join_table))
+        if self._limit_n:
+            sql += f' LIMIT {int(self._limit_n)}'
+
+        raw = _run(sql, params)
+        data = []
+        for r in raw:
+            row = {k: _conv(v) for k, v in r.items()}
+            if join_table:
+                joined = {}
+                for c in join_cols:
+                    key = f'__j_{c}'
+                    if key in row:
+                        joined[c] = row.pop(key)
+                row[join_table] = joined
+            data.append(row)
+
+        if self._count_exact and join_table and data:
+            total = data[0].pop('__bf_count')
+
+        if self._single:
+            if not data:
+                raise DataNotFound(f'Registro não encontrado em {self.table}')
+            return Result(data[0])
+        return Result(data, count=total)
+
+    def _exec_insert(self):
+        payload = dict(self._payload)
+        cols = list(payload.keys())
+        col_sql = ', '.join(f'"{c}"' for c in cols)
+        placeholders = ', '.join(['%s'] * len(cols))
+        sql = (f'INSERT INTO "{self.table}" ({col_sql}) VALUES ({placeholders}) '
+               f'RETURNING *')
+        raw = _run(sql, [payload[c] for c in cols])
+        data = _rows(raw)
+        if self._single:
+            return Result(data[0] if data else {})
+        return Result(data)
+
+    def _exec_upsert(self):
+        payload = self._payload
+        if isinstance(payload, dict):
+            payload = [payload]
+        if not isinstance(payload, (list, tuple)) or not payload:
+            return Result([])
+        results = []
+        for row in payload:
+            data = dict(row)
+            cols = list(data.keys())
+            col_sql = ', '.join(f'"{c}"' for c in cols)
+            placeholders = ', '.join(['%s'] * len(cols))
+            if self._conflict:
+                update_cols = ', '.join(
+                    f'"{c}" = EXCLUDED."{c}"' for c in cols if c != self._conflict
+                )
+                conflict_sql = f'ON CONFLICT ("{self._conflict}") DO UPDATE SET {update_cols}'
+            else:
+                conflict_sql = ''
+            sql = (f'INSERT INTO "{self.table}" ({col_sql}) VALUES ({placeholders}) '
+                   f'{conflict_sql} RETURNING *')
+            raw = _run(sql, [data[c] for c in cols])
+            results.extend(_rows(raw))
+        return Result(results)
+
+    def _exec_update(self):
+        payload = dict(self._payload)
+        cols = list(payload.keys())
+        set_sql = ', '.join(f'"{c}" = %s' for c in cols)
+        where, params = self._where_sql()
+        sql = (f'UPDATE "{self.table}" SET {set_sql}{where} RETURNING *')
+        raw = _run(sql, [payload[c] for c in cols] + params)
+        data = _rows(raw)
+        if self._single:
+            if not data:
+                raise DataNotFound(f'Registro não encontrado em {self.table}')
+            return Result(data[0])
+        return Result(data)
+
+    def _exec_delete(self):
+        where, params = self._where_sql()
+        sql = f'DELETE FROM "{self.table}"{where} RETURNING *'
+        raw = _run(sql, params)
+        return Result(_rows(raw))
+
+
+class PostgresClient:
+    def table(self, name):
+        return TableBuilder(name)
+
+
+_db_client = PostgresClient()
+
+
+def get_db():
+    return _db_client
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Schema + seed
+# ══════════════════════════════════════════════════════════════════════════
+
+_SCHEMA_SQL = r"""
+CREATE OR REPLACE FUNCTION trigger_set_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TABLE IF NOT EXISTS clients (
+    id              SERIAL PRIMARY KEY,
+    name            TEXT NOT NULL,
+    phone           TEXT NOT NULL,
+    email           TEXT DEFAULT '',
+    avatar_initials TEXT NOT NULL,
+    avatar_bg       TEXT NOT NULL DEFAULT '#daeaf8',
+    avatar_color    TEXT NOT NULL DEFAULT '#1a5fab',
+    cpf             TEXT DEFAULT '',
+    notes           TEXT DEFAULT '',
+    status          TEXT DEFAULT 'regular',
+    created_at      TIMESTAMPTZ DEFAULT NOW(),
+    updated_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_clients_name ON clients (name);
+CREATE INDEX IF NOT EXISTS idx_clients_phone ON clients (phone);
+CREATE INDEX IF NOT EXISTS idx_clients_status ON clients (status);
+DROP TRIGGER IF EXISTS trg_clients_updated_at ON clients;
+CREATE TRIGGER trg_clients_updated_at
+    BEFORE UPDATE ON clients
+    FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();
+
+CREATE TABLE IF NOT EXISTS appointments (
+    id                SERIAL PRIMARY KEY,
+    client_id         INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+    service           TEXT NOT NULL,
+    appointment_date  DATE NOT NULL,
+    appointment_time  TIME NOT NULL,
+    status            TEXT NOT NULL DEFAULT 'pending',
+    payment_status    TEXT NOT NULL DEFAULT 'unpaid' CHECK(payment_status IN ('paid', 'unpaid')),
+    price             REAL NOT NULL DEFAULT 0,
+    duration          INTEGER DEFAULT 60,
+    notes             TEXT DEFAULT '',
+    google_event_id   TEXT DEFAULT '',
+    google_html_link  TEXT DEFAULT '',
+    created_at        TIMESTAMPTZ DEFAULT NOW(),
+    updated_at        TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_appointments_client ON appointments (client_id);
+CREATE INDEX IF NOT EXISTS idx_appointments_date ON appointments (appointment_date);
+CREATE INDEX IF NOT EXISTS idx_appointments_status ON appointments (status);
+CREATE INDEX IF NOT EXISTS idx_appointments_payment_status ON appointments (payment_status);
+CREATE INDEX IF NOT EXISTS idx_appointments_client_date ON appointments (client_id, appointment_date);
+DROP TRIGGER IF EXISTS trg_appointments_updated_at ON appointments;
+CREATE TRIGGER trg_appointments_updated_at
+    BEFORE UPDATE ON appointments
+    FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();
+
+CREATE TABLE IF NOT EXISTS services (
+    id          SERIAL PRIMARY KEY,
+    name        TEXT NOT NULL UNIQUE,
+    duration    INTEGER NOT NULL DEFAULT 60,
+    buffer      INTEGER NOT NULL DEFAULT 15,
+    price       REAL NOT NULL DEFAULT 0,
+    color       TEXT DEFAULT '#4a90d9',
+    created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_services_name ON services (name);
+
+CREATE TABLE IF NOT EXISTS transactions (
+    id                SERIAL PRIMARY KEY,
+    type              TEXT NOT NULL CHECK(type IN ('income', 'expense')),
+    description       TEXT NOT NULL,
+    amount            REAL NOT NULL,
+    category          TEXT DEFAULT '',
+    payment_method    TEXT DEFAULT '',
+    date              DATE NOT NULL,
+    appointment_id    INTEGER REFERENCES appointments(id) ON DELETE SET NULL,
+    client_id         INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+    client_name       TEXT DEFAULT '',
+    service           TEXT DEFAULT '',
+    created_at        TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions (date);
+CREATE INDEX IF NOT EXISTS idx_transactions_type ON transactions (type);
+CREATE INDEX IF NOT EXISTS idx_transactions_category ON transactions (category);
+CREATE INDEX IF NOT EXISTS idx_transactions_appointment ON transactions (appointment_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_client ON transactions (client_id);
+CREATE INDEX IF NOT EXISTS idx_transactions_service ON transactions (service);
+
+CREATE TABLE IF NOT EXISTS settings (
+    key     TEXT PRIMARY KEY,
+    value   TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS business_hours (
+    id          SERIAL PRIMARY KEY,
+    day         TEXT NOT NULL UNIQUE,
+    open        TEXT NOT NULL DEFAULT '08:00',
+    close       TEXT NOT NULL DEFAULT '18:00',
+    closed      BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+DROP TRIGGER IF EXISTS trg_business_hours_updated_at ON business_hours;
+CREATE TRIGGER trg_business_hours_updated_at
+    BEFORE UPDATE ON business_hours
+    FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();
+
+CREATE TABLE IF NOT EXISTS notifications (
+    id              SERIAL PRIMARY KEY,
+    type            TEXT NOT NULL,
+    title           TEXT NOT NULL,
+    message         TEXT NOT NULL,
+    related_id      INTEGER DEFAULT NULL,
+    related_type    TEXT DEFAULT '',
+    read            BOOLEAN DEFAULT FALSE,
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications (read);
+CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications (created_at DESC);
+
+CREATE TABLE IF NOT EXISTS integrations (
+    id          SERIAL PRIMARY KEY,
+    name        TEXT NOT NULL,
+    type        TEXT NOT NULL CHECK(type IN ('webhook', 'n8n', 'google_calendar')),
+    config      JSONB DEFAULT '{}',
+    enabled     BOOLEAN DEFAULT TRUE,
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_integrations_type ON integrations (type);
+CREATE INDEX IF NOT EXISTS idx_integrations_enabled ON integrations (enabled);
+DROP TRIGGER IF EXISTS trg_integrations_updated_at ON integrations;
+CREATE TRIGGER trg_integrations_updated_at
+    BEFORE UPDATE ON integrations
+    FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();
+
+CREATE TABLE IF NOT EXISTS users (
+    id              SERIAL PRIMARY KEY,
+    name            TEXT NOT NULL,
+    email           TEXT NOT NULL UNIQUE,
+    phone           TEXT DEFAULT '',
+    password_hash   TEXT NOT NULL,
+    role            TEXT NOT NULL DEFAULT 'admin',
+    created_at      TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
+
+CREATE OR REPLACE VIEW v_clients AS
+SELECT c.*,
+    COALESCE(a.visits, 0) AS visits,
+    COALESCE(a.total_spent, 0) AS total_spent,
+    a.last_visit
+FROM clients c
+LEFT JOIN LATERAL (
+    SELECT
+        COUNT(*) FILTER (WHERE status = 'done') AS visits,
+        COALESCE(SUM(price) FILTER (WHERE status = 'done'), 0) AS total_spent,
+        MAX(appointment_date) FILTER (WHERE status = 'done') AS last_visit
+    FROM appointments
+    WHERE client_id = c.id AND status != 'cancelled'
+) a ON true;
+
+CREATE OR REPLACE VIEW v_month_stats AS
+SELECT
+    COALESCE((
+        SELECT SUM(amount) FROM transactions
+        WHERE type = 'income'
+          AND DATE_TRUNC('month', date) = DATE_TRUNC('month', CURRENT_DATE)
+    ), 0) AS month_revenue,
+    COUNT(*) AS month_appointments,
+    COUNT(*) FILTER (WHERE a.status = 'pending') AS month_pending,
+    COALESCE((
+        SELECT SUM(amount) FROM transactions
+        WHERE type = 'expense'
+          AND DATE_TRUNC('month', date) = DATE_TRUNC('month', CURRENT_DATE)
+    ), 0) AS month_expenses,
+    COUNT(DISTINCT a.client_id) AS month_clients
+FROM appointments a
+WHERE DATE_TRUNC('month', a.appointment_date) = DATE_TRUNC('month', CURRENT_DATE);
+
+CREATE OR REPLACE VIEW v_daily_stats AS
+SELECT
+    d.date,
+    COALESCE(i.revenue, 0) AS revenue,
+    COALESCE(e.expense, 0) AS expense
+FROM (
+    SELECT DISTINCT date FROM transactions
+    WHERE DATE_TRUNC('month', date) = DATE_TRUNC('month', CURRENT_DATE)
+) d
+LEFT JOIN (
+    SELECT date, SUM(amount) AS revenue
+    FROM transactions
+    WHERE type = 'income'
+      AND DATE_TRUNC('month', date) = DATE_TRUNC('month', CURRENT_DATE)
+    GROUP BY date
+) i ON i.date = d.date
+LEFT JOIN (
+    SELECT date, SUM(amount) AS expense
+    FROM transactions
+    WHERE type = 'expense'
+      AND DATE_TRUNC('month', date) = DATE_TRUNC('month', CURRENT_DATE)
+    GROUP BY date
+) e ON e.date = d.date
+ORDER BY d.date;
+"""
+
+
+def init_schema():
+    _run(_SCHEMA_SQL)
+
+
+def ensure_admin_user():
+    """Cria o usuário admin/admin padrão quando não existe nenhum usuário."""
+    rows = _run('SELECT COUNT(*) AS total FROM users')
+    if not rows or rows[0]['total'] > 0:
+        return False
+    from werkzeug.security import generate_password_hash
+    pw_hash = generate_password_hash('admin')
+    _run(
+        "INSERT INTO users (name, email, phone, password_hash, role) "
+        "VALUES (%s, %s, %s, %s, %s)",
+        ('Administrador', 'admin', '', pw_hash, 'admin'),
+    )
+    print('[DB] Usuário padrão criado: admin / admin')
+    return True
+
+
+try:
+    init_schema()
+    _USERS_TABLE_OK = True
+    ensure_admin_user()
+except Exception as e:
+    print(f'[DB] Aviso: não foi possível inicializar o banco: {e}')
+    _USERS_TABLE_OK = False
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Transações financeiras (receita por atendimento concluído)
+# ══════════════════════════════════════════════════════════════════════════
+
+
 def _tx_amount(tx):
     return float(tx.get('amount', 0) or 0)
 
 
 def _income_transactions(date_from=None, date_to=None):
-    query = supabase.table(TABLE_TRANSACTIONS).select('*').eq('type', 'income')
+    sql = 'SELECT * FROM transactions WHERE type = %s'
+    params = ['income']
     if date_from:
-        query = query.gte('date', date_from)
+        sql += ' AND date >= %s'
+        params.append(date_from)
     if date_to:
-        query = query.lte('date', date_to)
-    return query.execute().data
+        sql += ' AND date <= %s'
+        params.append(date_to)
+    return _rows(_run(sql, params))
 
 
 def _sum_income(transactions):
@@ -90,44 +620,44 @@ def _appointment_income_payload(appt, client_name):
 
 def _insert_transaction(payload):
     try:
-        return supabase.table(TABLE_TRANSACTIONS).insert(payload).execute()
-    except APIError:
+        return get_db().table(TABLE_TRANSACTIONS).insert(payload).execute()
+    except Exception:
         minimal = {
             k: payload[k]
             for k in ('type', 'amount', 'date', 'description', 'category', 'payment_method', 'appointment_id')
             if k in payload
         }
-        return supabase.table(TABLE_TRANSACTIONS).insert(minimal).execute()
+        return get_db().table(TABLE_TRANSACTIONS).insert(minimal).execute()
 
 
 def _update_transaction(tx_id, payload):
     try:
-        return supabase.table(TABLE_TRANSACTIONS).update(payload).eq('id', tx_id).execute()
-    except APIError:
+        return get_db().table(TABLE_TRANSACTIONS).update(payload).eq('id', tx_id).execute()
+    except Exception:
         minimal = {
             k: payload[k]
             for k in ('type', 'amount', 'date', 'description', 'category', 'payment_method', 'appointment_id')
             if k in payload
         }
-        return supabase.table(TABLE_TRANSACTIONS).update(minimal).eq('id', tx_id).execute()
+        return get_db().table(TABLE_TRANSACTIONS).update(minimal).eq('id', tx_id).execute()
 
 
 def sync_appointment_income(appt_id):
     """Lançamento financeiro imutável ao concluir; não some se cliente/agendamento for removido depois."""
-    r = supabase.table(TABLE_APPOINTMENTS).select('*').eq('id', appt_id).limit(1).execute()
+    r = get_db().table(TABLE_APPOINTMENTS).select('*').eq('id', appt_id).limit(1).execute()
     if not r.data:
         return None
 
     appt = r.data[0]
     client_name = 'Cliente'
     try:
-        cl = supabase.table(TABLE_CLIENTS).select('name').eq('id', appt['client_id']).limit(1).execute()
+        cl = get_db().table(TABLE_CLIENTS).select('name').eq('id', appt['client_id']).limit(1).execute()
         if cl.data:
             client_name = cl.data[0].get('name') or client_name
-    except APIError:
+    except Exception:
         pass
 
-    existing = supabase.table(TABLE_TRANSACTIONS).select('id').eq('appointment_id', appt_id).eq('type', 'income').execute()
+    existing = get_db().table(TABLE_TRANSACTIONS).select('id').eq('appointment_id', appt_id).eq('type', 'income').execute()
 
     if counts_as_revenue(appt.get('status')):
         payload = _appointment_income_payload(appt, client_name)
@@ -138,16 +668,16 @@ def sync_appointment_income(appt_id):
         return result.data[0]['id'] if result.data else None
 
     for tx in existing.data:
-        supabase.table(TABLE_TRANSACTIONS).delete().eq('id', tx['id']).execute()
+        get_db().table(TABLE_TRANSACTIONS).delete().eq('id', tx['id']).execute()
     return None
 
 
 def backfill_appointment_income_transactions():
     """Cria lançamentos para atendimentos concluídos que ainda não têm receita financeira."""
-    done = supabase.table(TABLE_APPOINTMENTS).select('id').eq('status', REVENUE_APPOINTMENT_STATUS).execute()
+    done = get_db().table(TABLE_APPOINTMENTS).select('id').eq('status', REVENUE_APPOINTMENT_STATUS).execute()
     for row in done.data:
         appt_id = row['id']
-        linked = supabase.table(TABLE_TRANSACTIONS).select('id').eq('appointment_id', appt_id).eq('type', 'income').limit(1).execute()
+        linked = get_db().table(TABLE_TRANSACTIONS).select('id').eq('appointment_id', appt_id).eq('type', 'income').limit(1).execute()
         if not linked.data:
             sync_appointment_income(appt_id)
 
@@ -157,44 +687,29 @@ def _counts_as_revenue(appt):
     return appt.get('payment_status') == 'paid'
 
 
-def get_db():
-    return supabase
+# ══════════════════════════════════════════════════════════════════════════
+# Clientes
+# ══════════════════════════════════════════════════════════════════════════
 
 
 def all_clients():
-    r = supabase.table(TABLE_CLIENTS).select('*').order('name').execute()
-    rows = r.data
-    for c in rows:
-        a = supabase.table(TABLE_APPOINTMENTS).select(
-            'id', count='exact'
-        ).eq('client_id', c['id']).execute()
-        c['visits'] = a.count or 0
-        fin = supabase.table(TABLE_APPOINTMENTS).select(
-            'price'
-<<<<<<< HEAD
-        ).eq('client_id', c['id']).eq('payment_status', 'paid').execute()
-=======
-        ).eq('client_id', c['id']).eq('status', REVENUE_APPOINTMENT_STATUS).execute()
->>>>>>> 28fd08543bb40341de1b6d3a051aadd7c2d60a43
-        c['total_spent'] = sum(row.get('price', 0) or 0 for row in fin.data)
-        last = supabase.table(TABLE_APPOINTMENTS).select(
-            'appointment_date'
-        ).eq('client_id', c['id']).order('appointment_date', desc=True).limit(1).execute()
-        c['last_visit'] = last.data[0]['appointment_date'] if last.data else None
-    return rows
+    sql = (
+        'SELECT c.*, COUNT(a.id) AS visits, '
+        'COALESCE(SUM(a.price) FILTER (WHERE a.status = %s), 0) AS total_spent, '
+        'MAX(a.appointment_date) AS last_visit '
+        'FROM clients c LEFT JOIN appointments a ON a.client_id = c.id '
+        'GROUP BY c.id ORDER BY c.name'
+    )
+    return _rows(_run(sql, [REVENUE_APPOINTMENT_STATUS]))
 
 
 def get_client(client_id):
-    r = supabase.table(TABLE_CLIENTS).select('*').eq('id', client_id).single().execute()
+    r = get_db().table(TABLE_CLIENTS).select('*').eq('id', client_id).single().execute()
     c = r.data
-    a = supabase.table(TABLE_APPOINTMENTS).select('*').eq('client_id', client_id).order('appointment_date', desc=True).order('appointment_time', desc=True).execute()
-    visit_count = supabase.table(TABLE_APPOINTMENTS).select('id', count='exact').eq('client_id', client_id).execute()
-<<<<<<< HEAD
-    fin = supabase.table(TABLE_APPOINTMENTS).select('price').eq('client_id', client_id).eq('payment_status', 'paid').execute()
-=======
-    fin = supabase.table(TABLE_APPOINTMENTS).select('price').eq('client_id', client_id).eq('status', REVENUE_APPOINTMENT_STATUS).execute()
->>>>>>> 28fd08543bb40341de1b6d3a051aadd7c2d60a43
-    last = supabase.table(TABLE_APPOINTMENTS).select('appointment_date').eq('client_id', client_id).order('appointment_date', desc=True).limit(1).execute()
+    a = get_db().table(TABLE_APPOINTMENTS).select('*').eq('client_id', client_id).order('appointment_date', desc=True).order('appointment_time', desc=True).execute()
+    visit_count = get_db().table(TABLE_APPOINTMENTS).select('id', count='exact').eq('client_id', client_id).execute()
+    fin = get_db().table(TABLE_APPOINTMENTS).select('price').eq('client_id', client_id).eq('status', REVENUE_APPOINTMENT_STATUS).execute()
+    last = get_db().table(TABLE_APPOINTMENTS).select('appointment_date').eq('client_id', client_id).order('appointment_date', desc=True).limit(1).execute()
     c['visits'] = visit_count.count or 0
     c['total_spent'] = sum(row.get('price', 0) or 0 for row in fin.data)
     c['last_visit'] = last.data[0]['appointment_date'] if last.data else None
@@ -230,29 +745,39 @@ def create_client(name, phone, email='', avatar_initials='', avatar_bg='#daeaf8'
     if cpf:
         payload['cpf'] = cpf
     try:
-        r = supabase.table(TABLE_CLIENTS).insert(payload).execute()
-    except APIError:
+        r = get_db().table(TABLE_CLIENTS).insert(payload).execute()
+    except Exception:
         payload.pop('cpf', None)
-        r = supabase.table(TABLE_CLIENTS).insert(payload).execute()
+        r = get_db().table(TABLE_CLIENTS).insert(payload).execute()
     return r.data[0]
 
 
 def update_client(client_id, data):
-    supabase.table(TABLE_CLIENTS).update(data).eq('id', client_id).execute()
+    get_db().table(TABLE_CLIENTS).update(data).eq('id', client_id).execute()
     return get_client(client_id)
 
 
 def delete_client(client_id):
-    supabase.table(TABLE_CLIENTS).delete().eq('id', client_id).execute()
+    get_db().table(TABLE_CLIENTS).delete().eq('id', client_id).execute()
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Settings
+# ══════════════════════════════════════════════════════════════════════════
 
 
 def get_settings():
-    r = supabase.table(TABLE_SETTINGS).select('*').execute()
+    r = get_db().table(TABLE_SETTINGS).select('*').execute()
     return {row['key']: row['value'] for row in r.data}
 
 
 def update_setting(key, value):
-    supabase.table(TABLE_SETTINGS).upsert({'key': key, 'value': str(value)}).execute()
+    get_db().table(TABLE_SETTINGS).upsert({'key': key, 'value': str(value)}).execute()
+
+
+# ══════════════════════════════════════════════════════════════════════════
+# Stats
+# ══════════════════════════════════════════════════════════════════════════
 
 
 def get_stats(period=None):
@@ -282,72 +807,46 @@ def get_stats(period=None):
     prev_month_start = prev_month.strftime('%Y-%m-01')
 
     # Agendamentos (operacional / por cliente)
-    today_appts = supabase.table(TABLE_APPOINTMENTS).select('*').eq('appointment_date', today).order('appointment_time').execute()
+    today_appts = get_db().table(TABLE_APPOINTMENTS).select('*').eq('appointment_date', today).order('appointment_time').execute()
     today_count = len(today_appts.data)
-<<<<<<< HEAD
-    today_revenue = sum(a['price'] for a in today_appts.data if _counts_as_revenue(a))
-=======
->>>>>>> 28fd08543bb40341de1b6d3a051aadd7c2d60a43
     today_pending = sum(1 for a in today_appts.data if a['status'] == 'pending')
 
-    month_appts = supabase.table(TABLE_APPOINTMENTS).select('*').gte('appointment_date', month_start).lte('appointment_date', today).execute()
-<<<<<<< HEAD
-    month_revenue = sum(a['price'] for a in month_appts.data if _counts_as_revenue(a))
-=======
->>>>>>> 28fd08543bb40341de1b6d3a051aadd7c2d60a43
+    month_appts = get_db().table(TABLE_APPOINTMENTS).select('*').gte('appointment_date', month_start).lte('appointment_date', today).execute()
     month_appointments_count = len(month_appts.data)
 
-    month_clients = supabase.table(TABLE_APPOINTMENTS).select('client_id').gte('appointment_date', month_start).execute()
+    month_clients = get_db().table(TABLE_APPOINTMENTS).select('client_id').gte('appointment_date', month_start).execute()
     month_clients_count = len(set(a['client_id'] for a in month_clients.data))
 
-<<<<<<< HEAD
-    # All time
-    all_appts = supabase.table(TABLE_APPOINTMENTS).select('price').eq('payment_status', 'paid').execute()
-    total_revenue_all = sum(a['price'] for a in all_appts.data)
-    avg_ticket = round(total_revenue_all / len(all_appts.data), 2) if all_appts.data else 0
-=======
     # Receita financeira (lançamentos — independente de clientes cadastrados)
     month_income = _income_transactions(month_start, today)
     today_income = [t for t in month_income if t.get('date') == today]
     today_revenue = _sum_income(today_income)
     month_revenue = _sum_income(month_income)
 
-    month_trans = supabase.table(TABLE_TRANSACTIONS).select('*').gte('date', month_start).lte('date', today).execute()
+    month_trans = get_db().table(TABLE_TRANSACTIONS).select('*').gte('date', month_start).lte('date', today).execute()
     month_expenses = sum(_tx_amount(t) for t in month_trans.data if t['type'] == 'expense')
 
     all_income = _income_transactions()
     total_revenue_all = _sum_income(all_income)
     avg_ticket = round(total_revenue_all / len(all_income), 2) if all_income else 0
->>>>>>> 28fd08543bb40341de1b6d3a051aadd7c2d60a43
 
     # Active clients
-    active = supabase.table(TABLE_CLIENTS).select('id', count='exact').execute()
+    active = get_db().table(TABLE_CLIENTS).select('id', count='exact').execute()
     active_clients = active.count or 0
 
     # Meta
-    meta_result = supabase.table(TABLE_SETTINGS).select('value').eq('key', 'meta_mensal').limit(1).execute()
+    meta_result = get_db().table(TABLE_SETTINGS).select('value').eq('key', 'meta_mensal').limit(1).execute()
     meta_mensal = 7000
     meta_pct = 0
     if meta_result.data:
         meta_mensal = float(meta_result.data[0]['value'])
         meta_pct = round((month_revenue / meta_mensal) * 100, 1) if meta_mensal > 0 else 0
 
-<<<<<<< HEAD
-    # Top clients (scoped to period)
-    try:
-        all_clients_data = supabase.table(TABLE_CLIENTS).select('id,name,cpf,avatar_initials,avatar_bg,avatar_color').execute()
-    except APIError:
-        all_clients_data = supabase.table(TABLE_CLIENTS).select('id,name,avatar_initials,avatar_bg,avatar_color').execute()
-    top_clients = []
-    for cl in all_clients_data.data:
-        ca = supabase.table(TABLE_APPOINTMENTS).select('price', 'appointment_date', count='exact').eq('client_id', cl['id']).eq('payment_status', 'paid').gte('appointment_date', month_start).lte('appointment_date', today).execute()
-=======
     # Top clientes — métrica por cliente (some se o cliente for excluído)
-    all_clients_data = supabase.table(TABLE_CLIENTS).select('id,name,avatar_initials,avatar_bg,avatar_color').execute()
+    all_clients_data = get_db().table(TABLE_CLIENTS).select('id,name,avatar_initials,avatar_bg,avatar_color').execute()
     top_clients = []
     for cl in all_clients_data.data:
-        ca = supabase.table(TABLE_APPOINTMENTS).select('price', 'appointment_date', count='exact').eq('client_id', cl['id']).eq('status', REVENUE_APPOINTMENT_STATUS).gte('appointment_date', month_start).lte('appointment_date', today).execute()
->>>>>>> 28fd08543bb40341de1b6d3a051aadd7c2d60a43
+        ca = get_db().table(TABLE_APPOINTMENTS).select('price', 'appointment_date', count='exact').eq('client_id', cl['id']).eq('status', REVENUE_APPOINTMENT_STATUS).gte('appointment_date', month_start).lte('appointment_date', today).execute()
         visits = ca.count or 0
         total_spent = sum(a['price'] for a in ca.data)
         last_visit = max((a['appointment_date'] for a in ca.data if a.get('appointment_date')), default=None)
@@ -361,8 +860,11 @@ def get_stats(period=None):
     for a in today_appts.data:
         a['appointment_time'] = a['appointment_time'][:5] if a.get('appointment_time') and len(a['appointment_time']) >= 5 else (a.get('appointment_time') or '')
         if a.get('client_id'):
-            cl = supabase.table(TABLE_CLIENTS).select('name,phone').eq('id', a['client_id']).single().execute()
-            today_full.append({**a, 'client_name': cl.data['name'], 'client_phone': cl.data.get('phone', '')})
+            cl = get_db().table(TABLE_CLIENTS).select('name,phone').eq('id', a['client_id']).limit(1).execute()
+            if cl.data:
+                today_full.append({**a, 'client_name': cl.data[0]['name'], 'client_phone': cl.data[0].get('phone', '')})
+            else:
+                today_full.append({**a, 'client_name': '(Cliente removido)', 'client_phone': ''})
         else:
             today_full.append({**a, 'client_name': '(Cliente removido)', 'client_phone': ''})
 
@@ -384,14 +886,8 @@ def get_stats(period=None):
     for a in month_appts.data:
         if not counts_as_revenue(a['status']):
             continue
-<<<<<<< HEAD
-        svc_counts[a['service']] = svc_counts.get(a['service'], 0) + 1
-        if _counts_as_revenue(a):
-            svc_revenue[a['service']] = svc_revenue.get(a['service'], 0) + a['price']
-=======
         svc = a.get('service') or 'Outros'
         svc_counts[svc] = svc_counts.get(svc, 0) + 1
->>>>>>> 28fd08543bb40341de1b6d3a051aadd7c2d60a43
     total_svc = sum(svc_counts.values()) or 1
     service_breakdown = sorted([
         {'name': k, 'count': v, 'pct': round(v / total_svc * 100, 1)}
@@ -411,13 +907,7 @@ def get_stats(period=None):
 
     # Receita semanal / diária — financeiro
     weekly_rev = {}
-<<<<<<< HEAD
-    for a in month_appts.data:
-        if not _counts_as_revenue(a):
-            continue
-=======
     for t in month_income:
->>>>>>> 28fd08543bb40341de1b6d3a051aadd7c2d60a43
         try:
             d = datetime.strptime(t['date'], '%Y-%m-%d')
             week = (d.day - 1) // 7
@@ -429,14 +919,8 @@ def get_stats(period=None):
     day_names_pt = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab']
     daily_rev = {}
     daily_exp = {}
-<<<<<<< HEAD
-    for a in month_appts.data:
-        if _counts_as_revenue(a):
-            daily_rev[a['appointment_date']] = daily_rev.get(a['appointment_date'], 0) + a['price']
-=======
     for t in month_income:
         daily_rev[t['date']] = daily_rev.get(t['date'], 0) + _tx_amount(t)
->>>>>>> 28fd08543bb40341de1b6d3a051aadd7c2d60a43
     for t in month_trans.data:
         if t['type'] == 'expense':
             daily_exp[t['date']] = daily_exp.get(t['date'], 0) + _tx_amount(t)
@@ -456,29 +940,19 @@ def get_stats(period=None):
         })
 
     # Pix pending
-    pix = supabase.table(TABLE_TRANSACTIONS).select('id', count='exact').eq('type', 'income').eq('payment_method', 'Pix').gte('date', month_start).execute()
+    pix = get_db().table(TABLE_TRANSACTIONS).select('id', count='exact').eq('type', 'income').eq('payment_method', 'Pix').gte('date', month_start).execute()
     pix_pending = pix.count or 0
 
     # Recent transactions
-    recent_tx = supabase.table(TABLE_TRANSACTIONS).select('*').gte('date', month_start).order('date', desc=True).order('id', desc=True).limit(10).execute()
+    recent_tx = get_db().table(TABLE_TRANSACTIONS).select('*').gte('date', month_start).order('date', desc=True).order('id', desc=True).limit(10).execute()
     recent_transactions = []
     for t in recent_tx.data:
-<<<<<<< HEAD
-        if t.get('appointment_id'):
-            a = supabase.table(TABLE_APPOINTMENTS).select('client_id').eq('id', t['appointment_id']).maybe_single().execute()
-            if a.data and a.data.get('client_id'):
-                cl = supabase.table(TABLE_CLIENTS).select('name').eq('id', a.data['client_id']).maybe_single().execute()
-                t['client_name'] = cl.data['name'] if cl.data else '(Cliente removido)'
-            else:
-                t['client_name'] = '(Cliente removido)' if a.data else None
-=======
         if not t.get('client_name'):
             t['client_name'] = _transaction_client_name(t)
->>>>>>> 28fd08543bb40341de1b6d3a051aadd7c2d60a43
         recent_transactions.append(t)
 
     # Expenses by category
-    exp_cat = supabase.table(TABLE_TRANSACTIONS).select('category, amount').eq('type', 'expense').gte('date', month_start).execute()
+    exp_cat = get_db().table(TABLE_TRANSACTIONS).select('category, amount').eq('type', 'expense').gte('date', month_start).execute()
     cat_totals = {}
     for t in exp_cat.data:
         cat_totals[t['category'] or 'Outros'] = cat_totals.get(t['category'] or 'Outros', 0) + t['amount']
@@ -488,31 +962,25 @@ def get_stats(period=None):
         for cat, val in sorted(cat_totals.items(), key=lambda x: -x[1])
     ]
 
-<<<<<<< HEAD
-    # Previous month revenue
-    prev_appts = supabase.table(TABLE_APPOINTMENTS).select('price').gte('appointment_date', prev_month_start).lt('appointment_date', prev_month_end).eq('payment_status', 'paid').execute()
-    month_revenue_prev = sum(a['price'] for a in prev_appts.data)
-=======
     prev_month_last = (now.replace(day=1) - timedelta(days=1)).strftime('%Y-%m-%d')
     prev_income = _income_transactions(prev_month_start, prev_month_last)
     month_revenue_prev = _sum_income(prev_income)
->>>>>>> 28fd08543bb40341de1b6d3a051aadd7c2d60a43
 
     # Inactive clients (30+ days since last visit or never visited)
     inactive_count = 0
     inactive_revenue = 0
     try:
-        v_clients = supabase.table('v_clients').select('id,total_spent,last_visit').execute()
+        v_clients = get_db().table('v_clients').select('id,total_spent,last_visit').execute()
         thirty_days_ago = (now - timedelta(days=30)).strftime('%Y-%m-%d')
         for cl in v_clients.data:
             if not cl.get('last_visit') or cl['last_visit'] < thirty_days_ago:
                 inactive_count += 1
                 inactive_revenue += cl['total_spent'] or 0
-    except:
+    except Exception:
         pass
 
     # Future pending appointments needing confirmation
-    future_pending = supabase.table(TABLE_APPOINTMENTS).select('id', count='exact').eq('status', 'pending').gte('appointment_date', today).execute()
+    future_pending = get_db().table(TABLE_APPOINTMENTS).select('id', count='exact').eq('status', 'pending').gte('appointment_date', today).execute()
     pending_future_count = future_pending.count or 0
 
     month_label_pt = {
@@ -553,72 +1021,40 @@ def get_stats(period=None):
     }
 
 
-def _table_exists(name):
-    try:
-        supabase.table(name).select('id').limit(1).execute()
-        return True
-    except APIError:
-        return False
-
-
-def _ensure_users_table():
-    if _table_exists(TABLE_USERS):
-        return True
-    import warnings
-    warnings.warn(
-        "Tabela 'users' não encontrada no Supabase.\n"
-        "Execute o SQL abaixo no SQL Editor do seu projeto Supabase:\n\n"
-        "CREATE TABLE IF NOT EXISTS users (\n"
-        "    id SERIAL PRIMARY KEY,\n"
-        "    name TEXT NOT NULL,\n"
-        "    email TEXT NOT NULL UNIQUE,\n"
-        "    phone TEXT DEFAULT '',\n"
-        "    password_hash TEXT NOT NULL,\n"
-        "    role TEXT NOT NULL DEFAULT 'admin',\n"
-        "    created_at TIMESTAMPTZ DEFAULT NOW()\n"
-        ");\n"
-    )
-    return False
-
-
-_USERS_TABLE_OK = _ensure_users_table()
+# ══════════════════════════════════════════════════════════════════════════
+# Usuários
+# ══════════════════════════════════════════════════════════════════════════
 
 
 def all_users():
-    if not _USERS_TABLE_OK:
-        return []
     try:
-        r = supabase.table(TABLE_USERS).select('id,name,email,phone,role,created_at').order('name').execute()
+        r = get_db().table(TABLE_USERS).select('id,name,email,phone,role,created_at').order('name').execute()
         return r.data
-    except APIError:
+    except Exception:
         return []
 
 
 def get_user(user_id):
-    if not _USERS_TABLE_OK:
-        return None
     try:
-        r = supabase.table(TABLE_USERS).select('*').eq('id', user_id).limit(1).execute()
+        r = get_db().table(TABLE_USERS).select('*').eq('id', user_id).limit(1).execute()
         return r.data[0] if r.data else None
-    except APIError:
+    except Exception:
         return None
 
 
 def get_user_by_email(email):
-    if not _USERS_TABLE_OK:
+    if not email:
         return None
     try:
-        r = supabase.table(TABLE_USERS).select('*').eq('email', email).limit(1).execute()
+        r = get_db().table(TABLE_USERS).select('*').eq('email', email).limit(1).execute()
         return r.data[0] if r.data else None
-    except APIError:
+    except Exception:
         return None
 
 
 def create_user(name, email, password_hash, phone='', role='admin'):
-    if not _USERS_TABLE_OK:
-        return None
     try:
-        r = supabase.table(TABLE_USERS).insert({
+        r = get_db().table(TABLE_USERS).insert({
             'name': name,
             'email': email,
             'phone': phone,
@@ -626,36 +1062,34 @@ def create_user(name, email, password_hash, phone='', role='admin'):
             'role': role,
         }).execute()
         return r.data[0] if r.data else None
-    except APIError:
+    except Exception:
         return None
 
 
 def update_user(user_id, data):
-    if not _USERS_TABLE_OK:
-        return None
     try:
-        supabase.table(TABLE_USERS).update(data).eq('id', user_id).execute()
-        r = supabase.table(TABLE_USERS).select('id,name,email,phone,role,created_at').eq('id', user_id).single().execute()
+        get_db().table(TABLE_USERS).update(data).eq('id', user_id).execute()
+        r = get_db().table(TABLE_USERS).select('id,name,email,phone,role,created_at').eq('id', user_id).single().execute()
         return r.data
-    except APIError:
+    except Exception:
         return None
 
 
 def delete_user(user_id):
-    if not _USERS_TABLE_OK:
-        return
     try:
-        supabase.table(TABLE_USERS).delete().eq('id', user_id).execute()
-    except APIError:
+        get_db().table(TABLE_USERS).delete().eq('id', user_id).execute()
+    except Exception:
         pass
 
 
-# ── Notifications ─────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════
+# Notifications
+# ══════════════════════════════════════════════════════════════════════════
 
 
 def create_notification(notif_type, title, message, related_id=None, related_type=''):
     try:
-        r = supabase.table(TABLE_NOTIFICATIONS).insert({
+        r = get_db().table(TABLE_NOTIFICATIONS).insert({
             'type': notif_type,
             'title': title,
             'message': message,
@@ -663,89 +1097,93 @@ def create_notification(notif_type, title, message, related_id=None, related_typ
             'related_type': related_type,
         }).execute()
         return r.data[0] if r.data else None
-    except APIError:
+    except Exception:
         return None
 
 
 def get_notifications(limit=20):
     try:
-        r = supabase.table(TABLE_NOTIFICATIONS).select('*').order('created_at', desc=True).limit(limit).execute()
+        r = get_db().table(TABLE_NOTIFICATIONS).select('*').order('created_at', desc=True).limit(limit).execute()
         return r.data
-    except APIError:
+    except Exception:
         return []
 
 
 def unread_notifications_count():
     try:
-        r = supabase.table(TABLE_NOTIFICATIONS).select('id', count='exact').eq('read', False).execute()
+        r = get_db().table(TABLE_NOTIFICATIONS).select('id', count='exact').eq('read', False).execute()
         return r.count or 0
-    except APIError:
+    except Exception:
         return 0
 
 
 def mark_notification_read(notif_id):
     try:
-        supabase.table(TABLE_NOTIFICATIONS).update({'read': True}).eq('id', notif_id).execute()
-    except APIError:
+        get_db().table(TABLE_NOTIFICATIONS).update({'read': True}).eq('id', notif_id).execute()
+    except Exception:
         pass
 
 
 def mark_all_notifications_read():
     try:
-        supabase.table(TABLE_NOTIFICATIONS).update({'read': True}).eq('read', False).execute()
-    except APIError:
+        get_db().table(TABLE_NOTIFICATIONS).update({'read': True}).eq('read', False).execute()
+    except Exception:
         pass
 
 
-# ── Integrations ──────────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════
+# Integrations
+# ══════════════════════════════════════════════════════════════════════════
 
 
 def list_integrations():
     try:
-        r = supabase.table(TABLE_INTEGRATIONS).select('*').order('created_at').execute()
+        r = get_db().table(TABLE_INTEGRATIONS).select('*').order('created_at').execute()
         return r.data
-    except APIError:
+    except Exception:
         return []
 
 
 def get_integration(integ_id):
     try:
-        r = supabase.table(TABLE_INTEGRATIONS).select('*').eq('id', integ_id).limit(1).execute()
+        r = get_db().table(TABLE_INTEGRATIONS).select('*').eq('id', integ_id).limit(1).execute()
         return r.data[0] if r.data else None
-    except APIError:
+    except Exception:
         return None
 
 
 def create_integration(name, integ_type, config=None, enabled=True):
     try:
-        r = supabase.table(TABLE_INTEGRATIONS).insert({
+        r = get_db().table(TABLE_INTEGRATIONS).insert({
             'name': name,
             'type': integ_type,
             'config': config or {},
             'enabled': enabled,
         }).execute()
         return r.data[0] if r.data else None
-    except APIError:
+    except Exception:
         return None
 
 
 def update_integration(integ_id, data):
     try:
-        supabase.table(TABLE_INTEGRATIONS).update(data).eq('id', integ_id).execute()
-        r = supabase.table(TABLE_INTEGRATIONS).select('*').eq('id', integ_id).limit(1).execute()
+        get_db().table(TABLE_INTEGRATIONS).update(data).eq('id', integ_id).execute()
+        r = get_db().table(TABLE_INTEGRATIONS).select('*').eq('id', integ_id).limit(1).execute()
         return r.data[0] if r.data else None
-    except APIError:
+    except Exception:
         return None
 
 
 def delete_integration(integ_id):
     try:
-        supabase.table(TABLE_INTEGRATIONS).delete().eq('id', integ_id).execute()
-    except APIError:
+        get_db().table(TABLE_INTEGRATIONS).delete().eq('id', integ_id).execute()
+    except Exception:
         pass
 
 
-# ── Business Hours ──────────────────────────────────────────────────────────
+# ══════════════════════════════════════════════════════════════════════════
+# Business Hours
+# ══════════════════════════════════════════════════════════════════════════
 
 DAYS_PT = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo']
 
@@ -761,49 +1199,21 @@ DEFAULT_HOURS = {
 
 _BH_ALERTADO = False
 
-_BH_TABLE_SQL = """
-CREATE TABLE IF NOT EXISTS business_hours (
-    id          SERIAL PRIMARY KEY,
-    day         TEXT NOT NULL UNIQUE,
-    open        TEXT NOT NULL DEFAULT '08:00',
-    close       TEXT NOT NULL DEFAULT '18:00',
-    closed      BOOLEAN NOT NULL DEFAULT FALSE,
-    created_at  TIMESTAMPTZ DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TRIGGER IF NOT EXISTS trg_business_hours_updated_at
-    BEFORE UPDATE ON business_hours
-    FOR EACH ROW EXECUTE FUNCTION trigger_set_updated_at();
-"""
-
-
-_MIGRATION_SQL = _BH_TABLE_SQL + """
-
--- Adicionar coluna buffer se não existir (margem extra entre agendamentos)
-ALTER TABLE services ADD COLUMN IF NOT EXISTS buffer INTEGER NOT NULL DEFAULT 15;
-"""
-
 
 def _criar_tabela_business_hours():
     global _BH_ALERTADO
     if _BH_ALERTADO:
         return
     _BH_ALERTADO = True
-    sql_path = os.path.join(os.path.dirname(__file__), 'criar_business_hours.sql')
-    with open(sql_path, 'w') as f:
-        f.write(_MIGRATION_SQL)
-    print(f"[DB] Tabela 'business_hours' não encontrada no Supabase.")
-    print(f"[DB] SQL para criar foi salvo em: {sql_path}")
-    print(f"[DB] Execute esse SQL no SQL Editor do Supabase e reinicie o servidor.")
+    print("[DB] Tabela 'business_hours' não encontrada — o schema será inicializado automaticamente.")
 
 
 def _migrate_business_hours():
     try:
-        r = supabase.table(TABLE_BUSINESS_HOURS).select('id').limit(1).execute()
+        r = get_db().table(TABLE_BUSINESS_HOURS).select('id').limit(1).execute()
         if r.data:
             return
-    except APIError:
+    except Exception:
         _criar_tabela_business_hours()
         return
     try:
@@ -812,18 +1222,18 @@ def _migrate_business_hours():
         if raw:
             data = json.loads(raw)
             rows = [{'day': k, 'open': v.get('open', ''), 'close': v.get('close', ''), 'closed': v.get('closed', False)} for k, v in data.items()]
-            supabase.table(TABLE_BUSINESS_HOURS).upsert(rows, on_conflict='day').execute()
-            supabase.table(TABLE_SETTINGS).delete().eq('key', 'business_hours').execute()
+            get_db().table(TABLE_BUSINESS_HOURS).upsert(rows, on_conflict='day').execute()
+            get_db().table(TABLE_SETTINGS).delete().eq('key', 'business_hours').execute()
     except Exception:
         pass
 
 
 def load_business_hours():
     try:
-        r = supabase.table(TABLE_BUSINESS_HOURS).select('day,open,close,closed').execute()
+        r = get_db().table(TABLE_BUSINESS_HOURS).select('day,open,close,closed').execute()
         if r.data:
             return {row['day']: {'open': row['open'], 'close': row['close'], 'closed': row['closed']} for row in r.data}
-    except APIError:
+    except Exception:
         _criar_tabela_business_hours()
     return dict(DEFAULT_HOURS)
 
@@ -831,17 +1241,16 @@ def load_business_hours():
 def save_business_hours(data):
     for day_key, info in data.items():
         try:
-            supabase.table(TABLE_BUSINESS_HOURS).upsert({
+            get_db().table(TABLE_BUSINESS_HOURS).upsert({
                 'day': day_key,
                 'open': info.get('open', ''),
                 'close': info.get('close', ''),
                 'closed': info.get('closed', False),
             }, on_conflict='day').execute()
-        except APIError:
+        except Exception:
             _criar_tabela_business_hours()
             raise RuntimeError(
-                f"Tabela 'business_hours' não existe no Supabase. "
-                f"Execute o SQL gerado em 'db/criar_business_hours.sql' no SQL Editor do Supabase."
+                f"Tabela 'business_hours' não existe. O schema deveria ter sido criado automaticamente."
             )
 
 

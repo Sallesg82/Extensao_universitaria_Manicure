@@ -1,0 +1,19 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install backend dependencies
+COPY backend/requirements.txt /app/backend/requirements.txt
+RUN pip install --no-cache-dir -r /app/backend/requirements.txt
+
+# Copy backend and frontend static source files
+COPY backend /app/backend
+COPY src /app/src
+
+EXPOSE 3001
+
+ENV PORT=3001
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app/backend:/app
+
+CMD ["python", "backend/run.py"]

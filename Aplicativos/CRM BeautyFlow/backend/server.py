@@ -7,7 +7,6 @@ from flask_cors import CORS
 import json
 from ws import socketio
 from db.database import get_db, get_settings, update_setting, get_stats, unread_notifications_count, create_notification, load_business_hours, save_business_hours, _migrate_business_hours, DAYS_PT, backfill_appointment_income_transactions
-from postgrest.exceptions import APIError
 from routes.clients import clients_bp
 from routes.appointments import appointments_bp
 from routes.services import services_bp
@@ -239,7 +238,11 @@ def handle_settings():
 # Business Hours (horários de funcionamento)
 # ══════════════════════════════════════════════════════════════════════════════
 
-_migrate_business_hours()
+try:
+    _migrate_business_hours()
+except Exception:
+    pass
+
 
 try:
     backfill_appointment_income_transactions()
@@ -309,11 +312,11 @@ def available_slots():
     try:
         svc_list = supabase.table('services').select('name,buffer').execute()
         svc_buffers = {s['name']: int(s.get('buffer', 0) or 0) for s in svc_list.data}
-    except APIError:
+    except Exception:
         try:
             svc_list = supabase.table('services').select('name').execute()
             svc_buffers = {s['name']: 0 for s in svc_list.data}
-        except APIError:
+        except Exception:
             pass
 
     # Buscar agendamentos existentes para esta data
@@ -398,7 +401,7 @@ def stats():
 
 @ app.route('/api/migrate/sql', methods=['GET'])
 def migrate_sql():
-    sql_path = os.path.join(os.path.dirname(__file__), 'db', 'supabase_schema.sql')
+    sql_path = os.path.join(os.path.dirname(__file__), 'db', 'schema.sql')
     try:
         with open(sql_path) as f:
             return f.read(), 200, {'Content-Type': 'text/plain; charset=utf-8'}

@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import { io } from "socket.io-client";
 
-const API = "http://localhost:3001/api";
-const SOCKET = io("http://localhost:3001", {
+const API = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
+const SOCKET = io(API.replace(/\/api\/?$/, ""), {
   transports: ["websocket", "polling"],
   reconnection: true,
   reconnectionDelay: 2000,

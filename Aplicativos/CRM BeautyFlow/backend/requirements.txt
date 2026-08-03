@@ -1,0 +1,13 @@
+flask==3.0.3
+flask-cors==4.0.1
+flask-socketio==5.3.6
+requests==2.32.3
+python-dotenv==1.0.1
+psycopg[binary]==3.1.18
+psycopg-pool==3.2.1
+python-engineio==4.9.1
+python-socketio==5.11.2
+google-auth==2.32.0
+google-auth-oauthlib==1.2.1
+google-api-python-client==2.133.0
+requests-oauthlib==2.0.0

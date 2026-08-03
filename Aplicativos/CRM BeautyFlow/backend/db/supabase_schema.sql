@@ -210,19 +210,11 @@ SELECT c.*,
 FROM clients c
 LEFT JOIN LATERAL (
     SELECT
-<<<<<<< HEAD
-        COUNT(*) AS visits,
-        COALESCE(SUM(CASE WHEN a2.payment_status = 'paid' THEN a2.price ELSE 0 END), 0) AS total_spent,
-        MAX(a2.appointment_date) AS last_visit
-    FROM appointments a2
-    WHERE a2.client_id = c.id AND a2.status != 'cancelled'
-=======
         COUNT(*) FILTER (WHERE status = 'done') AS visits,
         COALESCE(SUM(price) FILTER (WHERE status = 'done'), 0) AS total_spent,
         MAX(appointment_date) FILTER (WHERE status = 'done') AS last_visit
     FROM appointments
     WHERE client_id = c.id AND status != 'cancelled'
->>>>>>> 28fd08543bb40341de1b6d3a051aadd7c2d60a43
 ) a ON true;
 
 -- ═══════════════════════════════════════════════════════════════
@@ -231,15 +223,11 @@ LEFT JOIN LATERAL (
 
 CREATE OR REPLACE VIEW v_month_stats AS
 SELECT
-<<<<<<< HEAD
-    COALESCE(SUM(CASE WHEN a.payment_status = 'paid' THEN a.price ELSE 0 END), 0) AS month_revenue,
-=======
     COALESCE((
         SELECT SUM(amount) FROM transactions
         WHERE type = 'income'
           AND DATE_TRUNC('month', date) = DATE_TRUNC('month', CURRENT_DATE)
     ), 0) AS month_revenue,
->>>>>>> 28fd08543bb40341de1b6d3a051aadd7c2d60a43
     COUNT(*) AS month_appointments,
     COUNT(*) FILTER (WHERE a.status = 'pending') AS month_pending,
     COALESCE((
@@ -257,16 +245,6 @@ WHERE DATE_TRUNC('month', a.appointment_date) = DATE_TRUNC('month', CURRENT_DATE
 
 CREATE OR REPLACE VIEW v_daily_stats AS
 SELECT
-<<<<<<< HEAD
-    a.appointment_date AS date,
-    COALESCE(SUM(CASE WHEN a.payment_status = 'paid' THEN a.price ELSE 0 END), 0) AS revenue,
-    COALESCE(SUM(t.amount) FILTER (WHERE t.type = 'expense'), 0) AS expense
-FROM appointments a
-LEFT JOIN transactions t ON t.date = a.appointment_date
-WHERE DATE_TRUNC('month', a.appointment_date) = DATE_TRUNC('month', CURRENT_DATE)
-GROUP BY a.appointment_date
-ORDER BY a.appointment_date;
-=======
     d.date,
     COALESCE(i.revenue, 0) AS revenue,
     COALESCE(e.expense, 0) AS expense
@@ -289,5 +267,5 @@ LEFT JOIN (
     GROUP BY date
 ) e ON e.date = d.date
 ORDER BY d.date;
->>>>>>> 28fd08543bb40341de1b6d3a051aadd7c2d60a43
+
 
