@@ -144,21 +144,33 @@ echo "⚙️  [3/5] Configurando variáveis de ambiente..."
 CRM_DIR="$(cd "$SCRIPT_DIR/../CRM BeautyFlow" && pwd)"
 AGENDA_DIR="$(cd "$SCRIPT_DIR/../agendamento Vinicius" && pwd)"
 
+# Detectar IP da máquina na rede local
+LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+if [ -z "$LOCAL_IP" ]; then
+    LOCAL_IP="localhost"
+fi
+
+echo ""
+echo "🌐 A API precisa de um endereço para os celulares/outras máquinas se conectarem."
+echo "   IP Detectado: $LOCAL_IP"
+read -p "   Confirme o endereço de IP ou digite outro (ex: localhost) [$LOCAL_IP]: " USER_IP
+USER_IP=${USER_IP:-$LOCAL_IP}
+
 cat <<EOF > "$CRM_DIR/backend/.env"
 DATABASE_URL=postgresql://postgres:beautyflow_pass@postgres:5432/beautyflow
 N8N_WEBHOOK_URL=https://mirianfiorini.app.n8n.cloud/webhook/calendar-webhook
 EOF
 
 cat <<EOF > "$AGENDA_DIR/.env"
-VITE_API_URL=http://localhost:3001/api
+VITE_API_URL=http://$USER_IP:3001/api
 EOF
 
 # .env do docker-compose (controla o build-arg do app de agendamento)
 cat <<EOF > "$SCRIPT_DIR/.env"
-VITE_API_URL=http://localhost:3001/api
+VITE_API_URL=http://$USER_IP:3001/api
 EOF
 
-echo "  ✓ Arquivos .env gerados com sucesso."
+echo "  ✓ Arquivos .env gerados com sucesso utilizando o host: $USER_IP."
 
 # 4. Construir e subir os contêineres
 echo "🚀 [4/5] Subindo contêineres no Docker (PostgreSQL, CRM, Agendamento)..."
