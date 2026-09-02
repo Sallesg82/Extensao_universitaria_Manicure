@@ -1,0 +1,511 @@
+================================================================================
+           BEAUTYFLOW — EXTENSÃO UNIVERSITÁRIA: SALÃO & MANICURE
+              MAPA COMPLETO DE FERRAMENTAS E SUAS FUNCIONALIDADES
+================================================================================
+
+Este documento descreve de forma minuciosa todas as ferramentas, tecnologias,
+módulos, componentes, integrações, scripts e funcionalidades presentes no
+ecossistema completo do projeto BeautyFlow.
+
+--------------------------------------------------------------------------------
+1. VISÃO GERAL DO ECOSSISTEMA
+--------------------------------------------------------------------------------
+O BeautyFlow é uma plataforma integrada de gestão e atendimento para salões de
+beleza e estética, composta por 3 pilares principais:
+
+1. CRM BeautyFlow (Painel de Gestão Administrativa e Financeira)
+2. Agendamento Vinicius (Portal Web responsivo para autoatendimento dos clientes)
+3. Infraestrutura & DevOps (Instaladores automatizados, Docker e Banco de Dados)
+
+================================================================================
+2. STACK TECNOLÓGICO E BIBLIOTECAS (FERRAMENTAS TÉCNICAS)
+================================================================================
+
+[ BACKEND ]
+• Python 3.11 / 3.14: Linguagem principal da API backend.
+• Flask (3.0.3): Microframework web utilizado para construir a API RESTful e
+  servir as rotas estáticas do CRM.
+• Flask-CORS (4.0.1): Middleware para controle de Cross-Origin Resource Sharing,
+  permitindo comunicação segura entre frontends e a API.
+• Flask-SocketIO (5.3.6) & python-socketio / python-engineio: Gerenciador de
+  WebSockets para sincronização em tempo real (mudanças de dados, criação e
+  atualização de agendamentos, clientes e transações sem recarregar a página).
+• Psycopg 3 (psycopg[binary] 3.1.18 & psycopg-pool 3.2.1): Driver PostgreSQL
+  moderno com pool de conexões ativo (ConnectionPool) para alta performance.
+• Werkzeug Security: Sistema de hash e validação segura de senhas (PBKDF2/SHA256).
+• Google API Client, google-auth-oauthlib, google-auth, requests-oauthlib:
+  Biblioteca oficial do Google para autenticação OAuth 2.0 e manipulação de
+  eventos no Google Calendar.
+• Requests (2.32.3): Cliente HTTP para envio de webhooks ao n8n e integrações.
+• Python-Dotenv (1.0.1): Carregador de variáveis de ambiente a partir de .env.
+• Gunicorn / Werkzeug Server: Servidores de aplicação WSGI para execução.
+
+[ FRONTEND — CRM BEAUTYFLOW ]
+• HTML5 Semântico & CSS3 Puro (Vanilla): Interface SPA completa, modular e veloz.
+• JavaScript ES6+ (Vanilla): Lógica de aplicação reativa com fetch, navegação por
+  hash, renderização dinâmica de SVG (gráficos) e manipuladores DOM.
+• Socket.IO Client (4.7.5 via CDN): Comunicação WebSocket bidirecional em tempo real.
+• Google Fonts (DM Serif Display & DM Sans): Tipografia moderna e elegante.
+
+[ FRONTEND — PORTAL DE AGENDAMENTO CLIENTE ]
+• React 19: Biblioteca para construção de interfaces reativas baseadas em componentes.
+• Vite 8: Bundler e servidor de desenvolvimento ultra-rápido.
+• Tailwind CSS 4 & @tailwindcss/vite: Framework utilitário de estilização moderna.
+• Socket.IO Client (4.8.3): Recepção de eventos realtime do backend.
+• ESLint 10: Linter e padronizador de código estático.
+
+[ BANCO DE DADOS & ARMAZENAMENTO ]
+• PostgreSQL 16 (Local via Docker ou Cloud via Supabase): Banco de dados relacional.
+• SQL Nativo + Views + Triggers + Índices: Consultas otimizadas, agregação de
+  dados e integridade referencial com ON DELETE SET NULL.
+
+[ DEVOPS & DEPLOY ]
+• Docker & Docker Compose: Conteinerização isolada de banco, CRM e Agendamento.
+• Nginx Alpine: Servidor web de alta performance para arquivos estáticos do React.
+• Bash & Batch Scripts: Automação multiplataforma para Linux, macOS e Windows.
+
+================================================================================
+3. CRM BEAUTYFLOW — MÓDULOS E FUNCIONALIDADES DO PAINEL GESTOR
+================================================================================
+
+O CRM é uma Single Page Application (SPA) acessível na porta 3001, com as
+seguintes ferramentas e telas:
+
+3.1. MÓDULO DE AUTENTICAÇÃO E CONTROLE DE ACESSO
+--------------------------------------------------------------------------------
+• Login seguro por e-mail e senha com validação via hash criptográfico.
+• Cadastro de novos administradores/usuários caso o banco esteja vazio.
+• Persistência de sessão no LocalStorage do navegador.
+• Logout seguro com limpeza de cache e sessão.
+• Controle de perfil do usuário conectado com avatar personalizado por iniciais.
+
+3.2. DASHBOARD (PAINEL GERAL)
+--------------------------------------------------------------------------------
+• Card "Receita Hoje": Total faturado no dia atual com contagem de atendimentos.
+• Card "Atendimentos Hoje": Total de agendamentos marcados para o dia e status
+  (quantos estão pendentes de realização).
+• Card "Clientes Ativos": Total de clientes cadastrados na base.
+• Card "Ticket Médio": Média de gasto por atendimento realizado.
+• Gráfico "Receita Semanal": Barras verticais dividindo a receita do mês em 4 semanas.
+• Top 5 Serviços Mais Realizados: Ranking de serviços com barras horizontais e
+  porcentagem de adesão.
+• Barra de Progresso da Meta Mensal: Comparativo entre receita obtida e a meta
+  estipulada, exibindo porcentagem de conclusão.
+• Mapa de Calor (Heatmap) de Horários de Pico: Matriz visual de 6 dias (Seg-Sáb)
+  por 10 horários (08:00 às 17:00), identificando faixas de maior demanda.
+• Lista de Agendamentos do Dia: Visualização rápida com nome, telefone, serviço,
+  horário, valor e status com badges visuais.
+• Lista de Pagamentos Recentes: Histórico dos últimos recebimentos com método.
+• Seletor de Período Rápido: Alternância de estatísticas (7, 30, 90 ou 365 dias).
+
+3.3. AGENDA INTERATIVA DE ATENDIMENTOS
+--------------------------------------------------------------------------------
+• 4 Modos de Visualização:
+  - Visão Diária: Grade detalhada de horários de 30 em 30 minutos.
+  - Visão Semanal: Colunas por dia da semana (3, 5 ou 7 dias ajustáveis).
+  - Visão Mensal: Calendário completo com marcação visual dos atendimentos.
+  - Visão Anual: Visão macro do ano com distribuição dos compromissos.
+• Navegação Temporal: Botões "Anterior", "Hoje" e "Próximo".
+• Criação Rápida: Clique direto em qualquer slot de horário abre modal pré-preenchido.
+• Modal de Novo Agendamento:
+  - Seleção de cliente cadastrado ou opção de criar cliente na hora.
+  - Seleção de serviço com auto-preenchimento de preço e duração.
+  - Data e horário com validação contra horários de funcionamento do salão.
+  - Campo de observações.
+  - Status inicial (Pendente / Confirmado / Concluído / Cancelado).
+  - Status de pagamento (Pago / Não Pago).
+• Modal de Detalhes do Agendamento:
+  - Exibição de todos os dados do agendamento e cliente.
+  - Botão para sincronizar manualmente com Google Calendar.
+  - Botão de Alterar Status de Pagamento (Pago / Pendente).
+  - Botão de Edição completa.
+  - Botão de Cancelamento e Exclusão com confirmação.
+• Sincronização Automática: Eventos criados/editados/cancelados são
+  automaticamente replicados para o n8n e Google Calendar (se integrados).
+
+3.4. GESTÃO DE CLIENTES
+--------------------------------------------------------------------------------
+• Listagem Completa com barra de busca em tempo real (busca por nome ou telefone).
+• Filtros rápidos por categoria:
+  - Todos
+  - Frequentes (mais visitas)
+  - Novos (cadastrados recentemente)
+  - Inativos (sem agendamentos há mais de 30 dias)
+  - Regulares
+• Painel Lateral de Detalhes da Cliente:
+  - Avatar gerado automaticamente com cor e iniciais.
+  - Dados de contato (telefone, e-mail, CPF, observações).
+  - Métrica de total de visitas e total financeiro gasto acumulado.
+  - Data da última visita ao salão.
+  - Histórico cronológico completo de agendamentos da cliente.
+  - Ranking de serviços mais consumidos pela cliente específica.
+  - Botão "Marcar como Inadimplente / Caloteiro" (identificação visual de alerta).
+• CRUD de Clientes: Modal para criar, editar informações e remover cliente.
+
+3.5. GESTÃO DE SERVIÇOS
+--------------------------------------------------------------------------------
+• Catálogo com listagem de todos os serviços do salão.
+• CRUD de Serviços:
+  - Nome do serviço (ex: Extensão Fio a Fio, Manicure, Pedicure, Esmaltação).
+  - Duração em minutos (impacta a grade de horários da agenda).
+  - Buffer / Tempo de margem (intervalo de limpeza/higienização entre clientes).
+  - Preço em R$.
+  - Seletor de cor em hexadecimal (para identificação visual nos cards da agenda).
+• Exclusão e edição com atualização dinâmica via WebSocket.
+
+3.6. MÓDULO FINANCEIRO & FLUXO DE CAIXA
+--------------------------------------------------------------------------------
+• Cards de Resumo Financeiro:
+  - Receita Total do Mês.
+  - Despesas Totais do Mês.
+  - Lucro Líquido Real (Receita - Despesas).
+  - Margem de Lucro Percentual.
+• Gráfico "Receita vs Despesas": Barras comparativas diárias em SVG nativo.
+• Gráfico de Rosca (Donut SVG): Distribuição percentual da receita por serviço.
+• Lançamento Financeiro Manual: Modal para criar receitas ou despesas com valor,
+  data, categoria, método de pagamento (Pix, Dinheiro, Cartão Crédito/Débito)
+  e descrição.
+• Snapshot Imutável de Receita: Quando um agendamento é marcado como "Concluído"
+  ou "Pago", uma transação financeira de receita é gerada automaticamente com o
+  nome completo do cliente, garantindo que o histórico financeiro nunca seja
+  perdido, mesmo se o cliente for excluído no futuro.
+• Extrato Completo de Transações: Tabela detalhada com filtros de período e tipo.
+
+3.7. GESTÃO DE DESPESAS DO MÊS
+--------------------------------------------------------------------------------
+• Visão focada no controle de custos e contas do salão.
+• Gráfico de Despesas por Categoria: Visualização horizontal de onde o dinheiro
+  está sendo gasto (Aluguel, Produtos, Energia, Marketing, Salários, Outros).
+• Gerenciador de Categorias de Despesa: Modal para cadastrar novas categorias
+  customizadas conforme a necessidade do negócio.
+• Lançamento rápido de novas saídas de caixa.
+
+3.8. RELATÓRIOS GERENCIAIS & EXPORTAÇÃO EM PDF
+--------------------------------------------------------------------------------
+• Seleção de Intervalo de Análise: 7 dias, 30 dias, 90 dias ou 365 dias (ano todo).
+• Gráfico de Linha SVG de Tendência de Receita: Acompanhamento da curva financeira.
+• Ranking Top 5 Clientes: As clientes que mais geraram faturamento no período.
+• Serviços Mais Rentáveis: Comparativo de lucratividade por tipo de atendimento.
+• Mapa de Calor Integral: Visualização completa dos picos de movimento semanal.
+• Exportação para PDF:
+  - Gera documento formatado profissionalmente para impressão ou salvamento em PDF.
+  - Inclui automaticamente o cabeçalho oficial com os dados da empresa (Razão Social,
+    CNPJ, Telefone, Endereço).
+  - Resumo de métricas, tabelas detalhadas e demonstrativo financeiro.
+
+3.9. METAS DE FATURAMENTO
+--------------------------------------------------------------------------------
+• Configuração do valor da meta mensal do salão (ex: R$ 7.000,00).
+• Barra de progresso visual com cálculo da porcentagem atingida em tempo real.
+• Alerta visual e notificação automática no sistema quando a meta é alcançada.
+
+3.10. GESTÃO DE USUÁRIOS DO SISTEMA
+--------------------------------------------------------------------------------
+• Listagem de operadores e administradores do salão.
+• Modal para criar novo usuário com Nome, E-mail, Telefone, Senha e Papel (Role).
+• Edição de dados de usuários existentes e exclusão de contas.
+• Alteração de senha de usuários.
+
+3.11. CENTRAL DE NOTIFICAÇÕES & AUTOMAÇÕES
+--------------------------------------------------------------------------------
+• Sino de Notificações no Topo com contador de mensagens não lidas.
+• Painel dropdown com lista das últimas notificações recebidas:
+  - Notificações de novos agendamentos recebidos online.
+  - Notificações de cancelamento de horários.
+  - Notificações de metas atingidas.
+• Ações de "Marcar como lida" e "Marcar todas como lidas".
+• Configuração de Regras de Automação (Toggles on/off):
+  - Confirmação de agendamento automática.
+  - Lembrete 24h antes do horário.
+  - Lembrete 1h antes do horário.
+  - Confirmação de recebimento via Pix.
+  - Alerta de meta atingida.
+  - Felicitações de aniversário de clientes.
+
+3.12. CENTRAL DE INTEGRAÇÕES EXTERNAS
+--------------------------------------------------------------------------------
+• Integração n8n (Webhooks de Automação):
+  - Configuração da URL de Webhook.
+  - Seleção de eventos a disparar: create, update, delete.
+  - Configuração de cabeçalhos HTTP personalizados e timeout.
+  - Botão "Testar Webhook" com verificação de resposta em tempo real.
+  - Status de conectividade online/offline.
+• Integração Google Calendar:
+  - Fluxo completo de autorização OAuth 2.0 (Client ID & Client Secret).
+  - Sincronização bidirecional: envia novos agendamentos para a agenda do Google
+    com título, cliente, telefone, valor e horário.
+  - Atualização automática e remoção de eventos no Google Calendar quando o
+    agendamento for editado ou cancelado no CRM.
+  - Verificação de existência e integridade do ID do evento no Google.
+• Gerenciador de Webhooks Customizados:
+  - Cadastro de integrações genéricas (tipo webhook, n8n, google_calendar).
+  - Chave de ativação/desativação individual de cada integração.
+
+3.13. CONFIGURAÇÕES & PERSONALIZAÇÃO COMPLETA DO SISTEMA
+--------------------------------------------------------------------------------
+• Aba "Meu Perfil":
+  - Atualização de nome e telefone do usuário conectado.
+  - Troca segura de senha com confirmação.
+• Aba "Horários de Funcionamento":
+  - Configuração dos horários de abertura e fechamento para cada dia da semana
+    (Segunda a Domingo).
+  - Opção de marcar dias específicos como "Fechado" (ex: Domingo).
+  - Esse calendário alimenta diretamente o motor de agendamento online do cliente.
+• Aba "Aparência":
+  - 5 Temas de Cores: Azul (Padrão), Esmeralda (Verde), Rosa, Púrpura, Luz do Sol.
+  - Modo de Cor: Tema Claro (Light) e Tema Escuro (Dark).
+  - Tamanho da Fonte: Pequeno, Médio e Grande.
+  - Modo de Layout: Barra Lateral Vertical ou Topbar Horizontal.
+• Aba "Empresa":
+  - Cadastro de Razão Social, Nome Fantasia, CNPJ, Inscrição Municipal,
+    Endereço Completo, Telefone e E-mail.
+  - Informações utilizadas automaticamente no cabeçalho dos relatórios exportados.
+
+================================================================================
+4. PORTAL DE AGENDAMENTO VINICIUS (PORTAL DO CLIENTE FINAL)
+================================================================================
+
+Aplicação web moderna em React 19 + Tailwind CSS 4 na porta 5173, focada em
+proporcionar uma experiência rápida, charmosa e fluida para os clientes do salão.
+
+4.1. FLUXO CONVERSACIONAL GUIADO (ASSISTENTE VIRTUAL)
+--------------------------------------------------------------------------------
+• Header com logo do Studio e barra de progresso em 3 etapas (dots indicadores).
+• Balões de mensagem da assistente virtual com animação de entrada fluida (fadeUp).
+
+• ETAPA 1 — IDENTIFICAÇÃO:
+  - Boas-vindas calorosas e personalizadas.
+  - Coleta do Nome Completo da cliente.
+  - Coleta do Telefone/WhatsApp com validação.
+  - Avanço automático ou via tecla Enter.
+
+• ETAPA 2 — OPT-IN DE NOTIFICAÇÕES:
+  - Apresentação visual dos benefícios de lembretes (aviso 24h antes e ofertas).
+  - Botão de "Ativar notificações" ou "Pular por agora".
+
+• ETAPA 3 — ESCOLHA DE SERVIÇO, DATA E HORÁRIO:
+  - Carregamento dinâmico do catálogo de serviços direto da API do CRM.
+  - Cards de Serviços com badge "Premium", nome, preço formatado em R$ e duração.
+  - Seletor de Data: Calendário nativo com bloqueio de datas passadas.
+  - Verificação inteligente de Horários Disponíveis:
+    * Consulta o endpoint `/api/available-slots`.
+    * Respeita os horários de abertura e fechamento definidos no CRM.
+    * Avisa caso o salão esteja "Fechado neste dia".
+    * Calcula o slot considerando a duração do serviço + buffer de intervalo.
+    * Bloqueia automaticamente horários que colidam com agendamentos existentes.
+  - Grade de Slots: Botões de horário em grade rápida de 30 em 30 min.
+  - Resumo Dinâmico do Agendamento: Card visual exibindo serviço, valor, data
+    formatada em português, horário escolhido e duração total.
+  - Botão de Confirmação com estado de carregamento animado (loading-dots).
+
+4.2. FINALIZAÇÃO E FEEDBACK
+--------------------------------------------------------------------------------
+• Criação transparente da cliente no banco (caso seja primeira visita) ou
+  associação pelo nome existente.
+• Criação do agendamento com status "confirmed".
+• Modal de Sucesso comemorativo com efeito glow e ícone de check gradiente.
+• Resumo final do agendamento confirmado para conferência da cliente.
+• Conexão com Socket.IO para sincronização instantânea com a agenda do gestor.
+
+================================================================================
+5. FERRAMENTAS DE INFRAESTRUTURA, DEPLOY E DEVOPS
+================================================================================
+
+O diretório `Aplicativos/instalacao/` contém o ecossistema de implantação:
+
+5.1. DOCKER COMPOSE (`docker-compose.yml`)
+--------------------------------------------------------------------------------
+• Orquestração de 3 contêineres essenciais conectados na rede `beautyflow-net`:
+  1. `beautyflow-postgres`: PostgreSQL 16 Alpine com volume persistente
+     `postgres_data`, inicialização automática do arquivo `schema.sql` e
+     healthcheck via `pg_isready` a cada 3 segundos.
+  2. `beautyflow-crm`: Backend Flask + SPA do CRM na porta 3001, aguarda o
+     healthcheck saudável do banco de dados antes de inicializar.
+  3. `beautyflow-agendamento`: Frontend React servido via Nginx na porta 5173
+     (mapeado para porta 80 interna), com build-arg `VITE_API_URL` configurável.
+
+5.2. SCRIPTS DE INSTALAÇÃO E EXECUÇÃO
+--------------------------------------------------------------------------------
+• `install.sh` (Linux / macOS):
+  - Detecta automaticamente a distribuição do Linux (Ubuntu, Debian, Arch,
+    Fedora, openSUSE, etc.) ou macOS.
+  - Oferece instalação automatizada do Docker e Docker Compose se não existirem.
+  - Identifica o IP local da máquina (`hostname -I`) para permitir que outros
+    dispositivos (celulares, tablets na mesma rede Wi-Fi) acessem o agendamento.
+  - Gera os arquivos `.env` do CRM, do Agendamento e do Docker Compose com o IP.
+  - Executa o build e inicialização dos contêineres com `--force-recreate`.
+  - Executa um loop de healthcheck verificando a saúde de todos os serviços.
+• `install.bat` (Windows):
+  - Launcher em lote para execução simplificada no prompt de comando do Windows.
+• `start.sh`:
+  - Script para iniciar os contêineres existentes com checagem rápida de status.
+• `Dockerfile.crm`:
+  - Build baseado em `python:3.11-slim`, instalação de requirements e execução.
+• `Dockerfile.agendamento`:
+  - Build multi-stage: Node.js 20-alpine para compilar a aplicação React Vite,
+    seguido de Nginx Alpine para servir os arquivos estáticos com peso mínimo.
+• `tutorial.md`:
+  - Manual passo a passo para configuração em servidores locais ou remotos (VPS).
+
+================================================================================
+6. MODELO DE DADOS (TABELAS, VIEWS E REGRAS DE NEGÓCIO)
+================================================================================
+
+6.1. TABELAS DO BANCO DE DADOS
+--------------------------------------------------------------------------------
+• `clients`:
+  - `id` (Serial PK), `name` (Texto), `phone` (Texto), `email` (Texto),
+  - `avatar_initials`, `avatar_bg`, `avatar_color`, `cpf`, `notes`,
+  - `status` (regular, frequente, novo, inativo, caloteiro),
+  - `created_at`, `updated_at`.
+• `appointments`:
+  - `id` (Serial PK), `client_id` (FK -> clients.id ON DELETE SET NULL),
+  - `service`, `appointment_date`, `appointment_time`,
+  - `status` (pending, confirmed, done, cancelled),
+  - `payment_status` (paid, unpaid),
+  - `price`, `duration`, `notes`, `google_event_id`, `google_html_link`,
+  - `created_at`, `updated_at`.
+• `services`:
+  - `id` (Serial PK), `name` (Texto UNIQUE), `duration` (Minutos),
+  - `buffer` (Minutos de margem), `price` (Valor R$), `color` (Hexadecimal),
+  - `created_at`.
+• `transactions`:
+  - `id` (Serial PK), `type` (income / expense), `description`, `amount`,
+  - `category`, `payment_method`, `date`,
+  - `appointment_id` (FK -> appointments.id ON DELETE SET NULL),
+  - `client_id` (FK -> clients.id ON DELETE SET NULL),
+  - `client_name` (Texto persistente), `service` (Texto persistente),
+  - `created_at`.
+• `settings`:
+  - `key` (Texto PK), `value` (Texto).
+  - Armazena: `meta_mensal`, credenciais Google, parâmetros n8n, regras de
+    notificação, configurações visuais, dados da empresa e categorias de despesa.
+• `business_hours`:
+  - `id` (Serial PK), `day` (segunda a domingo UNIQUE), `open` (ex: '08:00'),
+  - `close` (ex: '18:00'), `closed` (Booleano), `created_at`, `updated_at`.
+• `notifications`:
+  - `id` (Serial PK), `type`, `title`, `message`, `related_id`, `related_type`,
+  - `read` (Booleano), `created_at`.
+• `integrations`:
+  - `id` (Serial PK), `name`, `type` (webhook, n8n, google_calendar),
+  - `config` (JSONB), `enabled` (Booleano), `created_at`, `updated_at`.
+• `users`:
+  - `id` (Serial PK), `name`, `email` (UNIQUE), `phone`, `password_hash`,
+  - `role` (admin), `created_at`.
+
+6.2. VIEWS E FUNÇÕES SQL
+--------------------------------------------------------------------------------
+• `v_clients`: Agrega total de visitas concluídas, total gasto acumulado e data
+  da última visita de cada cliente.
+• `v_month_stats`: Consolida faturamento mensal de transações de entrada, total
+  de despesas, quantidade de agendamentos e clientes únicos no mês atual.
+• `v_daily_stats`: Agrupamento diário de receita e despesas do mês corrente.
+• `trigger_set_updated_at`: Gatilho PL/pgSQL que atualiza a coluna `updated_at`
+  automaticamente antes de qualquer operação de UPDATE nas tabelas monitoradas.
+
+================================================================================
+7. MAPEAMENTO COMPLETO DE ROTAS DA API REST
+================================================================================
+
+[ CLIENTES — /api/clients ]
+• GET    /api/clients/          -> Listar clientes (com filtros ?search= e ?status=)
+• GET    /api/clients/<id>      -> Detalhes de um cliente (histórico e serviços)
+• POST   /api/clients/          -> Cadastrar nova cliente
+• PUT    /api/clients/<id>      -> Atualizar dados da cliente
+• DELETE /api/clients/<id>      -> Excluir cliente
+
+[ AGENDAMENTOS — /api/appointments ]
+• GET    /api/appointments/     -> Listar agendamentos (?date=, ?date_from=, ?date_to=, ?status=)
+• GET    /api/appointments/<id> -> Obter agendamento por ID
+• POST   /api/appointments/     -> Criar agendamento (valida horário, dispara n8n/Google/Socket)
+• PUT    /api/appointments/<id> -> Atualizar agendamento (sincroniza receita financeira)
+• DELETE /api/appointments/<id> -> Cancelar/Excluir agendamento
+
+[ SERVIÇOS — /api/services ]
+• GET    /api/services/         -> Listar catálogo de serviços
+• POST   /api/services/         -> Criar novo serviço
+• PUT    /api/services/<id>     -> Atualizar serviço (preço, duração, buffer, cor)
+• DELETE /api/services/<id>     -> Excluir serviço
+
+[ TRANSAÇÕES FINANCEIRAS — /api/transactions ]
+• GET    /api/transactions/     -> Listar lançamentos (?date_from=, ?date_to=, ?type=)
+• GET    /api/transactions/<id> -> Obter transação por ID
+• POST   /api/transactions/     -> Criar receita ou despesa manual
+• PUT    /api/transactions/<id> -> Atualizar transação
+• DELETE /api/transactions/<id> -> Excluir transação
+
+[ USUÁRIOS & AUTENTICAÇÃO — /api/users ]
+• GET    /api/users/            -> Listar usuários
+• GET    /api/users/exists      -> Verifica se já existe algum usuário no sistema
+• GET    /api/users/<id>        -> Obter dados de um usuário
+• POST   /api/users/            -> Criar novo usuário
+• PUT    /api/users/<id>        -> Atualizar dados de usuário
+• DELETE /api/users/<id>        -> Excluir usuário
+• PUT    /api/users/<id>/password -> Redefinir senha de usuário
+• POST   /api/users/login       -> Autenticar usuário (retorna dados sem hash)
+
+[ HORÁRIOS & DISPONIBILIDADE ]
+• GET    /api/business-hours    -> Consultar horários de funcionamento semanais
+• PUT    /api/business-hours    -> Salvar horários de funcionamento
+• GET    /api/available-slots   -> Calcular slots vagos (?date=YYYY-MM-DD&duration=N&buffer=N)
+
+[ ESTATÍSTICAS & CONFIGURAÇÕES ]
+• GET    /api/stats             -> Obter métricas consolidadas (?period=7|30|90|365)
+• GET    /api/settings/         -> Obter configurações globais do sistema
+• PUT    /api/settings/         -> Atualizar parâmetros em chave/valor
+• GET    /api/expense-categories-> Listar categorias de despesa cadastradas
+• POST   /api/expense-categories-> Criar nova categoria de despesa
+
+[ NOTIFICAÇÕES ]
+• GET    /api/notifications/    -> Listar notificações recentes
+• GET    /api/notifications/unread-count -> Contagem de não lidas para o badge
+• POST   /api/notifications/read/<id>    -> Marcar notificação individual como lida
+• POST   /api/notifications/read-all     -> Marcar todas as notificações como lidas
+
+[ INTEGRAÇÕES EXTERNAS ]
+• GET    /api/integrations/     -> Listar integrações cadastradas
+• POST   /api/integrations/     -> Criar integração
+• GET    /api/integrations/<id> -> Obter integração
+• PUT    /api/integrations/<id> -> Atualizar integração
+• DELETE /api/integrations/<id> -> Excluir integração
+• GET    /api/n8n/config        -> Consultar configurações do webhook n8n
+• PUT    /api/n8n/config        -> Salvar parâmetros do n8n
+• POST   /api/n8n/test          -> Disparar payload de teste para o webhook do n8n
+• GET    /api/n8n/status        -> Testar conectividade HTTP com o n8n
+• POST   /api/n8n/sync-calendar -> Sincronização direta de agendamento via n8n
+• GET    /api/google/config     -> Consultar credenciais Google OAuth
+• PUT    /api/google/config     -> Salvar Client ID e Client Secret
+• GET    /api/google/auth       -> Gerar URL de autorização OAuth 2.0
+• GET    /api/google/callback   -> Receber token de autorização do Google
+• GET    /api/google/status     -> Status da conexão ativa com o Google Calendar
+• POST   /api/google/disconnect -> Desconectar conta do Google Calendar
+• POST   /api/google/verify-event -> Checar se evento existe no Google Calendar
+• POST   /api/google/sync       -> Sincronizar evento manual com Google Calendar
+
+[ UTILITÁRIOS ]
+• GET    /api/migrate/sql       -> Retorna o script SQL completo do banco
+
+================================================================================
+8. EVENTOS WEBSOCKET (TEMPO REAL)
+================================================================================
+O servidor Flask-SocketIO emite e escuta eventos em tempo real para atualização
+instantânea entre telas e dispositivos:
+
+• `client:created`, `client:updated`, `client:deleted`: Disparados quando clientes são manipulados.
+• `appointment:created`, `appointment:updated`, `appointment:deleted`: Disparados em agendamentos.
+• `service:changed`: Disparado quando serviços são criados, editados ou removidos.
+• `transaction:created`, `transaction:updated`, `transaction:deleted`: Disparados no financeiro.
+• `data:changed`: Evento genérico com `{type, action}` informando frontends para revalidar caches.
+
+================================================================================
+9. RECURSOS ADICIONAIS E DOCUMENTOS NO PROJETO
+================================================================================
+• `Miro (link e senha).txt`: Contém link de acesso e senha para o board de
+  planejamento no Miro.
+• `docs/ux(Mirian Original).html`: Protótipo visual original de referência da UX.
+• `docs/resumo_tecnico.md`: Documentação técnica detalhada das rotas e fórmulas.
+• `README.md`: Guia resumido da plataforma com comandos rápidos de inicialização.
+
+================================================================================
+                              FIM DO DOCUMENTO
+================================================================================

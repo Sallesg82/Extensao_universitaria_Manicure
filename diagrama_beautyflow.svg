@@ -1,0 +1,346 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2560 1440" width="2560" height="1440" style="background:#0b1329; font-family:'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;">
+  <defs>
+    <linearGradient id="grad-header" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f43f5e" />
+      <stop offset="50%" stop-color="#a855f7" />
+      <stop offset="100%" stop-color="#3b82f6" />
+    </linearGradient>
+    <linearGradient id="card-portal-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="rgba(244, 63, 94, 0.09)" />
+      <stop offset="100%" stop-color="rgba(244, 63, 94, 0.01)" />
+    </linearGradient>
+    <linearGradient id="card-backend-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="rgba(168, 85, 247, 0.10)" />
+      <stop offset="100%" stop-color="rgba(168, 85, 247, 0.01)" />
+    </linearGradient>
+    <linearGradient id="card-crm-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="rgba(59, 130, 246, 0.10)" />
+      <stop offset="100%" stop-color="rgba(59, 130, 246, 0.01)" />
+    </linearGradient>
+    <linearGradient id="card-integ-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="rgba(245, 158, 11, 0.09)" />
+      <stop offset="100%" stop-color="rgba(245, 158, 11, 0.01)" />
+    </linearGradient>
+    <linearGradient id="card-db-bg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="rgba(16, 185, 129, 0.09)" />
+      <stop offset="100%" stop-color="rgba(16, 185, 129, 0.01)" />
+    </linearGradient>
+
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#000000" flood-opacity="0.55" />
+    </filter>
+    <filter id="subcard-shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#000000" flood-opacity="0.35" />
+    </filter>
+
+    <marker id="arrow-pink" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#f43f5e" />
+    </marker>
+    <marker id="arrow-purple" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1 L 10 5 L 0 9 z" fill="#a855f7" />
+    </marker>
+  </defs>
+
+  <!-- Background Decorative Grid -->
+  <g opacity="0.04" stroke="#ffffff" stroke-width="1">
+    <path d="M0,120 H2560 M0,240 H2560 M0,360 H2560 M0,480 H2560 M0,600 H2560 M0,720 H2560 M0,840 H2560 M0,960 H2560 M0,1080 H2560 M0,1200 H2560 M0,1320 H2560" />
+    <path d="M120,0 V1440 M240,0 V1440 M360,0 V1440 M480,0 V1440 M600,0 V1440 M720,0 V1440 M840,0 V1440 M960,0 V1440 M1080,0 V1440 M1200,0 V1440 M1320,0 V1440 M1440,0 V1440 M1560,0 V1440 M1680,0 V1440 M1800,0 V1440 M1920,0 V1440 M2040,0 V1440 M2160,0 V1440 M2280,0 V1440 M2400,0 V1440" />
+  </g>
+
+  <!-- HEADER -->
+  <g transform="translate(60, 32)">
+    <rect x="0" y="0" width="2440" height="80" rx="16" fill="#131d36" stroke="#263554" stroke-width="1.5" filter="url(#shadow)" />
+    <circle cx="45" cy="40" r="25" fill="url(#grad-header)" />
+    <text x="45" y="48" font-size="24" text-anchor="middle" fill="#ffffff">🌸</text>
+    
+    <text x="85" y="37" font-size="22" font-weight="bold" fill="#ffffff" letter-spacing="0.5">BEAUTYFLOW — MAPA DE ARQUITETURA &amp; FUNCIONALIDADES</text>
+    <text x="85" y="59" font-size="12.5" fill="#94a3b8">Ecossistema Integrado de Gestão para Salão &amp; Manicure • Agendamento Online do Cliente • Automações em Tempo Real • DevOps</text>
+    
+    <rect x="2140" y="23" width="260" height="34" rx="17" fill="#0b1329" stroke="#38bdf8" stroke-width="1" />
+    <circle cx="2160" cy="40" r="5" fill="#10b981" />
+    <text x="2175" y="44.5" font-size="11.5" font-weight="bold" fill="#e2e8f0">Fullstack Realtime SPA</text>
+  </g>
+
+  <!-- BLOCO 1: PORTAL DE AGENDAMENTO CLIENTE -->
+  <g transform="translate(60, 135)">
+    <rect x="0" y="0" width="530" height="690" rx="16" fill="url(#card-portal-bg)" stroke="#f43f5e" stroke-width="1.5" filter="url(#shadow)" />
+    <rect x="0" y="0" width="530" height="52" rx="16" fill="#131d36" stroke="#f43f5e" stroke-width="0.8" />
+    <text x="20" y="32" font-size="15" font-weight="bold" fill="#fb7185">🌸 PORTAL DE AGENDAMENTO (CLIENTE)</text>
+    <text x="510" y="32" font-size="11.5" font-weight="bold" text-anchor="end" fill="#fda4af">:5173</text>
+    <text x="20" y="46" font-size="9.5" fill="#94a3b8">React 19 • Vite 8 • Tailwind CSS 4 • Socket.IO Client</text>
+
+    <g transform="translate(18, 66)">
+      <g transform="translate(0, 0)"><rect x="0" y="0" width="494" height="98" rx="10" fill="#111c35" stroke="#334155" stroke-width="1" filter="url(#subcard-shadow)" />
+<text x="14" y="22" font-size="12.5" font-weight="bold" fill="#fbcfe8">💬 Assistente Virtual &amp; Onboarding</text>
+<rect x="419" y="10" width="65" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="0.8" />
+<text x="451.5" y="22.5" font-size="9" font-weight="600" fill="#94a3b8" text-anchor="middle">Step-by-step</text>
+<text x="14" y="44" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Fluxo guiado em 3 etapas conversacionais</text>
+<text x="14" y="62" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Validação em tempo real de Nome e WhatsApp</text>
+<text x="14" y="80" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Opt-in de notificações e lembretes prévios</text></g>
+      <g transform="translate(0, 108)"><rect x="0" y="0" width="494" height="98" rx="10" fill="#111c35" stroke="#334155" stroke-width="1" filter="url(#subcard-shadow)" />
+<text x="14" y="22" font-size="12.5" font-weight="bold" fill="#fbcfe8">💅 Catálogo de Serviços Interativo</text>
+<rect x="419" y="10" width="65" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="0.8" />
+<text x="451.5" y="22.5" font-size="9" font-weight="600" fill="#94a3b8" text-anchor="middle">API REST</text>
+<text x="14" y="44" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Consumo dinâmico da API REST (/api/services)</text>
+<text x="14" y="62" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Exibição de valor (R$), tempo e badge Premium</text>
+<text x="14" y="80" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Scroll horizontal reativo com animações suaves</text></g>
+      <g transform="translate(0, 216)"><rect x="0" y="0" width="494" height="116" rx="10" fill="#111c35" stroke="#f43f5e" stroke-width="1" filter="url(#subcard-shadow)" />
+<text x="14" y="22" font-size="12.5" font-weight="bold" fill="#fb7185">⚡ Motor Inteligente de Horários</text>
+<rect x="419" y="10" width="65" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="0.8" />
+<text x="451.5" y="22.5" font-size="9" font-weight="600" fill="#94a3b8" text-anchor="middle">Smart Slots</text>
+<text x="14" y="44" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Cálculo dinâmico de slots livres (/api/available-slots)</text>
+<text x="14" y="62" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Bloqueio automático de dias fechados (ex: Domingo)</text>
+<text x="14" y="80" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Regra: Duração do Serviço + Margem de Buffer (higiene)</text>
+<text x="14" y="98" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Grade de 30 em 30 min sem conflito de agendamento</text></g>
+      <g transform="translate(0, 342)"><rect x="0" y="0" width="494" height="98" rx="10" fill="#111c35" stroke="#334155" stroke-width="1" filter="url(#subcard-shadow)" />
+<text x="14" y="22" font-size="12.5" font-weight="bold" fill="#fbcfe8">🎉 Resumo &amp; Confirmação Instantânea</text>
+<rect x="419" y="10" width="65" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="0.8" />
+<text x="451.5" y="22.5" font-size="9" font-weight="600" fill="#94a3b8" text-anchor="middle">Confirmação</text>
+<text x="14" y="44" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Card resumo detalhado antes da finalização</text>
+<text x="14" y="62" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Cadastro ou vínculo transparente da cliente na base</text>
+<text x="14" y="80" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Modal de celebração com feedback visual e sonoro</text></g>
+      <g transform="translate(0, 450)"><rect x="0" y="0" width="494" height="82" rx="10" fill="#111c35" stroke="#334155" stroke-width="1" filter="url(#subcard-shadow)" />
+<text x="14" y="22" font-size="12.5" font-weight="bold" fill="#fbcfe8">📡 Sincronização Realtime (Socket.IO)</text>
+<rect x="419" y="10" width="65" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="0.8" />
+<text x="451.5" y="22.5" font-size="9" font-weight="600" fill="#94a3b8" text-anchor="middle">Realtime</text>
+<text x="14" y="44" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Comunicação WebSocket bidirecional em tempo real</text>
+<text x="14" y="62" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Notifica a agenda do salão imediatamente no agendamento</text></g>
+    </g>
+  </g>
+
+  <!-- BLOCO 2: BACKEND API REST & WEBSOCKET CORE -->
+  <g transform="translate(615, 135)">
+    <rect x="0" y="0" width="590" height="690" rx="16" fill="url(#card-backend-bg)" stroke="#a855f7" stroke-width="1.5" filter="url(#shadow)" />
+    <rect x="0" y="0" width="590" height="52" rx="16" fill="#131d36" stroke="#a855f7" stroke-width="0.8" />
+    <text x="20" y="32" font-size="15" font-weight="bold" fill="#c084fc">⚙️ BACKEND API &amp; REALTIME CORE</text>
+    <text x="570" y="32" font-size="11.5" font-weight="bold" text-anchor="end" fill="#e9d5ff">Python / Flask :3001</text>
+    <text x="20" y="46" font-size="9.5" fill="#94a3b8">Flask-SocketIO • Psycopg 3 Pool • Werkzeug • Gunicorn • OAuth 2.0</text>
+
+    <g transform="translate(18, 66)">
+      <g transform="translate(0, 0)"><rect x="0" y="0" width="554" height="148" rx="10" fill="#111c35" stroke="#334155" stroke-width="1" filter="url(#subcard-shadow)" />
+<text x="14" y="22" font-size="12.5" font-weight="bold" fill="#e9d5ff">🌐 API RESTful &amp; Blueprints (~50 Endpoints)</text>
+<rect x="479" y="10" width="65" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="0.8" />
+<text x="511.5" y="22.5" font-size="9" font-weight="600" fill="#94a3b8" text-anchor="middle">Modular</text>
+<text x="14" y="44" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan fill="#60a5fa" font-weight="600">/api/clients</tspan>: CRUD completo, busca inteligente e histórico</text>
+<text x="14" y="62" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan fill="#60a5fa" font-weight="600">/api/appointments</tspan>: Agendamentos, filtros por data e status</text>
+<text x="14" y="80" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan fill="#60a5fa" font-weight="600">/api/services</tspan>: Catálogo, preços, duração, buffer e cores</text>
+<text x="14" y="98" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan fill="#60a5fa" font-weight="600">/api/transactions</tspan>: Receitas, despesas e fluxo financeiro</text>
+<text x="14" y="116" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan fill="#60a5fa" font-weight="600">/api/stats</tspan>: Métricas consolidadas (7, 30, 90 e 365 dias)</text>
+<text x="14" y="134" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan fill="#60a5fa" font-weight="600">/api/users</tspan>, <tspan fill="#60a5fa" font-weight="600">/api/business-hours</tspan>, <tspan fill="#60a5fa" font-weight="600">/api/available-slots</tspan></text></g>
+      <g transform="translate(0, 158)"><rect x="0" y="0" width="554" height="142" rx="10" fill="#111c35" stroke="#a855f7" stroke-width="1" filter="url(#subcard-shadow)" />
+<text x="14" y="22" font-size="12.5" font-weight="bold" fill="#c084fc">🛡️ Middlewares &amp; Regras de Negócio</text>
+<rect x="479" y="10" width="65" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="0.8" />
+<text x="511.5" y="22.5" font-size="9" font-weight="600" fill="#94a3b8" text-anchor="middle">Security</text>
+<text x="14" y="44" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan fill="#fbbf24" font-weight="600">Validação Automática</tspan>: Decorators para integridade de payload</text>
+<text x="14" y="62" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan fill="#fbbf24" font-weight="600">Validação de Horários</tspan>: Impede marcações fora do expediente</text>
+<text x="14" y="80" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan fill="#fbbf24" font-weight="600">Snapshot Contábil</tspan>: Receita imutável com nome persistente</text>
+<text x="14" y="98" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan fill="#fbbf24" font-weight="600">Criptografia</tspan>: Hash de senhas Werkzeug (PBKDF2/SHA256)</text>
+<text x="14" y="116" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan fill="#fbbf24" font-weight="600">Tratamento Central</tspan>: Respostas padronizadas para erros HTTP</text></g>
+      <g transform="translate(0, 310)"><rect x="0" y="0" width="554" height="114" rx="10" fill="#111c35" stroke="#334155" stroke-width="1" filter="url(#subcard-shadow)" />
+<text x="14" y="22" font-size="12.5" font-weight="bold" fill="#e9d5ff">⚡ Camada de Dados &amp; Connection Pool</text>
+<rect x="479" y="10" width="65" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="0.8" />
+<text x="511.5" y="22.5" font-size="9" font-weight="600" fill="#94a3b8" text-anchor="middle">Psycopg 3</text>
+<text x="14" y="44" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Psycopg 3 ConnectionPool ativo (1 a 10 conexões gerenciadas)</text>
+<text x="14" y="62" font-size="10.5" fill="#cbd5e1" font-weight="normal">• TableBuilder ORM fluente (select, eq, gte, upsert e joins)</text>
+<text x="14" y="80" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Auto-migração de schema SQL e inicialização do admin</text>
+<text x="14" y="98" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Suporte híbrido transparente para PostgreSQL Local ou Supabase</text></g>
+      <g transform="translate(0, 434)"><rect x="0" y="0" width="554" height="98" rx="10" fill="#111c35" stroke="#334155" stroke-width="1" filter="url(#subcard-shadow)" />
+<text x="14" y="22" font-size="12.5" font-weight="bold" fill="#e9d5ff">📡 Realtime WebSockets Engine</text>
+<rect x="479" y="10" width="65" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="0.8" />
+<text x="511.5" y="22.5" font-size="9" font-weight="600" fill="#94a3b8" text-anchor="middle">Socket.IO</text>
+<text x="14" y="44" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Flask-SocketIO para difusão instantânea entre dispositivos</text>
+<text x="14" y="62" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Eventos: appointment:*, client:*, service:*, transaction:*</text>
+<text x="14" y="80" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Sinal data:changed para revalidação seletiva de cache</text></g>
+    </g>
+  </g>
+
+  <!-- BLOCO 3: CRM BEAUTYFLOW (PAINEL GESTOR) -->
+  <g transform="translate(1230, 135)">
+    <rect x="0" y="0" width="1270" height="690" rx="16" fill="url(#card-crm-bg)" stroke="#3b82f6" stroke-width="1.5" filter="url(#shadow)" />
+    <rect x="0" y="0" width="1270" height="52" rx="16" fill="#131d36" stroke="#3b82f6" stroke-width="0.8" />
+    <text x="20" y="32" font-size="15" font-weight="bold" fill="#60a5fa">📊 CRM BEAUTYFLOW (PAINEL ADMINISTRATIVO &amp; FINANCEIRO)</text>
+    <text x="1250" y="32" font-size="11.5" font-weight="bold" text-anchor="end" fill="#93c5fd">Porta 3001</text>
+    <text x="20" y="46" font-size="9.5" fill="#94a3b8">SPA Vanilla JS • HTML5 Semântico • CSS3 Moderno (5487 linhas) • Gráficos SVG Nativos</text>
+
+    <g transform="translate(18, 66)">
+      <!-- Linha 1 -->
+      <g transform="translate(0, 0)"><rect x="0" y="0" width="396" height="140" rx="10" fill="#111c35" stroke="#334155" stroke-width="1" filter="url(#subcard-shadow)" />
+<text x="14" y="22" font-size="12.5" font-weight="bold" fill="#93c5fd">📈 Dashboard &amp; Métricas</text>
+<rect x="321" y="10" width="65" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="0.8" />
+<text x="353.5" y="22.5" font-size="9" font-weight="600" fill="#94a3b8" text-anchor="middle">KPIs</text>
+<text x="14" y="44" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Cards: Receita Hoje, Atendimentos, Ticket Médio</text>
+<text x="14" y="62" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Gráfico de receita semanal em barras verticais</text>
+<text x="14" y="80" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Top 5 serviços mais procurados com %</text>
+<text x="14" y="98" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Barra de progresso da meta mensal</text>
+<text x="14" y="116" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Heatmap de horários de pico (6 dias x 10h)</text>
+<text x="14" y="134" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Extrato de recebimentos recentes do dia</text></g>
+      <g transform="translate(418, 0)"><rect x="0" y="0" width="396" height="140" rx="10" fill="#111c35" stroke="#3b82f6" stroke-width="1" filter="url(#subcard-shadow)" />
+<text x="14" y="22" font-size="12.5" font-weight="bold" fill="#60a5fa">📅 Agenda Multi-Visão</text>
+<rect x="321" y="10" width="65" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="0.8" />
+<text x="353.5" y="22.5" font-size="9" font-weight="600" fill="#94a3b8" text-anchor="middle">Agenda</text>
+<text x="14" y="44" font-size="10.5" fill="#cbd5e1" font-weight="normal">• 4 Modos: Dia, Semana (3/5/7d), Mês e Ano</text>
+<text x="14" y="62" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Agendamento rápido por clique na grade</text>
+<text x="14" y="80" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Status: Pendente, Confirmado, Concluído</text>
+<text x="14" y="98" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Controle: Pago vs Não Pago</text>
+<text x="14" y="116" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Duração e margens de buffer automáticas</text>
+<text x="14" y="134" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Sincronia Google Calendar / n8n / Socket</text></g>
+      <g transform="translate(836, 0)"><rect x="0" y="0" width="396" height="140" rx="10" fill="#111c35" stroke="#334155" stroke-width="1" filter="url(#subcard-shadow)" />
+<text x="14" y="22" font-size="12.5" font-weight="bold" fill="#93c5fd">👥 CRM &amp; Clientes</text>
+<rect x="321" y="10" width="65" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="0.8" />
+<text x="353.5" y="22.5" font-size="9" font-weight="600" fill="#94a3b8" text-anchor="middle">Clientes</text>
+<text x="14" y="44" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Busca rápida por nome e telefone</text>
+<text x="14" y="62" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Filtros: Frequentes, Novos, Inativos (+30d)</text>
+<text x="14" y="80" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Histórico cronológico de visitas no salão</text>
+<text x="14" y="98" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Métricas: total gasto, visitas e última ida</text>
+<text x="14" y="116" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Ranking de serviços preferidos da cliente</text>
+<text x="14" y="134" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Tag de alerta "Inadimplente / Caloteiro"</text></g>
+      
+      <!-- Linha 2 -->
+      <g transform="translate(0, 150)"><rect x="0" y="0" width="396" height="140" rx="10" fill="#111c35" stroke="#334155" stroke-width="1" filter="url(#subcard-shadow)" />
+<text x="14" y="22" font-size="12.5" font-weight="bold" fill="#93c5fd">💰 Financeiro &amp; Fluxo</text>
+<rect x="321" y="10" width="65" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="0.8" />
+<text x="353.5" y="22.5" font-size="9" font-weight="600" fill="#94a3b8" text-anchor="middle">Finanças</text>
+<text x="14" y="44" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Resumo: Receita, Despesas e Lucro Líquido</text>
+<text x="14" y="62" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Gráfico diário de Receitas vs Despesas</text>
+<text x="14" y="80" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Gráfico Donut SVG de receita por serviço</text>
+<text x="14" y="98" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Lançamentos de entrada/saída com método</text>
+<text x="14" y="116" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Extrato detalhado com filtros por período</text>
+<text x="14" y="134" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Snapshot imutável de recebimentos</text></g>
+      <g transform="translate(418, 150)"><rect x="0" y="0" width="396" height="140" rx="10" fill="#111c35" stroke="#334155" stroke-width="1" filter="url(#subcard-shadow)" />
+<text x="14" y="22" font-size="12.5" font-weight="bold" fill="#93c5fd">💸 Despesas &amp; Categorias</text>
+<rect x="321" y="10" width="65" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="0.8" />
+<text x="353.5" y="22.5" font-size="9" font-weight="600" fill="#94a3b8" text-anchor="middle">Custos</text>
+<text x="14" y="44" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Controle de custos (Aluguel, Produtos...)</text>
+<text x="14" y="62" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Gráfico horizontal de despesas por categoria</text>
+<text x="14" y="80" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Gerenciador de Categorias Customizadas</text>
+<text x="14" y="98" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Lançamento rápido de saídas de caixa</text>
+<text x="14" y="116" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Extrato de custos com totalizadores</text>
+<text x="14" y="134" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Margem de lucro percentual em tempo real</text></g>
+      <g transform="translate(836, 150)"><rect x="0" y="0" width="396" height="140" rx="10" fill="#111c35" stroke="#334155" stroke-width="1" filter="url(#subcard-shadow)" />
+<text x="14" y="22" font-size="12.5" font-weight="bold" fill="#93c5fd">📑 Relatórios &amp; PDF</text>
+<rect x="321" y="10" width="65" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="0.8" />
+<text x="353.5" y="22.5" font-size="9" font-weight="600" fill="#94a3b8" text-anchor="middle">Relatórios</text>
+<text x="14" y="44" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Filtros por período: 7, 30, 90 e 365 dias</text>
+<text x="14" y="62" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Gráfico de linha SVG de tendência financeira</text>
+<text x="14" y="80" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Ranking Top Clientes e Serviços Rentáveis</text>
+<text x="14" y="98" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan fill="#fbbf24" font-weight="bold">Exportador Profissional PDF</tspan>:</text>
+<text x="14" y="116" font-size="10.5" fill="#cbd5e1" font-weight="normal">  Layout A4 com cabeçalho oficial da empresa</text>
+<text x="14" y="134" font-size="10.5" fill="#cbd5e1" font-weight="normal">  (Razão Social, CNPJ, Inscrição, Endereço)</text></g>
+      
+      <!-- Linha 3 -->
+      <g transform="translate(0, 300)"><rect x="0" y="0" width="396" height="180" rx="10" fill="#111c35" stroke="#334155" stroke-width="1" filter="url(#subcard-shadow)" />
+<text x="14" y="22" font-size="12.5" font-weight="bold" fill="#93c5fd">🎯 Metas &amp; Notificações</text>
+<rect x="321" y="10" width="65" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="0.8" />
+<text x="353.5" y="22.5" font-size="9" font-weight="600" fill="#94a3b8" text-anchor="middle">Alertas</text>
+<text x="14" y="44" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold">Meta Mensal</tspan>: Alvo com barra de progresso</text>
+<text x="14" y="62" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Notificação automática ao bater a meta</text>
+<text x="14" y="80" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold">Central de Notificações</tspan>: Sino com badge</text>
+<text x="14" y="98" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Ações: Marcar como lida / todas como lidas</text>
+<text x="14" y="116" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold">Automações com Toggles</tspan>:</text>
+<text x="14" y="134" font-size="10.5" fill="#cbd5e1" font-weight="normal">  ✓ Confirmação de agendamento automática</text>
+<text x="14" y="152" font-size="10.5" fill="#cbd5e1" font-weight="normal">  ✓ Lembretes de 24h e 1h antes do horário</text>
+<text x="14" y="170" font-size="10.5" fill="#cbd5e1" font-weight="normal">  ✓ Confirmação de Pix e aniversário de clientes</text></g>
+      <g transform="translate(418, 300)"><rect x="0" y="0" width="396" height="180" rx="10" fill="#111c35" stroke="#334155" stroke-width="1" filter="url(#subcard-shadow)" />
+<text x="14" y="22" font-size="12.5" font-weight="bold" fill="#93c5fd">🎨 Personalização &amp; Temas</text>
+<rect x="321" y="10" width="65" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="0.8" />
+<text x="353.5" y="22.5" font-size="9" font-weight="600" fill="#94a3b8" text-anchor="middle">Design</text>
+<text x="14" y="44" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold">5 Temas Visuais</tspan>:</text>
+<text x="14" y="62" font-size="10.5" fill="#cbd5e1" font-weight="normal">  <tspan fill="#60a5fa">■ Azul</tspan>  <tspan fill="#10b981">■ Esmeralda</tspan>  <tspan fill="#f43f5e">■ Rosa</tspan>  <tspan fill="#a855f7">■ Púrpura</tspan>  <tspan fill="#eab308">■ Sol</tspan></text>
+<text x="14" y="80" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold">Modos de Cor</tspan>: Claro (Light) / Escuro (Dark)</text>
+<text x="14" y="98" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold">Layout</tspan>: Barra Lateral Vertical ou Topbar</text>
+<text x="14" y="116" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold">Tamanho da Fonte</tspan>: Pequeno, Médio, Grande</text>
+<text x="14" y="134" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Interface 100% responsiva (desktop e tablets)</text>
+<text x="14" y="152" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Menu móvel retrátil e navegação ágil</text></g>
+      <g transform="translate(836, 300)"><rect x="0" y="0" width="396" height="180" rx="10" fill="#111c35" stroke="#334155" stroke-width="1" filter="url(#subcard-shadow)" />
+<text x="14" y="22" font-size="12.5" font-weight="bold" fill="#93c5fd">⚙️ Operacional &amp; Empresa</text>
+<rect x="321" y="10" width="65" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="0.8" />
+<text x="353.5" y="22.5" font-size="9" font-weight="600" fill="#94a3b8" text-anchor="middle">Admin</text>
+<text x="14" y="44" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold">Catálogo de Serviços</tspan>: CRUD completo com</text>
+<text x="14" y="62" font-size="10.5" fill="#cbd5e1" font-weight="normal">  duração, margem de buffer, preço e cores</text>
+<text x="14" y="80" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold">Horários de Funcionamento</tspan>: Abertura/fechamento</text>
+<text x="14" y="98" font-size="10.5" fill="#cbd5e1" font-weight="normal">  e dias fechados por dia da semana</text>
+<text x="14" y="116" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold">Gestão de Usuários</tspan>: Operadores e admins</text>
+<text x="14" y="134" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold">Dados da Empresa</tspan>: Razão Social, CNPJ, Telefone</text>
+<text x="14" y="152" font-size="10.5" fill="#cbd5e1" font-weight="normal">  e Endereço para relatórios em PDF</text></g>
+    </g>
+  </g>
+
+  <!-- LINHA INFERIOR 1: INTEGRAÇÕES EXTERNAS -->
+  <g transform="translate(60, 845)">
+    <rect x="0" y="0" width="1145" height="550" rx="16" fill="url(#card-integ-bg)" stroke="#f59e0b" stroke-width="1.5" filter="url(#shadow)" />
+    <rect x="0" y="0" width="1145" height="48" rx="16" fill="#131d36" stroke="#f59e0b" stroke-width="0.8" />
+    <text x="20" y="30" font-size="15" font-weight="bold" fill="#fbbf24">🔗 INTEGRAÇÕES EXTERNAS &amp; AUTOMAÇÃO</text>
+    <text x="1125" y="30" font-size="11.5" font-weight="bold" text-anchor="end" fill="#fde68a">Google Calendar API &amp; n8n Webhooks</text>
+    <text x="20" y="43" font-size="9.5" fill="#94a3b8">OAuth 2.0 • Sincronização Bidirecional • Disparo Assíncrono Threading • Webhooks JSON</text>
+
+    <g transform="translate(18, 62)">
+      <g transform="translate(0, 0)"><rect x="0" y="0" width="542" height="355" rx="10" fill="#111c35" stroke="#334155" stroke-width="1" filter="url(#subcard-shadow)" />
+<text x="14" y="22" font-size="12.5" font-weight="bold" fill="#fef3c7">📅 Google Calendar (Sincronia 2-Way)</text>
+<rect x="467" y="10" width="65" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="0.8" />
+<text x="499.5" y="22.5" font-size="9" font-weight="600" fill="#94a3b8" text-anchor="middle">OAuth 2.0</text>
+<text x="14" y="44" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">OAuth 2.0 Oficial</tspan>: Conexão com Client ID &amp; Secret</text>
+<text x="14" y="62" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Criação Automática</tspan>: Insere agendamento na agenda Google</text>
+<text x="14" y="80" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Atualização &amp; Cancelamento</tspan>: Modificações no CRM refletem no Google</text>
+<text x="14" y="98" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Rastreamento</tspan>: Salva google_event_id e link de acesso direto</text>
+<text x="14" y="116" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Conteúdo</tspan>: Cliente, Telefone, Serviço, Preço e Status na descrição</text>
+<text x="14" y="134" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Renovação Automática</tspan>: Atualiza tokens expirados (Refresh Token)</text>
+<text x="14" y="152" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Ações Manuais &amp; Status</tspan>: Botão para sincronizar e status de conexão</text>
+<text x="14" y="170" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Timezone</tspan>: Horário oficial de Brasília (America/Sao_Paulo)</text></g>
+      <g transform="translate(567, 0)"><rect x="0" y="0" width="542" height="355" rx="10" fill="#111c35" stroke="#334155" stroke-width="1" filter="url(#subcard-shadow)" />
+<text x="14" y="22" font-size="12.5" font-weight="bold" fill="#fef3c7">⚡ n8n Webhooks &amp; Automações</text>
+<rect x="467" y="10" width="65" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="0.8" />
+<text x="499.5" y="22.5" font-size="9" font-weight="600" fill="#94a3b8" text-anchor="middle">Webhooks</text>
+<text x="14" y="44" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Disparo Assíncrono</tspan>: Execução em Threading sem travar requisições</text>
+<text x="14" y="62" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Gatilhos de Eventos</tspan>: Disparo em create, update e delete</text>
+<text x="14" y="80" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Payload Rico</tspan>: ID, cliente, telefone, serviço, valor, início/fim ISO</text>
+<text x="14" y="98" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Segurança &amp; Headers</tspan>: Cabeçalhos HTTP e timeout configuráveis</text>
+<text x="14" y="116" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Ambiente de Teste</tspan>: Botão de disparo com payload mock no painel</text>
+<text x="14" y="134" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Monitoramento HTTP</tspan>: Checagem de disponibilidade do endpoint n8n</text>
+<text x="14" y="152" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">WhatsApp &amp; Bots</tspan>: Conexão pronta com Evolution API, Z-API e chatbots</text>
+<text x="14" y="170" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Extensibilidade</tspan>: Suporte a novos webhooks customizados</text></g>
+    </g>
+  </g>
+
+  <!-- LINHA INFERIOR 2: BANCO DE DADOS & DEVOPS -->
+  <g transform="translate(1230, 845)">
+    <rect x="0" y="0" width="1270" height="550" rx="16" fill="url(#card-db-bg)" stroke="#10b981" stroke-width="1.5" filter="url(#shadow)" />
+    <rect x="0" y="0" width="1270" height="48" rx="16" fill="#131d36" stroke="#10b981" stroke-width="0.8" />
+    <text x="20" y="30" font-size="15" font-weight="bold" fill="#34d399">🗄️ BANCO DE DADOS POSTGRESQL &amp; INFRAESTRUTURA DEVOPS</text>
+    <text x="1250" y="30" font-size="11.5" font-weight="bold" text-anchor="end" fill="#a7f3d0">PostgreSQL 16 &amp; Docker Compose</text>
+    <text x="20" y="43" font-size="9.5" fill="#94a3b8">9 Tabelas • 3 Views SQL • Triggers • Multi-container Docker • Scripts Linux / Windows / macOS</text>
+
+    <g transform="translate(18, 62)">
+      <g transform="translate(0, 0)"><rect x="0" y="0" width="605" height="355" rx="10" fill="#111c35" stroke="#334155" stroke-width="1" filter="url(#subcard-shadow)" />
+<text x="14" y="22" font-size="12.5" font-weight="bold" fill="#d1fae5">🐘 PostgreSQL 16 (Modelagem &amp; Views)</text>
+<rect x="530" y="10" width="65" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="0.8" />
+<text x="562.5" y="22.5" font-size="9" font-weight="600" fill="#94a3b8" text-anchor="middle">PostgreSQL 16</text>
+<text x="14" y="44" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#34d399">9 Tabelas Estruturais</tspan>: clients, appointments, services, transactions,</text>
+<text x="14" y="62" font-size="10.5" fill="#cbd5e1" font-weight="normal">  settings, business_hours, notifications, integrations, users</text>
+<text x="14" y="80" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#34d399">3 Views SQL Otimizadas</tspan>:</text>
+<text x="14" y="98" font-size="10.5" fill="#cbd5e1" font-weight="normal">  - <tspan font-weight="bold" fill="#6ee7b7">v_clients</tspan>: visitas acumuladas, total gasto e data da última ida</text>
+<text x="14" y="116" font-size="10.5" fill="#cbd5e1" font-weight="normal">  - <tspan font-weight="bold" fill="#6ee7b7">v_month_stats</tspan>: receita, despesas e volume de atendimentos do mês</text>
+<text x="14" y="134" font-size="10.5" fill="#cbd5e1" font-weight="normal">  - <tspan font-weight="bold" fill="#6ee7b7">v_daily_stats</tspan>: comparativo diário de receitas vs despesas</text>
+<text x="14" y="152" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#34d399">Triggers &amp; Índices</tspan>: auto-timestamp em updated_at e chaves otimizadas</text>
+<text x="14" y="170" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#34d399">Integridade</tspan>: Foreign Keys protegidas com ON DELETE SET NULL</text>
+<text x="14" y="188" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#34d399">Suporte Híbrido</tspan>: PostgreSQL Local (Docker) ou Supabase Cloud</text></g>
+      <g transform="translate(629, 0)"><rect x="0" y="0" width="605" height="355" rx="10" fill="#111c35" stroke="#334155" stroke-width="1" filter="url(#subcard-shadow)" />
+<text x="14" y="22" font-size="12.5" font-weight="bold" fill="#d1fae5">🐳 Docker Compose &amp; Deploy Multi-OS</text>
+<rect x="530" y="10" width="65" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="0.8" />
+<text x="562.5" y="22.5" font-size="9" font-weight="600" fill="#94a3b8" text-anchor="middle">Docker Network</text>
+<text x="14" y="44" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#34d399">beautyflow-postgres</tspan>: PostgreSQL 16 Alpine com volume persistente</text>
+<text x="14" y="62" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#34d399">beautyflow-crm</tspan>: Container Flask + SPA estático (:3001)</text>
+<text x="14" y="80" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#34d399">beautyflow-agendamento</tspan>: Multi-stage Node 20 / Nginx (:5173)</text>
+<text x="14" y="98" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#34d399">install.sh</tspan>: Instalador Linux/macOS com detecção automática do IP local</text>
+<text x="14" y="116" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#34d399">install.bat &amp; start.sh</tspan>: Scripts de inicialização com healthcheck loop</text>
+<text x="14" y="134" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#34d399">Rede Bridge</tspan>: beautyflow-net isolando o tráfego dos serviços</text>
+<text x="14" y="152" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#34d399">tutorial.md</tspan>: Guia para deploy em servidor VPS Ubuntu com SSL</text></g>
+    </g>
+  </g>
+
+  <!-- SETAS DE FLUXO (CONNECTORS) -->
+  <g stroke-width="2" stroke-dasharray="6,4" fill="none" opacity="0.75">
+    <path d="M590,440 L615,440" stroke="#f43f5e" marker-end="url(#arrow-pink)" />
+    <path d="M1205,440 L1230,440" stroke="#a855f7" marker-end="url(#arrow-purple)" />
+  </g>
+
+</svg>
