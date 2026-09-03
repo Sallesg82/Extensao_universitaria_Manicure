@@ -8,6 +8,15 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Recarregar sessao com o grupo docker caso o usuario ja faca parte do grupo
+# mas a sessao atual do shell ainda nao tenha herdado as novas permissoes
+if [ -z "${BF_GROUP_RELOADED:-}" ] && [ "$(id -u)" -ne 0 ]; then
+    if ! id -Gn 2>/dev/null | grep -qw docker && getent group docker 2>/dev/null | grep -qw "$USER"; then
+        export BF_GROUP_RELOADED=1
+        exec newgrp docker -c "exec bash \"$SCRIPT_DIR/install.sh\" \"$@\""
+    fi
+fi
+
 CRM_DIR="$(cd "$SCRIPT_DIR/../CRM BeautyFlow" && pwd)"
 AGENDA_DIR="$(cd "$SCRIPT_DIR/../Beatriz Gomes Studio" && pwd)"
 BACKUP_DIR="$SCRIPT_DIR/backups"
@@ -109,7 +118,25 @@ check_dependencies() {
         fi
     fi
 
-    if ! docker info &>/dev/null; then
+    local DOCKER_OUT
+    DOCKER_OUT=$(docker info 2>&1 || true)
+    if echo "$DOCKER_OUT" | grep -qi "permission denied"; then
+        echo -e "${C_YELLOW}[AVISO] Permissao negada ao acessar o Docker (${USER} nao esta com o grupo ativo).${C_RESET}"
+        if ! getent group docker 2>/dev/null | grep -qw "$USER"; then
+            echo -e "${C_CYAN}[*] Adicionando o usuario '$USER' ao grupo 'docker'...${C_RESET}"
+            sudo usermod -aG docker "$USER"
+        fi
+        if [ -z "${BF_GROUP_RELOADED:-}" ]; then
+            echo -e "${C_B_CYAN}[*] Atualizando credenciais da sessao com 'newgrp docker'...${C_RESET}"
+            export BF_GROUP_RELOADED=1
+            exec newgrp docker -c "exec bash \"$SCRIPT_DIR/install.sh\" \"$@\""
+        fi
+        echo -e "${C_RED}[ERRO] O usuario '$USER' esta no grupo docker, mas a sessao do terminal precisa ser atualizada.${C_RESET}"
+        echo -e "      Execute o comando abaixo no terminal antes de reabrir o script:"
+        echo -e "        ${C_WHITE}${C_BOLD}newgrp docker${C_RESET}"
+        echo -e "      (Ou faca logout/login no sistema para aplicar as permissoes globalmente)."
+        return 1
+    elif ! docker info &>/dev/null; then
         echo -e "${C_YELLOW}[AVISO] O servico do Docker nao esta ativo. Tentando iniciar...${C_RESET}"
         if command -v systemctl &>/dev/null; then
             sudo systemctl start docker || true
@@ -157,6 +184,10 @@ install_docker_distro() {
         esac
         sudo systemctl enable --now docker || true
         sudo usermod -aG docker "$USER" 2>/dev/null || true
+        if [ -z "${BF_GROUP_RELOADED:-}" ]; then
+            export BF_GROUP_RELOADED=1
+            exec newgrp docker -c "exec bash \"$SCRIPT_DIR/install.sh\" \"$@\""
+        fi
     elif [ "$(uname)" == "Darwin" ]; then
         if command -v brew &>/dev/null; then
             brew install --cask docker
@@ -204,14 +235,29 @@ check_port() {
 
     if [ "$in_use" -eq 1 ]; then
         if ! docker ps --format '{{.Ports}}' 2>/dev/null | grep -qE ":$port->"; then
-            echo -e "${C_YELLOW}[AVISO] A porta $port ($desc) ja esta em uso por outro servico.${C_RESET}"
+            echo -e "${C_YELLOW}[AVISO] A porta $port ($desc) ja esta em uso por outro servico local.${C_RESET}"
             if [ "$port" -eq 5432 ]; then
-                echo -e "        Parece haver um PostgreSQL local rodando na maquina."
                 read -rp "        Deseja tentar pausar o PostgreSQL local agora? (S/n): " STOP_PG
                 STOP_PG=${STOP_PG:-S}
                 if [[ "$STOP_PG" =~ ^[Ss]$ ]]; then
+                    if [ -d "$HOME/.pg_local/data" ] && command -v pg_ctl &>/dev/null; then
+                        pg_ctl -D "$HOME/.pg_local/data" stop 2>/dev/null || true
+                    elif [ -x "$HOME/.pg_bin/usr/bin/pg_ctl" ]; then
+                        "$HOME/.pg_bin/usr/bin/pg_ctl" -D "$HOME/.pg_local/data" stop 2>/dev/null || true
+                    fi
                     sudo systemctl stop postgresql 2>/dev/null || true
                     sleep 2
+                fi
+            else
+                read -rp "        Deseja encerrar o processo local na porta $port ($desc)? (S/n): " STOP_PROC
+                STOP_PROC=${STOP_PROC:-S}
+                if [[ "$STOP_PROC" =~ ^[Ss]$ ]]; then
+                    if command -v fuser &>/dev/null; then
+                        fuser -k -n tcp "$port" 2>/dev/null || true
+                    elif command -v lsof &>/dev/null; then
+                        lsof -ti :"$port" -sTCP:LISTEN 2>/dev/null | xargs -r kill -9 2>/dev/null || true
+                    fi
+                    sleep 1
                 fi
             fi
         fi

@@ -4,6 +4,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+if [ -z "${BF_GROUP_RELOADED:-}" ] && [ "$(id -u)" -ne 0 ]; then
+    if ! id -Gn 2>/dev/null | grep -qw docker && getent group docker 2>/dev/null | grep -qw "$USER"; then
+        export BF_GROUP_RELOADED=1
+        exec newgrp docker -c "exec bash \"$SCRIPT_DIR/stop.sh\" \"$@\""
+    fi
+fi
+
 COMPOSE_CMD=""
 if docker compose version &> /dev/null; then
     COMPOSE_CMD="docker compose"
