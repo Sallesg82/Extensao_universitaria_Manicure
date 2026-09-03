@@ -31,6 +31,7 @@ trap cleanup SIGINT SIGTERM EXIT
 # 3. Iniciar Backend CRM BeautyFlow (porta 3001)
 echo "💅 Iniciando CRM BeautyFlow Backend (porta 3001)..."
 cd "$CRM_BACKEND"
+export DATABASE_URL="${DATABASE_URL:-postgresql://postgres:beautyflow_pass@localhost:5432/beautyflow}"
 "$CRM_BACKEND/.venv/bin/python" run.py &
 
 # 4. Iniciar Portal de Agendamento Vite (porta 5173)

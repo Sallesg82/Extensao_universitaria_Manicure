@@ -148,7 +148,7 @@ if "!USER_IP!"=="" set "USER_IP=!LOCAL_IP!"
 (
   echo DATABASE_URL=postgresql://postgres:beautyflow_pass@postgres:5432/beautyflow
   echo N8N_WEBHOOK_URL=https://mirianfiorini.app.n8n.cloud/webhook/calendar-webhook
-) > "%CRM_DIR%ackend\.env"
+) > "%CRM_DIR%\backend\.env"
 
 (
   echo VITE_API_URL=http://!USER_IP!:3001/api
@@ -280,7 +280,7 @@ goto ACT_DB_MENU
 echo.
 echo [*] Criando backup do PostgreSQL...
 for /f "tokens=*" %%t in ('powershell -NoProfile -Command "Get-Date -Format 'yyyyMMdd_HHmmss'"') do set "TS=%%t"
-set "BKP_FILE=%BACKUP_DIR%ackup_beautyflow_%TS%.sql"
+set "BKP_FILE=%BACKUP_DIR%\backup_beautyflow_%TS%.sql"
 
 docker ps --format "{{.Names}}" | findstr /i "beautyflow-postgres" >nul 2>&1
 if %errorlevel% neq 0 (
@@ -361,7 +361,7 @@ if not "%CONF_DEL%"=="RESET" (
 echo [*] Resetando banco de dados...
 docker exec beautyflow-postgres psql -U postgres -c "DROP DATABASE IF EXISTS beautyflow;"
 docker exec beautyflow-postgres psql -U postgres -c "CREATE DATABASE beautyflow;"
-type "%CRM_DIR%ackend\db\schema.sql" | docker exec -i beautyflow-postgres psql -U postgres -d beautyflow
+type "%CRM_DIR%\backend\db\schema.sql" | docker exec -i beautyflow-postgres psql -U postgres -d beautyflow
 %COMPOSE_CMD% restart crm-backend
 echo [OK] Banco de dados reinicializado com estrutura e sementes padrao.
 pause

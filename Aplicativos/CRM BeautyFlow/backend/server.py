@@ -267,16 +267,25 @@ def n8n_status():
 # Rotas originais
 # ══════════════════════════════════════════════════════════════════════════════
 
-@ app.route('/api/settings/', methods=['GET', 'PUT'])
+@app.route('/api/settings', methods=['GET', 'PUT'])
+@app.route('/api/settings/', methods=['GET', 'PUT'])
 def handle_settings():
-    if request.method == 'PUT':
-        data = request.get_json(silent=True) or {}
-        for key, value in data.items():
-            update_setting(key, value)
-    result = get_settings()
-    if 'meta_mensal' in result:
-        result['meta_mensal'] = float(result['meta_mensal'])
-    return jsonify(result)
+    try:
+        if request.method == 'PUT':
+            data = request.get_json(silent=True)
+            if isinstance(data, dict):
+                for key, value in data.items():
+                    update_setting(key, value)
+        result = get_settings()
+        if 'meta_mensal' in result:
+            try:
+                result['meta_mensal'] = float(result['meta_mensal'])
+            except (ValueError, TypeError):
+                result['meta_mensal'] = 0.0
+        return jsonify(result)
+    except Exception as e:
+        app.logger.exception("Erro ao processar configurações: %s", e)
+        return jsonify({'error': str(e)}), 500
 
 
 # ══════════════════════════════════════════════════════════════════════════════

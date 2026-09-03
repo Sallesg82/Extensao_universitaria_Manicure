@@ -7,15 +7,25 @@ from decimal import Decimal
 from psycopg_pool import ConnectionPool
 from psycopg.rows import dict_row
 
-DATABASE_URL = os.environ.get('DATABASE_URL',
-                              'postgresql://postgres:beautyflow_pass@localhost:5432/beautyflow')
+raw_url = os.environ.get('DATABASE_URL',
+                          'postgresql://postgres:beautyflow_pass@localhost:5432/beautyflow')
+
+# Se não estiver dentro do Docker e a URL apontar para o host 'postgres', usa 'localhost'
+if '@postgres:' in raw_url:
+    try:
+        import socket
+        socket.gethostbyname('postgres')
+    except Exception:
+        raw_url = raw_url.replace('@postgres:', '@localhost:')
+
+DATABASE_URL = raw_url
 
 _pool = None
 
 
 def _get_pool():
     global _pool
-    if _pool is None:
+    if _pool is None or getattr(_pool, 'closed', False):
         _pool = ConnectionPool(DATABASE_URL, min_size=1, max_size=10,
                                open=False, kwargs={'row_factory': dict_row})
         _pool.open(wait=True, timeout=30)
@@ -63,6 +73,13 @@ TABLE_BUSINESS_HOURS = 'business_hours'
 
 # Receita financeira só conta após o atendimento ser concluído
 REVENUE_APPOINTMENT_STATUS = 'done'
+
+DEFAULT_CONFLICT_COLS = {
+    TABLE_SETTINGS: 'key',
+    TABLE_BUSINESS_HOURS: 'day',
+    TABLE_USERS: 'email',
+    TABLE_SERVICES: 'name',
+}
 
 
 def counts_as_revenue(status):
@@ -263,13 +280,21 @@ class TableBuilder:
         for row in payload:
             data = dict(row)
             cols = list(data.keys())
+            if not cols:
+                continue
             col_sql = ', '.join(f'"{c}"' for c in cols)
             placeholders = ', '.join(['%s'] * len(cols))
-            if self._conflict:
+            conflict_col = self._conflict or DEFAULT_CONFLICT_COLS.get(self.table)
+            if not conflict_col and 'id' in cols:
+                conflict_col = 'id'
+            if conflict_col and conflict_col in cols:
                 update_cols = ', '.join(
-                    f'"{c}" = EXCLUDED."{c}"' for c in cols if c != self._conflict
+                    f'"{c}" = EXCLUDED."{c}"' for c in cols if c != conflict_col
                 )
-                conflict_sql = f'ON CONFLICT ("{self._conflict}") DO UPDATE SET {update_cols}'
+                if update_cols:
+                    conflict_sql = f'ON CONFLICT ("{conflict_col}") DO UPDATE SET {update_cols}'
+                else:
+                    conflict_sql = f'ON CONFLICT ("{conflict_col}") DO NOTHING'
             else:
                 conflict_sql = ''
             sql = (f'INSERT INTO "{self.table}" ({col_sql}) VALUES ({placeholders}) '
@@ -805,7 +830,8 @@ def get_settings():
 
 
 def update_setting(key, value):
-    get_db().table(TABLE_SETTINGS).upsert({'key': key, 'value': str(value)}).execute()
+    sql = 'INSERT INTO "settings" ("key", "value") VALUES (%s, %s) ON CONFLICT ("key") DO UPDATE SET "value" = EXCLUDED."value"'
+    _run(sql, (str(key), str(value)))
 
 
 # ══════════════════════════════════════════════════════════════════════════
