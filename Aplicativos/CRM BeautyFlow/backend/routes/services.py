@@ -26,9 +26,11 @@ def create_service():
     if existing:
         return jsonify(dict(existing)), 200
 
+    buffer = int(data.get('buffer', 15)) if data.get('buffer') is not None else 15
     result = get_db().table('services').insert({
         'name': data['name'],
-        'duration': data['duration'],
+        'duration': int(data['duration']),
+        'buffer': buffer,
         'price': float(data['price']),
         'color': data.get('color', '#4a90d9'),
     }).execute()
@@ -46,9 +48,13 @@ def update_service(svc_id):
 
     data = request.get_json()
     update_data = {}
-    for field in ['name', 'duration', 'buffer', 'color']:
+    for field in ['name', 'color']:
         if field in data and data[field] is not None:
             update_data[field] = data[field]
+    if 'duration' in data and data['duration'] is not None:
+        update_data['duration'] = int(data['duration'])
+    if 'buffer' in data and data['buffer'] is not None:
+        update_data['buffer'] = int(data['buffer'])
     if 'price' in data and data['price'] is not None:
         update_data['price'] = float(data['price'])
     if update_data:

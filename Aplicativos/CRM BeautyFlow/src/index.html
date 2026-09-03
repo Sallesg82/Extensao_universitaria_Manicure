@@ -204,7 +204,7 @@
             <path d="M8 1a5 5 0 0 1 5 5c0 3 1 4 1 4H2s1-1 1-4a5 5 0 0 1 5-5zM6.5 13.5a1.5 1.5 0 0 0 3 0" stroke="#4a90d9" stroke-width="1.2" stroke-linecap="round"/>
           </svg>
           <div class="notif-dot" id="notif-dot"></div>
-          <div id="notif-panel" class="notif-panel" style="display:none;">
+          <div id="notif-panel" class="notif-panel" style="display:none;" onclick="event.stopPropagation()">
             <div class="notif-panel-header">
               <span class="notif-panel-title">Notificações</span>
               <button class="notif-panel-action" onclick="readAllNotifs()">Marcar todas como lidas</button>
@@ -226,24 +226,79 @@
       ══════════════════════════════════ -->
       <section class="page active" id="page-dashboard">
 
+        <!-- DASHBOARD TOOLBAR: Seletor de Mês e Ano -->
+        <div class="dashboard-toolbar">
+          <div class="dashboard-toolbar-left">
+            <div class="dashboard-nav">
+              <button type="button" class="dash-nav-btn" id="dash-prev-btn" onclick="changeDashboardMonth(-1)" title="Mês anterior" aria-label="Mês anterior">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+
+              <div class="dashboard-selectors">
+                <select class="dash-select" id="dash-select-month" onchange="onDashboardDateSelectChange()" aria-label="Selecionar mês">
+                  <option value="1">Janeiro</option>
+                  <option value="2">Fevereiro</option>
+                  <option value="3">Março</option>
+                  <option value="4">Abril</option>
+                  <option value="5">Maio</option>
+                  <option value="6">Junho</option>
+                  <option value="7">Julho</option>
+                  <option value="8">Agosto</option>
+                  <option value="9">Setembro</option>
+                  <option value="10">Outubro</option>
+                  <option value="11">Novembro</option>
+                  <option value="12">Dezembro</option>
+                </select>
+
+                <select class="dash-select" id="dash-select-year" onchange="onDashboardDateSelectChange()" aria-label="Selecionar ano">
+                  <option value="2024">2024</option>
+                  <option value="2025">2025</option>
+                  <option value="2026" selected>2026</option>
+                  <option value="2027">2027</option>
+                  <option value="2028">2028</option>
+                </select>
+              </div>
+
+              <button type="button" class="dash-nav-btn" id="dash-next-btn" onclick="changeDashboardMonth(1)" title="Próximo mês" aria-label="Próximo mês">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
+
+              <button type="button" class="dash-today-btn" id="dash-today-btn" onclick="resetDashboardMonth()" title="Ir para o mês atual">
+                Mês Atual
+              </button>
+            </div>
+          </div>
+
+          <div class="dashboard-toolbar-right">
+            <div class="dash-period-chip" id="dash-period-chip">
+              <span class="dash-chip-dot"></span>
+              <span id="dash-period-text">Carregando...</span>
+            </div>
+          </div>
+        </div>
+
         <div class="metrics">
           <div class="metric-card c1">
-            <div class="metric-label">Receita Hoje</div>
+            <div class="metric-label" id="metric-receita-label">Receita Hoje</div>
             <div class="metric-value" id="metric-receita">—</div>
             <div class="metric-change" id="metric-receita-change"></div>
           </div>
           <div class="metric-card c2">
-            <div class="metric-label">Atendimentos</div>
+            <div class="metric-label" id="metric-atendimentos-label">Atendimentos</div>
             <div class="metric-value" id="metric-atendimentos">—</div>
             <div class="metric-change" id="metric-atendimentos-change"></div>
           </div>
           <div class="metric-card c3">
-            <div class="metric-label">Clientes Ativos</div>
+            <div class="metric-label" id="metric-clientes-label">Clientes Ativos</div>
             <div class="metric-value" id="metric-clientes">—</div>
             <div class="metric-change" id="metric-clientes-change"></div>
           </div>
           <div class="metric-card c4">
-            <div class="metric-label">Ticket Médio</div>
+            <div class="metric-label" id="metric-ticket-label">Ticket Médio</div>
             <div class="metric-value" id="metric-ticket">—</div>
             <div class="metric-change" id="metric-ticket-change"></div>
           </div>
@@ -1227,6 +1282,10 @@
         <div class="form-field">
           <label class="form-label">Duração (min) *</label>
           <input class="form-input" type="number" id="service-duration" placeholder="60" min="5" step="5">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Intervalo (min)</label>
+          <input class="form-input" type="number" id="service-buffer" placeholder="15" min="0" step="5">
         </div>
         <div class="form-field">
           <label class="form-label">Preço (R$) *</label>

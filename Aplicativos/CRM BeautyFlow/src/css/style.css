@@ -699,6 +699,23 @@
 [data-color-scheme="dark"] .agenda-nav-btn {
   color: var(--text-light);
 }
+[data-color-scheme="dark"] .dashboard-nav,
+[data-color-scheme="dark"] .dash-period-chip {
+  background: var(--dark-bg-card, #132238);
+  border-color: var(--border);
+}
+[data-color-scheme="dark"] .dash-nav-btn,
+[data-color-scheme="dark"] .dash-select,
+[data-color-scheme="dark"] .dash-today-btn {
+  background: var(--dark-bg-raised, #1a2f4c);
+  border-color: var(--border);
+  color: var(--text-dark);
+}
+[data-color-scheme="dark"] .dash-nav-btn:hover,
+[data-color-scheme="dark"] .dash-today-btn:hover {
+  background: var(--primary-800);
+  color: var(--primary-300);
+}
 [data-color-scheme="dark"] .agenda-today-btn {
   background: var(--dark-bg-raised);
   border-color: var(--border);
@@ -1937,6 +1954,135 @@ body {
 .status-cancelled { background: var(--danger-bg); color: var(--danger); }
 
 /* ═══════════════ DASHBOARD ═══════════════ */
+.dashboard-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.dashboard-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dashboard-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-white);
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.dash-nav-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-screen);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--primary-600);
+  transition: all var(--transition-fast);
+}
+
+.dash-nav-btn:hover {
+  background: var(--primary-100);
+  border-color: var(--primary-400);
+  color: var(--primary-700);
+}
+
+.dashboard-selectors {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dash-select {
+  height: 32px;
+  padding: 0 8px;
+  font-size: var(--text-13);
+  font-weight: 500;
+  color: var(--text-dark);
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  cursor: pointer;
+  outline: none;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+}
+
+.dash-select:focus {
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 2px var(--primary-100);
+}
+
+.dash-today-btn {
+  height: 32px;
+  padding: 0 12px;
+  font-size: var(--text-12);
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-screen);
+  color: var(--text-medium);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.dash-today-btn:hover {
+  background: var(--primary-100);
+  color: var(--primary-700);
+  border-color: var(--primary-400);
+}
+
+.dash-today-btn.is-current {
+  background: var(--primary-500);
+  border-color: var(--primary-600);
+  color: #ffffff;
+}
+
+.dash-today-btn.is-current:hover {
+  background: var(--primary-600);
+  color: #ffffff;
+}
+
+.dashboard-toolbar-right {
+  display: flex;
+  align-items: center;
+}
+
+.dash-period-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-white);
+  border: 1px solid var(--border);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: var(--text-13);
+  font-weight: 600;
+  color: var(--primary-700);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.dash-chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary-500);
+}
+
 .bottom-grid {
   display: grid;
   grid-template-columns: 1fr 440px;
@@ -2478,6 +2624,13 @@ body {
   background: var(--warning-bg);
   color: #7a5010;
   border-left-color: var(--warning);
+}
+
+.cal-event.cancelled {
+  background: #fde8e8;
+  color: #a03030;
+  border-left-color: #c05050;
+  opacity: 0.75;
 }
 
 .cal-event .ev-pay-mark {
@@ -4834,6 +4987,21 @@ body {
 
   .client-stat-value {
     font-size: var(--text-19);
+  }
+
+  .dashboard-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .dashboard-nav {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
+  .dashboard-toolbar-right {
+    justify-content: center;
   }
 
   .agenda-toolbar {

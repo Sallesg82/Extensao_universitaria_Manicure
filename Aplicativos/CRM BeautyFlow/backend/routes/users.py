@@ -98,11 +98,13 @@ def change_password(user_id):
 
 @users_bp.route('/login', methods=['POST'])
 def login():
-    data = request.get_json()
-    if not data.get('email') or not data.get('password'):
+    data = request.get_json() or {}
+    email = (data.get('email') or '').strip()
+    password = data.get('password') or ''
+    if not email or not password:
         return jsonify({'error': 'Email e senha são obrigatórios'}), 400
-    u = get_user_by_email(data['email'])
-    if not u or not check_password_hash(u['password_hash'], data['password']):
+    u = get_user_by_email(email)
+    if not u or not check_password_hash(u['password_hash'], password):
         return jsonify({'error': 'Email ou senha inválidos'}), 401
     u.pop('password_hash', None)
     return jsonify(u)

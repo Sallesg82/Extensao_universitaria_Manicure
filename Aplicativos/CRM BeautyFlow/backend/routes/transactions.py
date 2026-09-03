@@ -10,6 +10,7 @@ def list_transactions():
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
     tx_type = request.args.get('type', '')
+    limit = min(request.args.get('limit', 200, type=int), 1000)
     supabase = get_db()
     query = supabase.table('transactions').select('*').order('date', desc=True).order('id', desc=True)
     if date_from:
@@ -18,7 +19,7 @@ def list_transactions():
         query = query.lte('date', date_to)
     if tx_type:
         query = query.eq('type', tx_type)
-    result = query.limit(100).execute()
+    result = query.limit(limit).execute()
     return jsonify(result.data)
 
 

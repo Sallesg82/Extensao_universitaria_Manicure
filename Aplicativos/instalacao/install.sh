@@ -142,7 +142,7 @@ echo "  ✓ Docker e Docker Compose prontos!"
 echo "⚙️  [3/5] Configurando variáveis de ambiente..."
 
 CRM_DIR="$(cd "$SCRIPT_DIR/../CRM BeautyFlow" && pwd)"
-AGENDA_DIR="$(cd "$SCRIPT_DIR/../agendamento Vinicius" && pwd)"
+AGENDA_DIR="$(cd "$SCRIPT_DIR/../Beatriz Gomes Studio" && pwd)"
 
 # Detectar IP da máquina na rede local
 LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}')

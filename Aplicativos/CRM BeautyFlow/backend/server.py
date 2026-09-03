@@ -34,6 +34,51 @@ app.register_blueprint(integrations_bp, url_prefix='/api/integrations')
 app.register_blueprint(transactions_bp, url_prefix='/api/transactions')
 
 
+@app.after_request
+def _dev_no_cache(response):
+    if app.debug or os.environ.get('FLASK_DEBUG') == '1':
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    return response
+
+
+def start_dev_file_watcher():
+    if os.environ.get('WERKZEUG_RUN_MAIN') != 'true' and os.environ.get('FLASK_DEBUG') != '1':
+        return
+    import threading
+    import time
+    def _watcher():
+        time.sleep(2)
+        last_mtimes = {}
+        for root, _, files in os.walk(STATIC_DIR):
+            for f in files:
+                p = os.path.join(root, f)
+                try:
+                    last_mtimes[p] = os.path.getmtime(p)
+                except OSError:
+                    pass
+        while True:
+            time.sleep(1)
+            changed = False
+            for root, _, files in os.walk(STATIC_DIR):
+                for f in files:
+                    if f.endswith(('.html', '.js', '.css')):
+                        p = os.path.join(root, f)
+                        try:
+                            m = os.path.getmtime(p)
+                            if p in last_mtimes and last_mtimes[p] != m:
+                                changed = True
+                            last_mtimes[p] = m
+                        except OSError:
+                            pass
+            if changed:
+                with app.app_context():
+                    socketio.emit('dev:reload')
+    t = threading.Thread(target=_watcher, daemon=True)
+    t.start()
+
+
 # ─── Helpers de configuração n8n ────────────────────────────────────────────
 _N8N_FALLBACK = 'https://mirianfiorini.app.n8n.cloud/webhook/calendar-webhook'
 
@@ -335,10 +380,17 @@ def available_slots():
             pass
 
     # Gerar slots a cada 30 minutos
+    now_local = datetime.datetime.now()
+    today_str = now_local.strftime('%Y-%m-%d')
+    current_min = now_local.hour * 60 + now_local.minute
+
     slot_step = 30
     slots = []
     slot_start = open_min
     while slot_start + total <= close_min:
+        if date_str == today_str and slot_start <= current_min:
+            slot_start += slot_step
+            continue
         slot_end = slot_start + total
         conflict = False
         for occ in occupied:
@@ -381,20 +433,24 @@ def js(filename):
 @ app.route('/api/stats')
 def stats():
     period = request.args.get('period', 0, type=int)
-    data = get_stats(period=period if period > 0 else None)
+    month = request.args.get('month', None, type=int)
+    year = request.args.get('year', None, type=int)
+    data = get_stats(period=period if period > 0 else None, month=month, year=year)
     data['notifications_unread'] = unread_notifications_count()
 
-    if data.get('month_revenue', 0) >= data.get('meta_mensal', 0) and data.get('meta_mensal', 0) > 0:
-        settings = get_settings()
-        if settings.get('notify_alerta_de_meta_atingida', 'true') == 'true':
-            existing = get_db().table('notifications').select('id').eq('type', 'meta_atingida').limit(1).execute()
-            if not existing.data:
-                create_notification(
-                    'meta_atingida',
-                    'Meta Mensal Atingida!',
-                    f"Parabéns! A meta de R$ {data['meta_mensal']:,.0f} foi alcançada. Receita atual: R$ {data['month_revenue']:,.2f}"
-                )
-                data['notifications_unread'] = unread_notifications_count()
+    now = datetime.datetime.now()
+    if data.get('selected_month', now.month) == now.month and data.get('selected_year', now.year) == now.year:
+        if data.get('month_revenue', 0) >= data.get('meta_mensal', 0) and data.get('meta_mensal', 0) > 0:
+            settings = get_settings()
+            if settings.get('notify_alerta_de_meta_atingida', 'true') == 'true':
+                existing = get_db().table('notifications').select('id').eq('type', 'meta_atingida').limit(1).execute()
+                if not existing.data:
+                    create_notification(
+                        'meta_atingida',
+                        'Meta Mensal Atingida!',
+                        f"Parabéns! A meta de R$ {data['meta_mensal']:,.0f} foi alcançada. Receita atual: R$ {data['month_revenue']:,.2f}"
+                    )
+                    data['notifications_unread'] = unread_notifications_count()
 
     return jsonify(data)
 

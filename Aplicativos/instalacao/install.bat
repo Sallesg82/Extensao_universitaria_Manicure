@@ -23,7 +23,7 @@ echo [2/4] Gerando configuracoes .env...
 
 (
   echo VITE_API_URL=http://localhost:3001/api
-) > "..\agendamento Vinicius\.env"
+) > "..\Beatriz Gomes Studio\.env"
 
 (
   echo VITE_API_URL=http://localhost:3001/api

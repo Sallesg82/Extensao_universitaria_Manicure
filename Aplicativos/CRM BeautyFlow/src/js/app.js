@@ -2,6 +2,13 @@ const API = window.location.origin + '/api'
 
 let currentUser = null
 
+function getLocalDateString(d = new Date()) {
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 // ── Socket.IO ────────────────────────────────────────
 let _socket = null
 let _pageRefreshPending = {}
@@ -29,6 +36,10 @@ function connectSocket() {
   _socket.on('transaction:created', () => _requestPageRefresh('transaction'))
   _socket.on('transaction:updated', () => _requestPageRefresh('transaction'))
   _socket.on('transaction:deleted', () => _requestPageRefresh('transaction'))
+  _socket.on('dev:reload', () => {
+    console.log('[Dev] Código alterado, atualizando página...')
+    window.location.reload()
+  })
 }
 
 function _requestPageRefresh(type) {
@@ -67,8 +78,8 @@ function renderLoginForm() {
   const form = document.getElementById('auth-form')
   form.innerHTML = `
     <div class="auth-field">
-      <label>Email</label>
-      <input type="email" id="login-email" placeholder="seu@email.com" autocomplete="email">
+      <label>Email ou Usuário</label>
+      <input type="text" id="login-email" placeholder="admin ou seu@email.com" autocomplete="username">
     </div>
     <div class="auth-field">
       <label>Senha</label>
@@ -213,7 +224,7 @@ function startPageRefresh(pageId) {
   stopPageRefresh()
   const map = {
     dashboard: { ms: 10000, fn: loadDashboard },
-    agenda:    { ms: 10000, fn: loadAgenda },
+    agenda:    { ms: 10000, fn: refreshAgenda },
     clientes:  { ms: 30000, fn: loadClients },
     relatorios: { ms: 30000, fn: loadRelatorios },
     financeiro: { ms: 15000, fn: loadFinanceiro },
@@ -281,15 +292,22 @@ function showPage(pageId, navEl) {
     location.hash = pageId
   }
 
+  let pageEl = document.getElementById('page-' + pageId)
+  if (!pageEl) {
+    pageId = 'dashboard'
+    pageEl = document.getElementById('page-dashboard')
+    navEl = document.querySelector('.nav-item[onclick*="\'dashboard\'"]')
+  }
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'))
-  document.getElementById('page-' + pageId).classList.add('active')
+  pageEl.classList.add('active')
 
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'))
   if (navEl) navEl.classList.add('active')
 
   closeMobileMenu()
 
-  const cfg = pageConfig[pageId]
+  const cfg = pageConfig[pageId] || pageConfig.dashboard
   document.getElementById('page-title').textContent = cfg.title
   document.getElementById('page-sub').textContent = cfg.sub
   const btn = document.getElementById('topbar-btn')
@@ -315,7 +333,8 @@ function handleTopbarBtn() {
   if (!activePage) return
   const pageId = activePage.id.replace('page-', '')
   if (pageId === 'dashboard' || pageId === 'agenda') {
-    openAppointmentModal()
+    const defaultDate = pageId === 'agenda' && agendaDate ? _fmt(agendaDate) : null
+    openAppointmentModal(defaultDate)
   } else if (pageId === 'clientes') {
     openClientModal()
   } else if (pageId === 'servicos') {
@@ -346,6 +365,7 @@ function showSettingsTab(navEl, tabId) {
   if (tabId === 'tab-integ') { loadIntegrations() }
   if (tabId === 'tab-horarios') { loadBusinessHours() }
   if (tabId === 'tab-empresa') { loadCompanyInfo() }
+  if (tabId === 'tab-notif') { loadNotificacoes() }
 }
 
 // ── BUSINESS HOURS ──────────────────────────────────
@@ -557,7 +577,11 @@ function closeCreateUserModal() {
   const el = document.getElementById('create-user-overlay')
   if (el) {
     el.classList.remove('open')
-    setTimeout(() => el.remove(), 200)
+    setTimeout(() => {
+      const parent = el.parentElement
+      if (parent && parent !== document.body) parent.remove()
+      else el.remove()
+    }, 200)
   }
 }
 
@@ -623,7 +647,11 @@ function closeEditUserModal() {
   const el = document.getElementById('edit-user-overlay')
   if (el) {
     el.classList.remove('open')
-    setTimeout(() => el.remove(), 200)
+    setTimeout(() => {
+      const parent = el.parentElement
+      if (parent && parent !== document.body) parent.remove()
+      else el.remove()
+    }, 200)
   }
 }
 
@@ -1079,9 +1107,93 @@ function clearClientDetail() {
 
 // ── DASHBOARD ─────────────────────────────────────
 
+let dashSelectedMonth = new Date().getMonth() + 1
+let dashSelectedYear = new Date().getFullYear()
+
+function populateDashboardYearSelect() {
+  const yEl = document.getElementById('dash-select-year')
+  if (!yEl) return
+  const currentYear = new Date().getFullYear()
+  if (yEl.options.length > 0 && yEl.querySelector(`option[value="${dashSelectedYear}"]`)) {
+    return
+  }
+  const startYear = Math.min(currentYear - 4, dashSelectedYear - 1)
+  const endYear = Math.max(currentYear + 3, dashSelectedYear + 1)
+  yEl.innerHTML = ''
+  for (let y = startYear; y <= endYear; y++) {
+    const opt = document.createElement('option')
+    opt.value = y
+    opt.textContent = y
+    yEl.appendChild(opt)
+  }
+}
+
+function syncDashboardControls() {
+  populateDashboardYearSelect()
+
+  const mEl = document.getElementById('dash-select-month')
+  const yEl = document.getElementById('dash-select-year')
+  if (mEl) mEl.value = String(dashSelectedMonth)
+  if (yEl) yEl.value = String(dashSelectedYear)
+
+  const monthNames = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ]
+  const periodText = (monthNames[dashSelectedMonth - 1] || '') + ' de ' + dashSelectedYear
+  const periodTextEl = document.getElementById('dash-period-text')
+  if (periodTextEl) periodTextEl.textContent = periodText
+
+  const now = new Date()
+  const isCurrent = (dashSelectedMonth === (now.getMonth() + 1) && dashSelectedYear === now.getFullYear())
+  const todayBtn = document.getElementById('dash-today-btn')
+  if (todayBtn) {
+    todayBtn.classList.toggle('is-current', isCurrent)
+    todayBtn.title = isCurrent ? 'Você está visualizando o mês atual' : 'Voltar para o mês atual'
+  }
+}
+
+function changeDashboardMonth(delta) {
+  dashSelectedMonth += delta
+  if (dashSelectedMonth > 12) {
+    dashSelectedMonth = 1
+    dashSelectedYear += 1
+  } else if (dashSelectedMonth < 1) {
+    dashSelectedMonth = 12
+    dashSelectedYear -= 1
+  }
+  syncDashboardControls()
+  loadDashboard()
+}
+
+function onDashboardDateSelectChange() {
+  const mEl = document.getElementById('dash-select-month')
+  const yEl = document.getElementById('dash-select-year')
+  if (mEl && yEl) {
+    dashSelectedMonth = parseInt(mEl.value, 10)
+    dashSelectedYear = parseInt(yEl.value, 10)
+    syncDashboardControls()
+    loadDashboard()
+  }
+}
+
+function resetDashboardMonth() {
+  const now = new Date()
+  dashSelectedMonth = now.getMonth() + 1
+  dashSelectedYear = now.getFullYear()
+  syncDashboardControls()
+  loadDashboard()
+}
+
 async function loadDashboard() {
   try {
-    const res = await fetch(API + '/stats')
+    const now = new Date()
+    if (!dashSelectedMonth) dashSelectedMonth = now.getMonth() + 1
+    if (!dashSelectedYear) dashSelectedYear = now.getFullYear()
+
+    syncDashboardControls()
+
+    const res = await fetch(`${API}/stats?month=${dashSelectedMonth}&year=${dashSelectedYear}`)
     const stats = await res.json()
 
     const dot = document.getElementById('notif-dot')
@@ -1092,23 +1204,69 @@ async function loadDashboard() {
     const today = new Date()
     const days = ['Domingo','Segunda-feira','Terça-feira','Quarta-feira','Quinta-feira','Sexta-feira','Sábado']
     const months = ['janeiro','fevereiro','março','abril','maio','junho','julho','agosto','setembro','outubro','novembro','dezembro']
-    pageConfig.dashboard.sub = days[today.getDay()] + ', ' + today.getDate() + ' de ' + months[today.getMonth()] + ' de ' + today.getFullYear()
-    document.getElementById('page-sub').textContent = pageConfig.dashboard.sub
 
-    const metrics = document.querySelectorAll('.metric-card')
-    if (metrics.length >= 4) {
-      const setMetric = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val }
-      setMetric('metric-receita', 'R$ ' + stats.today_revenue.toFixed(0))
-      setMetric('metric-atendimentos', stats.today_count)
-      setMetric('metric-clientes', stats.active_clients)
-      setMetric('metric-ticket', 'R$ ' + stats.avg_ticket.toFixed(0))
+    const isCurrentMonth = (dashSelectedMonth === (today.getMonth() + 1) && dashSelectedYear === today.getFullYear())
+
+    if (isCurrentMonth) {
+      pageConfig.dashboard.sub = days[today.getDay()] + ', ' + today.getDate() + ' de ' + months[today.getMonth()] + ' de ' + today.getFullYear()
+    } else {
+      pageConfig.dashboard.sub = 'Visualizando mês: ' + (stats.month_label || months[dashSelectedMonth - 1]) + ' de ' + stats.month_year
+    }
+    const pageSubEl = document.getElementById('page-sub')
+    if (pageSubEl && (location.hash.slice(1) || 'dashboard') === 'dashboard') {
+      pageSubEl.textContent = pageConfig.dashboard.sub
+    }
+
+    const setEl = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val }
+
+    // Cards de métricas
+    const todayRev = Number(stats.today_revenue || 0)
+    const monthRev = Number(stats.month_revenue || 0)
+    const todayCnt = Number(stats.today_count || 0)
+    const monthApptCnt = Number(stats.month_appointments_count || 0)
+    const activeCl = Number(stats.active_clients || 0)
+    const monthCl = Number(stats.month_clients || 0)
+    const avgTkt = Number(stats.avg_ticket || 0)
+
+    if (isCurrentMonth) {
+      setEl('metric-receita-label', 'Receita Hoje')
+      setEl('metric-receita', 'R$ ' + todayRev.toFixed(0))
+      setEl('metric-receita-change', 'R$ ' + monthRev.toLocaleString('pt-BR', {minimumFractionDigits: 0}) + ' no mês')
+
+      setEl('metric-atendimentos-label', 'Atendimentos')
+      setEl('metric-atendimentos', todayCnt)
+      setEl('metric-atendimentos-change', monthApptCnt + ' no mês')
+
+      setEl('metric-clientes-label', 'Clientes Ativos')
+      setEl('metric-clientes', activeCl)
+      setEl('metric-clientes-change', monthCl + ' atendidas no mês')
+
+      setEl('metric-ticket-label', 'Ticket Médio')
+      setEl('metric-ticket', 'R$ ' + avgTkt.toFixed(0))
+      setEl('metric-ticket-change', '')
+    } else {
+      setEl('metric-receita-label', 'Receita no Mês')
+      setEl('metric-receita', 'R$ ' + monthRev.toLocaleString('pt-BR', {minimumFractionDigits: 0}))
+      setEl('metric-receita-change', (stats.month_label || '') + ' de ' + stats.month_year)
+
+      setEl('metric-atendimentos-label', 'Atendimentos no Mês')
+      setEl('metric-atendimentos', monthApptCnt)
+      setEl('metric-atendimentos-change', (stats.month_label || '') + ' de ' + stats.month_year)
+
+      setEl('metric-clientes-label', 'Clientes no Mês')
+      setEl('metric-clientes', monthCl)
+      setEl('metric-clientes-change', activeCl + ' cadastrados no total')
+
+      setEl('metric-ticket-label', 'Ticket Médio')
+      setEl('metric-ticket', 'R$ ' + avgTkt.toFixed(0))
+      setEl('metric-ticket-change', '')
     }
 
     // ── Fluxo de Caixa ──
     const monthSub = document.getElementById('fluxo-subtitle')
-    if (monthSub) monthSub.textContent = stats.month_label + ' ' + (stats.month_year || new Date().getFullYear())
+    if (monthSub) monthSub.textContent = (stats.month_label || months[dashSelectedMonth - 1]) + ' ' + stats.month_year
 
-    const profit = stats.month_revenue - stats.month_expenses
+    const profit = monthRev - Number(stats.month_expenses || 0)
     const lucroEl = document.getElementById('fluxo-lucro')
     if (lucroEl) lucroEl.textContent = 'R$ ' + profit.toLocaleString('pt-BR', {minimumFractionDigits: 0})
 
@@ -1124,6 +1282,7 @@ async function loadDashboard() {
     }
 
     const bars = document.querySelectorAll('.bar-fill')
+    bars.forEach(b => { if (b) b.style.height = '0px' })
     if (stats.weekly_revenue && stats.weekly_revenue.length > 0) {
       const maxVal = Math.max(...stats.weekly_revenue, 1)
       stats.weekly_revenue.forEach((val, i) => {
@@ -1135,17 +1294,21 @@ async function loadDashboard() {
     }
 
     const srvContainer = document.getElementById('fluxo-servicos')
-    if (srvContainer && stats.service_breakdown && stats.service_breakdown.length > 0) {
-      const colors = ['#4a90d9', '#2563a8', '#3a7abf', '#b8d4f0', '#1a5fab']
-      srvContainer.innerHTML = '<div class="services-list-title">Serviços</div>' +
-        stats.service_breakdown.map((svc, i) => `
-          <div class="service-row">
-            <div class="service-dot" style="background:${colors[i % colors.length]}"></div>
-            <div class="service-name">${svc.name}</div>
-            <div class="service-bar-bg"><div class="service-bar-fill" style="width:${svc.pct}%;background:${colors[i % colors.length]}"></div></div>
-            <div class="service-pct">${svc.pct}%</div>
-          </div>
-        `).join('')
+    if (srvContainer) {
+      if (stats.service_breakdown && stats.service_breakdown.length > 0) {
+        const colors = ['#4a90d9', '#2563a8', '#3a7abf', '#b8d4f0', '#1a5fab']
+        srvContainer.innerHTML = '<div class="services-list-title">Serviços</div>' +
+          stats.service_breakdown.map((svc, i) => `
+            <div class="service-row">
+              <div class="service-dot" style="background:${colors[i % colors.length]}"></div>
+              <div class="service-name">${svc.name}</div>
+              <div class="service-bar-bg"><div class="service-bar-fill" style="width:${svc.pct}%;background:${colors[i % colors.length]}"></div></div>
+              <div class="service-pct">${svc.pct}%</div>
+            </div>
+          `).join('')
+      } else {
+        srvContainer.innerHTML = '<div class="services-list-title">Serviços</div><div style="padding:10px 0;text-align:center;font-size:13px;color:var(--text-secondary);">Sem serviços registrados neste mês</div>'
+      }
     }
 
     // ── Alertas Inteligentes ──
@@ -1383,10 +1546,11 @@ async function loadDespesas() {
   try {
     const now = new Date()
     const monthStart = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01'
-    const today = now.toISOString().split('T')[0]
+    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+    const monthEnd = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(lastDay).padStart(2, '0')
     const pageSub = document.getElementById('page-sub')
     if (pageSub) pageSub.textContent = _monthNames[now.getMonth()] + ' ' + now.getFullYear()
-    const res = await fetch(API + '/transactions/?type=expense&date_from=' + monthStart + '&date_to=' + today)
+    const res = await fetch(API + '/transactions/?type=expense&date_from=' + monthStart + '&date_to=' + monthEnd)
     const expenses = await res.json()
 
     const total = expenses.reduce((s, t) => s + Number(t.amount), 0)
@@ -1797,7 +1961,7 @@ async function exportRelatorioPDF() {
   if (btn) { btn.textContent = '⏳ Gerando PDF...'; btn.disabled = true }
   const content = document.getElementById('page-relatorios')
   if (!content) { if (btn) { btn.textContent = '⬇ Exportar PDF'; btn.disabled = false }; return }
-  const title = 'Relatorio_BeautyFlow_' + new Date().toISOString().split('T')[0]
+  const title = 'Relatorio_BeautyFlow_' + getLocalDateString()
 
   // ── Fetch data ──────────────────────────────────
   let stats, settings, clients
@@ -2131,10 +2295,20 @@ async function updateMetaPreview(meta) {
   } catch (e) {}
 }
 
-async function loadAgenda() {
-  agendaDate = new Date()
-  agendaView = 'week'
+async function loadAgenda(reset = false) {
+  if (reset || !agendaDate) {
+    agendaDate = new Date()
+    agendaView = 'week'
+  }
+  syncAgendaViewTabs()
   showAgendaView()
+}
+
+function refreshAgenda() {
+  const currentPageId = location.hash.slice(1) || 'dashboard'
+  if (currentPageId === 'agenda') {
+    showAgendaView()
+  }
 }
 
 // ── MODAL AGENDAMENTO (criar/editar) ──────────────
@@ -2149,7 +2323,7 @@ async function openAppointmentModal(date, time) {
   title.textContent = 'Novo Agendamento'
   saveBtn.textContent = 'Salvar Agendamento'
 
-  document.getElementById('appt-date').value = date || new Date().toISOString().split('T')[0]
+  document.getElementById('appt-date').value = date || getLocalDateString()
   document.getElementById('appt-time').value = time || '09:00'
   document.getElementById('appt-status').value = 'pending'
   document.getElementById('appt-payment-status').value = 'unpaid'
@@ -2158,6 +2332,9 @@ async function openAppointmentModal(date, time) {
 
   await populateClientSelect()
   await populateServiceSelect()
+
+  document.getElementById('appt-client').value = ''
+  document.getElementById('appt-service').value = ''
 
   overlay.classList.add('open')
 }
@@ -2235,7 +2412,7 @@ async function saveAppointment() {
     }
     closeModal()
     showToast(idField.value ? 'Agendamento atualizado!' : 'Agendamento criado!', 'success')
-    loadAgenda()
+    showAgendaView()
     loadDashboard()
     loadFinanceiro()
   } catch (e) {
@@ -2343,7 +2520,7 @@ async function cancelAppointment() {
     })
     if (!res.ok) { showToast('Erro ao cancelar.'); return }
     closeDetail()
-    loadAgenda()
+    showAgendaView()
     loadDashboard()
   } catch (e) { showToast('Erro ao cancelar.') }
 }
@@ -2355,7 +2532,7 @@ async function deleteAppointment() {
     const res = await fetch(API + '/appointments/' + id, { method: 'DELETE' })
     if (!res.ok) { showToast('Erro ao excluir.'); return }
     closeDetail()
-    loadAgenda()
+    showAgendaView()
     loadDashboard()
   } catch (e) { showToast('Erro ao excluir.') }
 }
@@ -2439,7 +2616,7 @@ async function saveClient() {
       res = await fetch(API + '/clients/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, phone, email, status, notes })
+        body: JSON.stringify({ name, phone, cpf, email, status, notes })
       })
     }
     if (!res.ok) {
@@ -2468,6 +2645,7 @@ function openServiceModal(svcId) {
   saveBtn.textContent = 'Salvar Serviço'
   document.getElementById('service-name').value = ''
   document.getElementById('service-duration').value = ''
+  document.getElementById('service-buffer').value = '15'
   document.getElementById('service-price').value = ''
   document.getElementById('service-color').value = '#4a90d9'
 
@@ -2479,6 +2657,7 @@ function openServiceModal(svcId) {
       saveBtn.textContent = 'Salvar Alterações'
       document.getElementById('service-name').value = svc.name
       document.getElementById('service-duration').value = svc.duration
+      document.getElementById('service-buffer').value = svc.buffer !== undefined ? svc.buffer : 15
       document.getElementById('service-price').value = svc.price
       document.getElementById('service-color').value = svc.color
     }
@@ -2494,6 +2673,7 @@ function closeServiceModal() {
 async function saveService() {
   const name = document.getElementById('service-name').value.trim()
   const duration = document.getElementById('service-duration').value
+  const buffer = document.getElementById('service-buffer')?.value || 15
   const price = document.getElementById('service-price').value
   const color = document.getElementById('service-color').value
   const idField = document.getElementById('service-id')
@@ -2502,7 +2682,7 @@ async function saveService() {
   if (!duration || Number(duration) < 1) { showToast('Informe a duração do serviço.'); return }
   if (price === '' || Number(price) < 0) { showToast('Informe o preço do serviço.'); return }
 
-  const body = { name, duration: Number(duration), price: Number(price), color }
+  const body = { name, duration: Number(duration), buffer: Number(buffer), price: Number(price), color }
 
   try {
     let res
@@ -2576,7 +2756,7 @@ function openTransactionModal(type) {
   document.getElementById('tx-type').value = type || 'income'
   document.getElementById('tx-amount').value = ''
   document.getElementById('tx-description').value = ''
-  document.getElementById('tx-date').value = new Date().toISOString().split('T')[0]
+  document.getElementById('tx-date').value = getLocalDateString()
   loadDespesaCatDropdown()
   document.getElementById('tx-category').value = ''
   document.getElementById('tx-payment').value = ''
@@ -2717,13 +2897,33 @@ document.querySelectorAll('.hour-toggle').forEach(t => {
   })
 })
 
+async function loadNotificacoes() {
+  try {
+    const res = await fetch(API + '/settings/')
+    const settings = await res.json()
+    const toggles = document.querySelectorAll('#tab-notif .hour-toggle')
+    toggles.forEach(t => {
+      const titleEl = t.closest('.toggle-row')?.querySelector('.toggle-title')
+      if (!titleEl) return
+      const key = 'notify_' + titleEl.textContent.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_')
+      const val = settings[key]
+      if (val !== undefined) {
+        t.classList.toggle('on', val === 'true')
+        t.classList.toggle('off', val !== 'true')
+      }
+    })
+  } catch (e) {
+    console.error('Erro ao carregar notificações:', e)
+  }
+}
+
 async function saveNotificacoes() {
-  const toggles = document.querySelectorAll('.hour-toggle')
+  const toggles = document.querySelectorAll('#tab-notif .hour-toggle')
   const data = {}
   toggles.forEach(t => {
     const titleEl = t.closest('.toggle-row')?.querySelector('.toggle-title')
     if (!titleEl) return
-    const key = 'notify_' + titleEl.textContent.trim().toLowerCase().replace(/\s+/g, '_')
+    const key = 'notify_' + titleEl.textContent.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '_')
     data[key] = t.classList.contains('on') ? 'true' : 'false'
   })
   try {
@@ -3252,7 +3452,7 @@ async function readAllNotifs() {
 document.addEventListener('click', function(e) {
   const panel = document.getElementById('notif-panel')
   const bell = document.querySelector('.badge-notif')
-  if (notifPanelOpen && panel && bell && !bell.contains(e.target)) {
+  if (notifPanelOpen && panel && bell && !panel.contains(e.target) && !bell.contains(e.target)) {
     notifPanelOpen = false
     panel.style.display = 'none'
   }
@@ -3286,29 +3486,60 @@ let agendaDate = new Date()
 const DAYS_PT = ['domingo','segunda','terca','quarta','quinta','sexta','sabado']
 const DEFAULT_HOURS = { open: '08:00', close: '18:00', closed: false }
 
+function syncAgendaViewTabs() {
+  const views = ['day', 'week', 'month', 'year']
+  const tabs = document.querySelectorAll('#agenda-view-tabs .view-tab')
+  tabs.forEach((t, i) => {
+    t.classList.toggle('active', views[i] === agendaView)
+  })
+}
+
 function setAgendaView(view, el) {
   agendaView = view
-  document.querySelectorAll('#agenda-view-tabs .view-tab').forEach(x => x.classList.remove('active'))
-  if (el) el.classList.add('active')
+  syncAgendaViewTabs()
   showAgendaView()
 }
 
 function agendaNavPrev() {
   switch (agendaView) {
-    case 'day': agendaDate.setDate(agendaDate.getDate() - 1); break
-    case 'week': agendaDate.setDate(agendaDate.getDate() - 7); break
-    case 'month': agendaDate.setMonth(agendaDate.getMonth() - 1); break
-    case 'year': agendaDate.setFullYear(agendaDate.getFullYear() - 1); break
+    case 'day':
+      agendaDate.setDate(agendaDate.getDate() - 1)
+      break
+    case 'week':
+      agendaDate.setDate(agendaDate.getDate() - 7)
+      break
+    case 'month': {
+      const curYear = agendaDate.getFullYear()
+      const curMonth = agendaDate.getMonth()
+      agendaDate = new Date(curYear, curMonth - 1, 1, 12, 0, 0)
+      break
+    }
+    case 'year': {
+      agendaDate = new Date(agendaDate.getFullYear() - 1, 0, 1, 12, 0, 0)
+      break
+    }
   }
   showAgendaView()
 }
 
 function agendaNavNext() {
   switch (agendaView) {
-    case 'day': agendaDate.setDate(agendaDate.getDate() + 1); break
-    case 'week': agendaDate.setDate(agendaDate.getDate() + 7); break
-    case 'month': agendaDate.setMonth(agendaDate.getMonth() + 1); break
-    case 'year': agendaDate.setFullYear(agendaDate.getFullYear() + 1); break
+    case 'day':
+      agendaDate.setDate(agendaDate.getDate() + 1)
+      break
+    case 'week':
+      agendaDate.setDate(agendaDate.getDate() + 7)
+      break
+    case 'month': {
+      const curYear = agendaDate.getFullYear()
+      const curMonth = agendaDate.getMonth()
+      agendaDate = new Date(curYear, curMonth + 1, 1, 12, 0, 0)
+      break
+    }
+    case 'year': {
+      agendaDate = new Date(agendaDate.getFullYear() + 1, 0, 1, 12, 0, 0)
+      break
+    }
   }
   showAgendaView()
 }
@@ -3330,6 +3561,7 @@ function _fmtBR(d) {
 }
 
 function showAgendaView() {
+  syncAgendaViewTabs()
   document.getElementById('agenda-week-grid').style.display = 'none'
   document.getElementById('agenda-day-view').style.display = 'none'
   document.getElementById('agenda-month-view').style.display = 'none'
@@ -3343,44 +3575,53 @@ function showAgendaView() {
   }
 }
 
-// ── POPULATE WEEK GRID ────────────────────────────
-
 // ── RENDER DAY VIEW (horizontal list) ─────────────
 
 async function renderDayView() {
+  syncAgendaViewTabs()
   const dayStr = _fmt(agendaDate)
   updateSub(_dayNames[agendaDate.getDay()] + ', ' + agendaDate.getDate() + ' de ' + _monthNames[agendaDate.getMonth()] + ' de ' + agendaDate.getFullYear())
 
   const appts = await fetchAppts(dayStr, dayStr)
+
+  let hoursMap = {}
+  try {
+    const r = await fetch(API + '/business-hours')
+    hoursMap = await r.json()
+  } catch (_) {}
+  const dow = agendaDate.getDay()
+  const dk = DAYS_PT[dow]
+  const h = hoursMap[dk] || DEFAULT_HOURS
+  const isClosed = !!h.closed
 
   const sc = { done: 'done', confirmed: 'confirmed', pending: 'pending', cancelled: 'cancelled' }
   const statusLabels = { done: 'Concluído', confirmed: 'Confirmado', pending: 'Pendente', cancelled: 'Cancelado' }
   const statusColors = { done: '#4e8f6a', confirmed: '#4a90d9', pending: '#c9894a', cancelled: '#c05050' }
 
   let html = '<div class="day-view-panel">'
-  if (agendaDate.getDay() === 0) {
-    html += '<div class="day-view-empty"><div class="day-view-off">Folga</div><div class="day-view-off-sub">Você não atende aos domingos</div></div>'
-  } else if (appts.length === 0) {
-    html += '<div class="day-view-empty">Nenhum agendamento neste dia</div>'
-  } else {
-    appts.sort((a, b) => a.appointment_time.localeCompare(b.appointment_time))
+  if (appts.length > 0) {
+    appts.sort((a, b) => (a.appointment_time || '').localeCompare(b.appointment_time || ''))
     appts.forEach(a => {
       const cls = sc[a.status] || 'pending'
       const color = statusColors[a.status] || '#999'
       const payCls = a.payment_status === 'paid' ? 'status-paid' : 'status-unpaid'
       const payLabel = a.payment_status === 'paid' ? 'Pago' : 'Não Pago'
       html += '<div class="day-view-card" onclick="openAppointmentDetail(' + a.id + ')">'
-      html += '<div class="dvc-time">' + a.appointment_time + '</div>'
+      html += '<div class="dvc-time">' + (a.appointment_time || '—') + '</div>'
       html += '<div class="dvc-dot" style="background:' + color + '"></div>'
       html += '<div class="dvc-body">'
-      html += '<div class="dvc-name">' + a.client_name + '</div>'
-      html += '<div class="dvc-service">' + a.service + '</div>'
+      html += '<div class="dvc-name">' + (a.client_name || 'Cliente') + '</div>'
+      html += '<div class="dvc-service">' + (a.service || 'Serviço') + '</div>'
       html += '</div>'
-      html += '<div class="dvc-price">R$ ' + Number(a.price).toFixed(2) + '</div>'
+      html += '<div class="dvc-price">R$ ' + Number(a.price || 0).toFixed(2) + '</div>'
       html += '<span class="appt-status status-' + cls + '">' + (statusLabels[a.status] || a.status) + '</span>'
       html += '<span class="appt-status ' + payCls + '" style="margin-left:4px;">' + payLabel + '</span>'
       html += '</div>'
     })
+  } else if (isClosed) {
+    html += '<div class="day-view-empty"><div class="day-view-off">Folga</div><div class="day-view-off-sub">Estabelecimento fechado neste dia</div><button class="btn-primary" style="margin-top:14px;" onclick="openAppointmentModal(\'' + dayStr + '\')">+ Agendar Mesmo Assim</button></div>'
+  } else {
+    html += '<div class="day-view-empty"><div>Nenhum agendamento neste dia</div><button class="btn-primary" style="margin-top:14px;" onclick="openAppointmentModal(\'' + dayStr + '\')">+ Novo Agendamento</button></div>'
   }
   html += '</div>'
 
@@ -3389,8 +3630,12 @@ async function renderDayView() {
   document.getElementById('agenda-summary').textContent = appts.length + ' atendimento' + (appts.length !== 1 ? 's' : '') + ' neste dia'
 }
 
+// ── POPULATE WEEK GRID ────────────────────────────
+
 async function populateWeekGrid(numDays) {
+  syncAgendaViewTabs()
   const weekStart = new Date(agendaDate)
+  weekStart.setHours(12, 0, 0, 0)
   if (numDays === 7) {
     weekStart.setDate(agendaDate.getDate() - agendaDate.getDay())
   }
@@ -3418,8 +3663,17 @@ async function populateWeekGrid(numDays) {
     hoursMap = await r.json()
   } catch (_) {}
 
+  // Safe time parser helper
+  function parseTime(str, def) {
+    if (!str || typeof str !== 'string' || !str.includes(':')) return def
+    const parts = str.split(':')
+    const h = parseInt(parts[0], 10)
+    const m = parseInt(parts[1], 10)
+    return (!isNaN(h) && !isNaN(m)) ? h * 60 + m : def
+  }
+
   // Find global min/max across visible days
-  let globalOpen = 8 * 60, globalClose = 17 * 60
+  let globalOpen = 8 * 60, globalClose = 18 * 60
   for (let i = 0; i < numDays; i++) {
     const day = new Date(weekStart)
     day.setDate(weekStart.getDate() + i)
@@ -3427,37 +3681,49 @@ async function populateWeekGrid(numDays) {
     const dk = DAYS_PT[dow]
     const h = hoursMap[dk] || DEFAULT_HOURS
     if (!h.closed) {
-      const o = parseInt(h.open) * 60 + parseInt(h.open?.split(':')[1] || '0')
-      const c = parseInt(h.close) * 60 + parseInt(h.close?.split(':')[1] || '0')
+      const o = parseTime(h.open, 8 * 60)
+      const c = parseTime(h.close, 18 * 60)
       if (o < globalOpen) globalOpen = o
       if (c > globalClose) globalClose = c
     }
   }
 
-  const hourStep = isDayView ? 30 : 60
-  const numSlots = Math.max(1, Math.round((globalClose - globalOpen) / hourStep) + 1)
+  // Expand globalOpen/globalClose if any appointment falls outside
+  appts.forEach(a => {
+    if (!a.appointment_time) return
+    const start = parseTime(a.appointment_time, -1)
+    if (start >= 0) {
+      const dur = Math.max(15, Number(a.duration || 60))
+      const end = start + dur
+      if (start < globalOpen) globalOpen = Math.floor(start / 60) * 60
+      if (end > globalClose) globalClose = Math.ceil(end / 60) * 60
+    }
+  })
+
+  const hourStep = 60
+  const numSlots = Math.max(1, Math.round((globalClose - globalOpen) / hourStep))
 
   // Calculate slot height to fill available viewport space
   function calcSlotHeight() {
     const topbarEl = document.querySelector('.topbar')
     const toolbarEl = document.querySelector('.agenda-toolbar')
     const legendEl = document.querySelector('.agenda-legend')
-    if (!topbarEl || !toolbarEl || !legendEl) return isDayView ? 26 : 52
+    if (!topbarEl || !toolbarEl || !legendEl) return 52
     const topbarH = topbarEl.offsetHeight
     const toolbarH = toolbarEl.offsetHeight
     const legendH = legendEl.offsetHeight + 4
-    const contentPad = 48 // 24px top + 24px bottom
+    const contentPad = 48
     const pageGap = 20
     const borderH = 2
     const headerH = 44
     const available = window.innerHeight - topbarH - contentPad - pageGap - toolbarH - legendH - borderH - headerH
     const perSlot = Math.floor(available / numSlots)
-    return Math.max(isDayView ? 26 : 30, perSlot)
+    return Math.max(32, perSlot)
   }
   const slotHeight = calcSlotHeight()
 
   let timeHtml = '<div class="time-col-header"></div>'
-  for (let t = globalOpen; t <= globalClose; t += hourStep) {
+  for (let t = globalOpen; t < globalClose; t += hourStep) {
     const hh = Math.floor(t / 60)
     const mm = t % 60
     const label = mm === 0 ? hh + 'h' : hh + ':' + String(mm).padStart(2, '0')
@@ -3469,49 +3735,90 @@ async function populateWeekGrid(numDays) {
   for (let i = 0; i < numDays; i++) {
     const day = new Date(weekStart)
     day.setDate(weekStart.getDate() + i)
-    if (isDayView && i === 0) { const d2 = new Date(agendaDate); d2.setHours(12); day.setTime(d2.getTime()) }
     const dayStr = _fmt(day)
     const isToday = dayStr === todayStr
     const dow = day.getDay()
     const dayKey = DAYS_PT[dow]
     const dayInfo = hoursMap[dayKey] || DEFAULT_HOURS
-    const isClosed = dayInfo.closed
-    const dayOpenMin = isClosed ? 0 : parseInt(dayInfo.open) * 60 + parseInt(dayInfo.open?.split(':')[1] || '0')
-    const dayCloseMin = isClosed ? 0 : parseInt(dayInfo.close) * 60 + parseInt(dayInfo.close?.split(':')[1] || '0')
+    const isClosed = !!dayInfo.closed
+    const dayOpenMin = isClosed ? 0 : parseTime(dayInfo.open, 8 * 60)
+    const dayCloseMin = isClosed ? 0 : parseTime(dayInfo.close, 18 * 60)
 
     dayHtml += '<div class="day-col" style="' + (isDayView ? 'flex:1;' : '') + '">'
     dayHtml += '<div class="day-header"><div class="day-name">' + _dayShort[dow] + '</div><div class="day-num' + (isToday ? ' today' : '') + '">' + day.getDate() + '</div></div>'
-    dayHtml += '<div class="day-slots">'
+    dayHtml += '<div class="day-slots" style="height:' + (numSlots * slotHeight) + 'px;position:relative;">'
 
     if (isClosed) {
+      for (let t = globalOpen; t < globalClose; t += hourStep) {
+        dayHtml += '<div class="hour-line closed-slot" style="height:' + slotHeight + 'px;background:#f8f9fc;"></div>'
+      }
       dayHtml += '<div class="folga-overlay"></div><div class="folga-label">Folga</div>'
     } else {
-      // Empty slots before open
       for (let t = globalOpen; t < dayOpenMin; t += hourStep) {
         dayHtml += '<div class="hour-line closed-slot" style="height:' + slotHeight + 'px;background:#f8f9fc;"></div>'
       }
-      // Open slots
-      for (let t = dayOpenMin; t <= dayCloseMin; t += hourStep) {
+      for (let t = dayOpenMin; t < dayCloseMin; t += hourStep) {
         const hh = Math.floor(t / 60)
         const mm = t % 60
         dayHtml += '<div class="hour-line" style="height:' + slotHeight + 'px;" data-date="' + dayStr + '" data-hour="' + String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0') + '"></div>'
       }
-      // Empty slots after close
-      for (let t = dayCloseMin + hourStep; t <= globalClose; t += hourStep) {
+      for (let t = dayCloseMin; t < globalClose; t += hourStep) {
         dayHtml += '<div class="hour-line closed-slot" style="height:' + slotHeight + 'px;background:#f8f9fc;"></div>'
       }
+    }
 
-      const dayAppts = appts.filter(a => a.appointment_date === dayStr)
+    const dayAppts = appts.filter(a => a.appointment_date === dayStr)
+    if (dayAppts.length > 0) {
+      const sortedAppts = [...dayAppts].sort((x, y) => {
+        const tx = (x.appointment_time || '00:00').localeCompare(y.appointment_time || '00:00')
+        return tx !== 0 ? tx : (Number(y.duration || 60) - Number(x.duration || 60))
+      })
+
+      const parsedEvents = sortedAppts.map(a => {
+        const start = parseTime(a.appointment_time, globalOpen)
+        const dur = Math.max(15, Number(a.duration || 60))
+        return { appt: a, start, end: start + dur }
+      })
+
+      const columns = []
+      parsedEvents.forEach(ev => {
+        let placed = false
+        for (let c = 0; c < columns.length; c++) {
+          const lastInCol = columns[c][columns[c].length - 1]
+          if (ev.start >= lastInCol.end) {
+            columns[c].push(ev)
+            ev.col = c
+            placed = true
+            break
+          }
+        }
+        if (!placed) {
+          ev.col = columns.length
+          columns.push([ev])
+        }
+      })
+
+      parsedEvents.forEach(ev => {
+        const overlapping = parsedEvents.filter(other => ev.start < other.end && ev.end > other.start)
+        ev.totalCols = Math.max(...overlapping.map(o => o.col + 1), 1)
+      })
+
       const sc = { done: 'done', confirmed: 'confirmed', pending: 'pending', cancelled: 'cancelled' }
-      dayAppts.forEach(a => {
-        const [h, m] = a.appointment_time.split(':').map(Number)
-        const top = ((h * 60 + m) - globalOpen) / hourStep * slotHeight
-        const height = Math.max(slotHeight, (a.duration / hourStep) * slotHeight)
+      parsedEvents.forEach(ev => {
+        const a = ev.appt
+        const top = Math.max(0, ((ev.start - globalOpen) / hourStep) * slotHeight)
+        const height = Math.max(slotHeight - 2, ((ev.end - ev.start) / hourStep) * slotHeight - 2)
+        const widthPct = (100 / ev.totalCols)
+        const leftPct = (ev.col * widthPct)
         const payMark = a.payment_status === 'paid' ? '✓' : '✗'
-        dayHtml += '<div class="cal-event ' + (sc[a.status] || 'pending') + ' ' + (a.payment_status === 'paid' ? 'pay-paid' : 'pay-unpaid') + '" style="top:' + top + 'px;height:' + height + 'px;cursor:pointer;" data-id="' + a.id + '">'
-        dayHtml += '<div class="ev-name">' + a.client_name + '<span class="ev-pay-mark">' + payMark + '</span></div><div class="ev-svc">' + a.service + '</div></div>'
+        const svcInfo = servicesCache.find(s => s.name === a.service)
+        const svcColor = svcInfo?.color ? 'border-left-color:' + svcInfo.color + ';' : ''
+
+        dayHtml += '<div class="cal-event ' + (sc[a.status] || 'pending') + ' ' + (a.payment_status === 'paid' ? 'pay-paid' : 'pay-unpaid') + '" style="top:' + top + 'px;height:' + height + 'px;left:calc(' + leftPct + '% + 2px);width:calc(' + widthPct + '% - 4px);' + svcColor + 'cursor:pointer;" data-id="' + a.id + '">'
+        dayHtml += '<div class="ev-name">' + (a.client_name || 'Cliente') + '<span class="ev-pay-mark">' + payMark + '</span></div><div class="ev-svc">' + (a.service || '') + '</div></div>'
       })
     }
+
     dayHtml += '</div></div>'
   }
 
@@ -3546,12 +3853,13 @@ function updateSub(label) {
 // ── RENDER MONTH VIEW ─────────────────────────────
 
 async function renderMonthView() {
+  syncAgendaViewTabs()
   const year = agendaDate.getFullYear()
   const month = agendaDate.getMonth()
   updateSub(_monthNames[month] + ' ' + year)
 
-  const firstDay = new Date(year, month, 1)
-  const lastDay = new Date(year, month + 1, 0)
+  const firstDay = new Date(year, month, 1, 12, 0, 0)
+  const lastDay = new Date(year, month + 1, 0, 12, 0, 0)
   const daysInMonth = lastDay.getDate()
   const startOffset = firstDay.getDay()
   const todayStr = _fmt(new Date())
@@ -3565,7 +3873,7 @@ async function renderMonthView() {
   html += '</div><div class="month-grid-body">'
   for (let i = 0; i < startOffset; i++) html += '<div class="month-grid-cell empty"></div>'
   for (let d = 1; d <= daysInMonth; d++) {
-    const ds = _fmt(new Date(year, month, d))
+    const ds = _fmt(new Date(year, month, d, 12, 0, 0))
     const isToday = ds === todayStr
     const cnt = byDay[ds] || 0
     html += '<div class="month-grid-cell' + (isToday ? ' today' : '') + '" data-date="' + ds + '">'
@@ -3583,8 +3891,7 @@ async function renderMonthView() {
     el.addEventListener('click', function() {
       agendaDate = new Date(this.dataset.date + 'T12:00:00')
       agendaView = 'day'
-      document.querySelectorAll('#agenda-view-tabs .view-tab').forEach(x => x.classList.remove('active'))
-      document.querySelector('#agenda-view-tabs .view-tab:first-child').classList.add('active')
+      syncAgendaViewTabs()
       showAgendaView()
     })
   })
@@ -3595,15 +3902,28 @@ async function renderMonthView() {
 // ── RENDER YEAR VIEW ──────────────────────────────
 
 async function renderYearView() {
+  syncAgendaViewTabs()
   const year = agendaDate.getFullYear()
   updateSub('' + year)
 
+  const firstOfYear = `${year}-01-01`
+  const lastOfYear = `${year}-12-31`
+  const allAppts = await fetchAppts(firstOfYear, lastOfYear)
+
+  const apptsByMonth = Array.from({ length: 12 }, () => [])
+  allAppts.forEach(a => {
+    if (a.appointment_date) {
+      const m = parseInt(a.appointment_date.split('-')[1], 10) - 1
+      if (m >= 0 && m < 12) apptsByMonth[m].push(a)
+    }
+  })
+
   const panels = []
   for (let m = 0; m < 12; m++) {
-    const first = new Date(year, m, 1)
-    const last = new Date(year, m + 1, 0)
-    const appts = await fetchAppts(_fmt(first), _fmt(last))
-    const total = appts.reduce((s, a) => s + a.price, 0)
+    const first = new Date(year, m, 1, 12, 0, 0)
+    const last = new Date(year, m + 1, 0, 12, 0, 0)
+    const appts = apptsByMonth[m]
+    const total = appts.reduce((s, a) => s + Number(a.price || 0), 0)
     const startOff = first.getDay()
 
     const byDay = {}
@@ -3612,7 +3932,7 @@ async function renderYearView() {
     let cellHtml = ''
     for (let i = 0; i < startOff; i++) cellHtml += '<div class="year-month-cell empty"></div>'
     for (let d = 1; d <= last.getDate(); d++) {
-      const ds = _fmt(new Date(year, m, d))
+      const ds = _fmt(new Date(year, m, d, 12, 0, 0))
       const hasAppt = !!byDay[ds]
       cellHtml += '<div class="year-month-cell' + (hasAppt ? ' has-appt' : '') + '"><span>' + d + '</span></div>'
     }
@@ -3624,7 +3944,7 @@ async function renderYearView() {
         + '<div class="year-month-grid">'
         + _dayShort.map(d => '<div class="year-month-header-cell">' + d + '</div>').join('')
         + cellHtml + '</div>'
-        + '<div class="year-month-summary">' + appts.length + ' atend. · R$ ' + total.toFixed(0) + '</div>'
+        + '<div class="year-month-summary">' + appts.length + ' atend. · R$ ' + total.toLocaleString('pt-BR', {minimumFractionDigits: 0}) + '</div>'
         + '</div>'
     })
   }
@@ -3635,15 +3955,14 @@ async function renderYearView() {
   document.querySelectorAll('#agenda-year-view .year-month-panel').forEach(el => {
     el.style.cursor = 'pointer'
     el.addEventListener('click', function() {
-      agendaDate = new Date(year, +this.dataset.month, 1)
+      agendaDate = new Date(year, +this.dataset.month, 1, 12, 0, 0)
       agendaView = 'month'
-      document.querySelectorAll('#agenda-view-tabs .view-tab').forEach(x => x.classList.remove('active'))
-      document.querySelectorAll('#agenda-view-tabs .view-tab')[2].classList.add('active')
+      syncAgendaViewTabs()
       showAgendaView()
     })
   })
 
-  document.getElementById('agenda-summary').textContent = '' + year
+  document.getElementById('agenda-summary').textContent = allAppts.length + ' atendimentos em ' + year
 }
 
 // Botão "+ Nova Cliente" no toolbar

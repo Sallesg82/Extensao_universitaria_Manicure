@@ -2,6 +2,7 @@ import os
 import re
 import json
 from datetime import datetime, timedelta, date, time
+import calendar
 from decimal import Decimal
 from psycopg_pool import ConnectionPool
 from psycopg.rows import dict_row
@@ -707,18 +708,16 @@ def get_client(client_id):
     r = get_db().table(TABLE_CLIENTS).select('*').eq('id', client_id).single().execute()
     c = r.data
     a = get_db().table(TABLE_APPOINTMENTS).select('*').eq('client_id', client_id).order('appointment_date', desc=True).order('appointment_time', desc=True).execute()
-    visit_count = get_db().table(TABLE_APPOINTMENTS).select('id', count='exact').eq('client_id', client_id).execute()
-    fin = get_db().table(TABLE_APPOINTMENTS).select('price').eq('client_id', client_id).eq('status', REVENUE_APPOINTMENT_STATUS).execute()
-    last = get_db().table(TABLE_APPOINTMENTS).select('appointment_date').eq('client_id', client_id).order('appointment_date', desc=True).limit(1).execute()
-    c['visits'] = visit_count.count or 0
-    c['total_spent'] = sum(row.get('price', 0) or 0 for row in fin.data)
-    c['last_visit'] = last.data[0]['appointment_date'] if last.data else None
+    appts = a.data or []
+    c['visits'] = len(appts)
+    c['total_spent'] = sum(float(row.get('price', 0) or 0) for row in appts if counts_as_revenue(row.get('status')))
+    c['last_visit'] = appts[0]['appointment_date'] if appts else None
     c['appointments'] = [
         {**row, 'appointment_time': row['appointment_time'][:5] if row.get('appointment_time') and len(row['appointment_time']) >= 5 else (row.get('appointment_time') or '')}
-        for row in a.data
+        for row in appts
     ]
     svc_usage = {}
-    for row in a.data:
+    for row in appts:
         if counts_as_revenue(row.get('status')):
             svc = row.get('service') or 'Outros'
             svc_usage[svc] = svc_usage.get(svc, 0) + 1
@@ -780,55 +779,88 @@ def update_setting(key, value):
 # ══════════════════════════════════════════════════════════════════════════
 
 
-def get_stats(period=None):
+def get_stats(period=None, month=None, year=None):
     now = datetime.now()
     today = now.strftime('%Y-%m-%d')
-    if period == 7:
+    if month or year:
+        target_month = int(month) if month else now.month
+        target_year = int(year) if year else now.year
+        if target_month < 1 or target_month > 12:
+            target_month = now.month
+        _, last_day = calendar.monthrange(target_year, target_month)
+        month_start = f'{target_year:04d}-{target_month:02d}-01'
+        month_end = f'{target_year:04d}-{target_month:02d}-{last_day:02d}'
+    elif period == 7:
+        target_month = now.month
+        target_year = now.year
         start = now - timedelta(days=(now.weekday() + 1) % 7)
         month_start = start.strftime('%Y-%m-%d')
+        month_end = today
     elif period == 30:
+        target_month = now.month
+        target_year = now.year
         month_start = now.strftime('%Y-%m-01')
+        month_end = today
     elif period == 90:
+        target_month = now.month
+        target_year = now.year
         m = now.month - 3
         y = now.year
         while m < 1:
             m += 12
             y -= 1
         month_start = f'{y}-{m:02d}-01'
+        month_end = today
     elif period == 365:
+        target_month = now.month
+        target_year = now.year
         month_start = f'{now.year}-01-01'
+        month_end = today
     else:
-        month_start = now.strftime('%Y-%m-01')
-    prev_month = now.replace(day=1)
-    if prev_month.month == 1:
-        prev_month = prev_month.replace(year=prev_month.year - 1, month=12)
+        target_month = now.month
+        target_year = now.year
+        _, last_day = calendar.monthrange(target_year, target_month)
+        month_start = f'{target_year:04d}-{target_month:02d}-01'
+        month_end = f'{target_year:04d}-{target_month:02d}-{last_day:02d}'
+
+    if target_month == 1:
+        prev_m = 12
+        prev_y = target_year - 1
     else:
-        prev_month = prev_month.replace(month=prev_month.month - 1)
-    prev_month_start = prev_month.strftime('%Y-%m-01')
+        prev_m = target_month - 1
+        prev_y = target_year
+    _, prev_last_day = calendar.monthrange(prev_y, prev_m)
+    prev_month_start = f'{prev_y:04d}-{prev_m:02d}-01'
+    prev_month_last = f'{prev_y:04d}-{prev_m:02d}-{prev_last_day:02d}'
 
     # Agendamentos (operacional / por cliente)
     today_appts = get_db().table(TABLE_APPOINTMENTS).select('*').eq('appointment_date', today).order('appointment_time').execute()
     today_count = len(today_appts.data)
     today_pending = sum(1 for a in today_appts.data if a['status'] == 'pending')
 
-    month_appts = get_db().table(TABLE_APPOINTMENTS).select('*').gte('appointment_date', month_start).lte('appointment_date', today).execute()
+    month_appts = get_db().table(TABLE_APPOINTMENTS).select('*').gte('appointment_date', month_start).lte('appointment_date', month_end).execute()
     month_appointments_count = len(month_appts.data)
 
-    month_clients = get_db().table(TABLE_APPOINTMENTS).select('client_id').gte('appointment_date', month_start).execute()
-    month_clients_count = len(set(a['client_id'] for a in month_clients.data))
+    month_clients = get_db().table(TABLE_APPOINTMENTS).select('client_id').gte('appointment_date', month_start).lte('appointment_date', month_end).execute()
+    month_clients_count = len(set(a['client_id'] for a in month_clients.data if a.get('client_id')))
 
     # Receita financeira (lançamentos — independente de clientes cadastrados)
-    month_income = _income_transactions(month_start, today)
-    today_income = [t for t in month_income if t.get('date') == today]
+    month_income = _income_transactions(month_start, month_end)
+    if target_year == now.year and target_month == now.month:
+        today_income = [t for t in month_income if t.get('date') == today]
+    else:
+        today_income = _income_transactions(today, today)
     today_revenue = _sum_income(today_income)
     month_revenue = _sum_income(month_income)
 
-    month_trans = get_db().table(TABLE_TRANSACTIONS).select('*').gte('date', month_start).lte('date', today).execute()
+    month_trans = get_db().table(TABLE_TRANSACTIONS).select('*').gte('date', month_start).lte('date', month_end).execute()
     month_expenses = sum(_tx_amount(t) for t in month_trans.data if t['type'] == 'expense')
 
-    all_income = _income_transactions()
-    total_revenue_all = _sum_income(all_income)
-    avg_ticket = round(total_revenue_all / len(all_income), 2) if all_income else 0
+    # Total revenue all & avg_ticket via direct aggregate
+    tx_agg = _run("SELECT COUNT(*) AS cnt, COALESCE(SUM(amount), 0) AS total FROM transactions WHERE type = 'income'")
+    income_cnt = tx_agg[0]['cnt'] if tx_agg else 0
+    total_revenue_all = float(tx_agg[0]['total'] if tx_agg else 0)
+    avg_ticket = round(total_revenue_all / income_cnt, 2) if income_cnt > 0 else 0
 
     # Active clients
     active = get_db().table(TABLE_CLIENTS).select('id', count='exact').execute()
@@ -842,31 +874,47 @@ def get_stats(period=None):
         meta_mensal = float(meta_result.data[0]['value'])
         meta_pct = round((month_revenue / meta_mensal) * 100, 1) if meta_mensal > 0 else 0
 
-    # Top clientes — métrica por cliente (some se o cliente for excluído)
-    all_clients_data = get_db().table(TABLE_CLIENTS).select('id,name,avatar_initials,avatar_bg,avatar_color').execute()
-    top_clients = []
-    for cl in all_clients_data.data:
-        ca = get_db().table(TABLE_APPOINTMENTS).select('price', 'appointment_date', count='exact').eq('client_id', cl['id']).eq('status', REVENUE_APPOINTMENT_STATUS).gte('appointment_date', month_start).lte('appointment_date', today).execute()
-        visits = ca.count or 0
-        total_spent = sum(a['price'] for a in ca.data)
-        last_visit = max((a['appointment_date'] for a in ca.data if a.get('appointment_date')), default=None)
-        if visits > 0:
-            top_clients.append({**cl, 'visits': visits, 'total_spent': total_spent, 'last_visit': last_visit})
-    top_clients.sort(key=lambda x: -x['total_spent'])
-    top_clients = top_clients[:5]
+    # Top clientes — métrica agregada por cliente
+    top_clients_rows = _rows(_run(
+        "SELECT c.id, c.name, c.avatar_initials, c.avatar_bg, c.avatar_color, "
+        "COUNT(a.id) AS visits, "
+        "COALESCE(SUM(a.price), 0) AS total_spent, "
+        "MAX(a.appointment_date) AS last_visit "
+        "FROM clients c "
+        "JOIN appointments a ON a.client_id = c.id "
+        "WHERE a.status = %s AND a.appointment_date >= %s AND a.appointment_date <= %s "
+        "GROUP BY c.id, c.name, c.avatar_initials, c.avatar_bg, c.avatar_color "
+        "ORDER BY total_spent DESC "
+        "LIMIT 5",
+        (REVENUE_APPOINTMENT_STATUS, month_start, month_end)
+    ))
+    top_clients = [
+        {
+            'id': r['id'],
+            'name': r['name'],
+            'avatar_initials': r.get('avatar_initials') or (r['name'][:2].upper() if r.get('name') else '??'),
+            'avatar_bg': r.get('avatar_bg') or '#e8f2fc',
+            'avatar_color': r.get('avatar_color') or '#1a5fab',
+            'visits': int(r['visits']),
+            'total_spent': float(r['total_spent']),
+            'last_visit': r['last_visit']
+        }
+        for r in top_clients_rows
+    ]
 
-    # Today appointments with client names
+    # Today appointments with client names in a single query
+    today_rows = _rows(_run(
+        "SELECT a.*, COALESCE(c.name, '(Cliente removido)') AS client_name, COALESCE(c.phone, '') AS client_phone "
+        "FROM appointments a "
+        "LEFT JOIN clients c ON c.id = a.client_id "
+        "WHERE a.appointment_date = %s "
+        "ORDER BY a.appointment_time",
+        (today,)
+    ))
     today_full = []
-    for a in today_appts.data:
+    for a in today_rows:
         a['appointment_time'] = a['appointment_time'][:5] if a.get('appointment_time') and len(a['appointment_time']) >= 5 else (a.get('appointment_time') or '')
-        if a.get('client_id'):
-            cl = get_db().table(TABLE_CLIENTS).select('name,phone').eq('id', a['client_id']).limit(1).execute()
-            if cl.data:
-                today_full.append({**a, 'client_name': cl.data[0]['name'], 'client_phone': cl.data[0].get('phone', '')})
-            else:
-                today_full.append({**a, 'client_name': '(Cliente removido)', 'client_phone': ''})
-        else:
-            today_full.append({**a, 'client_name': '(Cliente removido)', 'client_phone': ''})
+        today_full.append(a)
 
     # Month appointments with times (for heatmap)
     month_full = []
@@ -940,11 +988,11 @@ def get_stats(period=None):
         })
 
     # Pix pending
-    pix = get_db().table(TABLE_TRANSACTIONS).select('id', count='exact').eq('type', 'income').eq('payment_method', 'Pix').gte('date', month_start).execute()
+    pix = get_db().table(TABLE_TRANSACTIONS).select('id', count='exact').eq('type', 'income').eq('payment_method', 'Pix').gte('date', month_start).lte('date', month_end).execute()
     pix_pending = pix.count or 0
 
     # Recent transactions
-    recent_tx = get_db().table(TABLE_TRANSACTIONS).select('*').gte('date', month_start).order('date', desc=True).order('id', desc=True).limit(10).execute()
+    recent_tx = get_db().table(TABLE_TRANSACTIONS).select('*').gte('date', month_start).lte('date', month_end).order('date', desc=True).order('id', desc=True).limit(10).execute()
     recent_transactions = []
     for t in recent_tx.data:
         if not t.get('client_name'):
@@ -952,7 +1000,7 @@ def get_stats(period=None):
         recent_transactions.append(t)
 
     # Expenses by category
-    exp_cat = get_db().table(TABLE_TRANSACTIONS).select('category, amount').eq('type', 'expense').gte('date', month_start).execute()
+    exp_cat = get_db().table(TABLE_TRANSACTIONS).select('category, amount').eq('type', 'expense').gte('date', month_start).lte('date', month_end).execute()
     cat_totals = {}
     for t in exp_cat.data:
         cat_totals[t['category'] or 'Outros'] = cat_totals.get(t['category'] or 'Outros', 0) + t['amount']
@@ -984,7 +1032,7 @@ def get_stats(period=None):
     pending_future_count = future_pending.count or 0
 
     month_label_pt = {
-        1: 'Janeiro', 2: 'Fevereiro', 3: 'Marco', 4: 'Abril',
+        1: 'Janeiro', 2: 'Fevereiro', 3: 'Março', 4: 'Abril',
         5: 'Maio', 6: 'Junho', 7: 'Julho', 8: 'Agosto',
         9: 'Setembro', 10: 'Outubro', 11: 'Novembro', 12: 'Dezembro'
     }
@@ -997,8 +1045,10 @@ def get_stats(period=None):
         'avg_ticket': avg_ticket,
         'month_revenue': month_revenue,
         'month_expenses': month_expenses,
-        'month_label': month_label_pt.get(now.month, ''),
-        'month_year': now.year,
+        'month_label': month_label_pt.get(target_month, ''),
+        'month_year': target_year,
+        'selected_month': target_month,
+        'selected_year': target_year,
         'month_clients': month_clients_count,
         'weekly_revenue': weekly_revenue,
         'service_breakdown': service_breakdown,
@@ -1046,8 +1096,9 @@ def get_user_by_email(email):
     if not email:
         return None
     try:
-        r = get_db().table(TABLE_USERS).select('*').eq('email', email).limit(1).execute()
-        return r.data[0] if r.data else None
+        clean = email.strip().lower()
+        rows = _rows(_run("SELECT * FROM users WHERE LOWER(TRIM(email)) = %s LIMIT 1", (clean,)))
+        return rows[0] if rows else None
     except Exception:
         return None
 
