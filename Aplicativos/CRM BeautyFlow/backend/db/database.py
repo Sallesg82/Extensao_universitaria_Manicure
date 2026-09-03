@@ -471,9 +471,9 @@ SELECT c.*,
 FROM clients c
 LEFT JOIN LATERAL (
     SELECT
-        COUNT(*) FILTER (WHERE status = 'done') AS visits,
-        COALESCE(SUM(price) FILTER (WHERE status = 'done'), 0) AS total_spent,
-        MAX(appointment_date) FILTER (WHERE status = 'done') AS last_visit
+        COUNT(*) AS visits,
+        COALESCE(SUM(CASE WHEN payment_status = 'paid' THEN price ELSE 0 END), 0) AS total_spent,
+        MAX(appointment_date) AS last_visit
     FROM appointments
     WHERE client_id = c.id AND status != 'cancelled'
 ) a ON true;
@@ -543,10 +543,44 @@ def ensure_admin_user():
     return True
 
 
+def ensure_default_data():
+    """Garante que dados essenciais (horários, serviços e configurações) existam em instalações novas."""
+    try:
+        _run("""
+            INSERT INTO business_hours (day, open, close, closed) VALUES
+                ('segunda', '08:00', '18:00', false),
+                ('terca',   '08:00', '18:00', false),
+                ('quarta',  '08:00', '18:00', false),
+                ('quinta',  '08:00', '18:00', false),
+                ('sexta',   '08:00', '18:00', false),
+                ('sabado',  '08:00', '13:00', false),
+                ('domingo', '',      '',      true)
+            ON CONFLICT (day) DO NOTHING;
+        """)
+        _run("""
+            INSERT INTO services (name, duration, buffer, price, color) VALUES
+                ('Manicure Tradicional', 45, 15, 45.0, '#E07A5F'),
+                ('Pedicure Tradicional', 45, 15, 50.0, '#3D405B'),
+                ('Combo Manicure + Pedicure', 80, 15, 85.0, '#81B29A'),
+                ('Alongamento em Gel', 120, 15, 150.0, '#F2CC8F'),
+                ('Spa dos Pés', 60, 15, 70.0, '#D4A373'),
+                ('Esmaltação em Gel', 60, 15, 65.0, '#C084FC')
+            ON CONFLICT (name) DO NOTHING;
+        """)
+        _run("""
+            INSERT INTO settings (key, value) VALUES
+                ('meta_mensal', '7000')
+            ON CONFLICT (key) DO NOTHING;
+        """)
+    except Exception as e:
+        print(f'[DB] Aviso ao garantir dados padrão: {e}')
+
+
 try:
     init_schema()
     _USERS_TABLE_OK = True
     ensure_admin_user()
+    ensure_default_data()
 except Exception as e:
     print(f'[DB] Aviso: não foi possível inicializar o banco: {e}')
     _USERS_TABLE_OK = False

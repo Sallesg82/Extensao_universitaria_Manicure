@@ -204,7 +204,7 @@ API REST quanto o frontend SPA em HTML/CSS/JS puro — sem necessidade de build.
 2. PORTAL DE AGENDAMENTO ONLINE
 ================================================================================
 
-Localização: Aplicativos/agendamento Vinicius/ (Porta 5173)
+Localização: Aplicativos/Beatriz Gomes Studio/ (Porta 5173)
 
 Interface para o cliente final com fluxo conversacional tipo assistente virtual.
 O cliente escolhe serviço, data e horário — tudo refletido em tempo real no CRM.
@@ -237,7 +237,7 @@ O cliente escolhe serviço, data e horário — tudo refletido em tempo real no 
 
 --- ESTRUTURA ---
 
-  agendamento Vinicius/
+  Beatriz Gomes Studio/
   ├── index.html              # HTML5 de entrada
   ├── vite.config.js          # Config Vite (host: 0.0.0.0, porta 5173)
   ├── package.json            # Dependências npm
@@ -254,7 +254,7 @@ O cliente escolhe serviço, data e horário — tudo refletido em tempo real no 
 
 --- COMO INICIAR (DESENVOLVIMENTO) ---
 
-  cd "Aplicativos/agendamento Vinicius"
+  cd "Aplicativos/Beatriz Gomes Studio"
   npm install
   npm run dev
   # Acesso: http://localhost:5173
@@ -263,7 +263,8 @@ O cliente escolhe serviço, data e horário — tudo refletido em tempo real no 
 BANCO DE DADOS
 ================================================================================
 
-PostgreSQL 16 com 9 tabelas, 3 views e triggers automáticos.
+PostgreSQL 16/18 com 9 tabelas, 3 views, 28 índices e triggers automáticos.
+Carga automática de sementes (6 serviços, horários Seg-Dom, meta e admin).
 
 --- TABELAS ---
 
@@ -279,7 +280,7 @@ PostgreSQL 16 com 9 tabelas, 3 views e triggers automáticos.
 
 --- VIEWS ---
 
-  v_clients        -> Total visitas, gasto acumulado, última visita por cliente
+  v_clients        -> Total visitas, gasto acumulado (paid), última visita
   v_month_stats    -> Faturamento mensal, despesas, agendamentos, clientes únicos
   v_daily_stats    -> Agrupamento diário de métricas
 
@@ -288,37 +289,39 @@ PostgreSQL 16 com 9 tabelas, 3 views e triggers automáticos.
   trigger_set_updated_at -> Atualiza updated_at antes de qualquer UPDATE
 
 ================================================================================
-INSTALAÇÃO
+INSTALAÇÃO E HUB DE GESTÃO (TUI)
 ================================================================================
 
 Localização: Aplicativos/instalacao/
 
---- OPÇÃO 1: DOCKER (RECOMENDADO) ---
+Hub interativo em terminal sem emojis com 10 opções principais e submenu
+completo de banco de dados (backup, restore, verificação, reset).
+
+--- OPÇÃO 1: LINUX / MACOS (HUB INTERATIVO) ---
 
   cd "Aplicativos/instalacao"
   chmod +x install.sh
   ./install.sh
 
-  O script:
-  - Detecta a distribuição Linux ou macOS
-  - Instala Docker e Docker Compose se necessário
-  - Detecta IP da rede local para acesso mobile
-  - Gera arquivos .env automaticamente
-  - Sobe 3 contêineres com healthcheck
-
-  Contêineres:
-  beautyflow-postgres  -> postgres:16-alpine     (porta 5432)
-  crm-backend          -> python:3.11-slim        (porta 3001)
-  agendamento-app      -> node:20 + nginx:alpine  (porta 5173:80)
-
---- OPÇÃO 2: WINDOWS ---
+--- OPÇÃO 2: WINDOWS (HUB INTERATIVO) ---
 
   cd Aplicativos\instalacao
   install.bat
 
+--- SCRIPTS RÁPIDOS DE 1 CLIQUE (DIA A DIA) ---
+
+  Iniciar: ./start.sh  (Linux/macOS)  ou  start.bat  (Windows)
+  Parar:   ./stop.sh   (Linux/macOS)  ou  stop.bat   (Windows)
+
+--- CONTÊINERES DOCKER COMPOSE ---
+
+  PostgreSQL:     beautyflow-postgres     -> postgres:16-alpine (porta 5432)
+  CRM Backend:    beautyflow-crm          -> python:3.11-slim   (porta 3001)
+  Agendamento:    beautyflow-agendamento  -> nginx:alpine       (porta 5173:80)
+
 --- OPÇÃO 3: MANUAL (DESENVOLVIMENTO) ---
 
-  Pré-requisitos: Python 3.11+, Node.js 20+, npm, PostgreSQL 16
+  Pré-requisitos: Python 3.11+, Node.js 20+, npm, PostgreSQL 16/18
 
   # 1. Banco de dados
   psql -U postgres -c "CREATE DATABASE beautyflow;"
@@ -332,16 +335,17 @@ Localização: Aplicativos/instalacao/
   python run.py
 
   # 3. Portal de Agendamento (novo terminal)
-  cd "Aplicativos/agendamento Vinicius"
+  cd "Aplicativos/Beatriz Gomes Studio"
   npm install
   npm run dev
 
---- SCRIPTS ---
+--- SCRIPTS DISPONÍVEIS ---
 
-  install.sh          -> Linux / macOS — Instalador interativo completo
-  install.bat         -> Windows — Launcher Docker Desktop
-  start.sh            -> Linux / macOS — Inicia contêineres já construídos
-  docker-compose.yml  -> Orquestração dos 3 serviços
+  install.sh          -> Linux / macOS — Hub TUI completo de gestão e manutenção
+  install.bat         -> Windows — Hub TUI completo de gestão e manutenção
+  start.sh / start.bat -> Inicializador rápido de 1 clique
+  stop.sh / stop.bat   -> Parada rápida de 1 clique sem perda de dados
+  docker-compose.yml  -> Orquestração dos 3 serviços com healthchecks
 
 ================================================================================
 ARQUITETURA DE PRODUÇÃO
@@ -366,7 +370,7 @@ ARQUITETURA DE PRODUÇÃO
                 │   │   (Socket.IO)
                 │   │
            ┌────▼───▼─────────────────────┐
-           │   PostgreSQL 16              │
+           │   PostgreSQL 16 / 18         │
            │   Docker ou Cloud            │
            └──────────────────────────────┘
                 │               │
@@ -381,17 +385,20 @@ VARIÁVEIS DE AMBIENTE
 
 --- CRM Backend (Aplicativos/CRM BeautyFlow/backend/.env) ---
 
-  DATABASE_URL=postgresql://beautyflow:CRMbeauty@localhost:5432/beautyflow?sslmode=disable
-  POSTGRES_PASSWORD=CRMbeauty
-  N8N_WEBHOOK_URL=https://seu-n8n.com/webhook/calendar-webhook
+  DATABASE_URL=postgresql://postgres:beautyflow_pass@postgres:5432/beautyflow
+  N8N_WEBHOOK_URL=https://mirianfiorini.app.n8n.cloud/webhook/calendar-webhook
 
---- Portal de Agendamento (Aplicativos/agendamento Vinicius/.env) ---
+--- Portal de Agendamento (Aplicativos/Beatriz Gomes Studio/.env) ---
 
   VITE_API_URL=http://localhost:3001/api
 
 --- Docker Compose (Aplicativos/instalacao/.env) ---
 
-  VITE_API_URL=http://<IP_DA_MÁQUINA>:3001/api
+  VITE_API_URL=http://<IP_OU_HOST>:3001/api
+
+--- CREDENCIAIS PADRÃO DO SISTEMA ---
+  Usuário: admin
+  Senha:   admin
 
 ================================================================================
 DOCUMENTAÇÃO
@@ -400,7 +407,7 @@ DOCUMENTAÇÃO
   FERRAMENTAS_E_FUNCIONALIDADES.txt -> Documento mestre do ecossistema
   docs/resumo_tecnico.md            -> Arquitetura técnica, endpoints, fórmulas
   docs/ux(Mirian Original).html     -> Protótipo HTML/CSS da interface
-  Aplicativos/instalacao/tutorial.md -> Guia de deploy (Nginx, SSL, systemd)
+  Aplicativos/instalacao/tutorial.md -> Guia e documentação do hub e deploy
   diagrama_beautyflow.svg           -> Diagrama vetorial da arquitetura
 
 ================================================================================
@@ -408,3 +415,4 @@ LICENÇA
 ================================================================================
 
 Projeto de extensão universitária — SENAI. Uso educacional.
+

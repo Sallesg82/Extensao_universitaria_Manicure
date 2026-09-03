@@ -198,7 +198,11 @@ function updateUserCard() {
   if (!card || !currentUser) return
   const ini = (currentUser.name || '').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
   card.querySelector('.avatar').textContent = ini || '?'
-  card.querySelector('.user-name').textContent = currentUser.name || ''
+  const userNameEl = card.querySelector('.user-name')
+  if (userNameEl) {
+    userNameEl.textContent = currentUser.name || ''
+    userNameEl.title = currentUser.name || ''
+  }
   card.querySelector('.user-role').textContent = currentUser.role === 'admin' ? 'Administradora' : 'Usuário'
 
   const nav = document.querySelector('.usuarios-nav')
@@ -1296,7 +1300,7 @@ async function loadDashboard() {
     const srvContainer = document.getElementById('fluxo-servicos')
     if (srvContainer) {
       if (stats.service_breakdown && stats.service_breakdown.length > 0) {
-        const colors = ['#4a90d9', '#2563a8', '#3a7abf', '#b8d4f0', '#1a5fab']
+        const colors = ['var(--primary-500)', 'var(--primary-600)', 'var(--primary-400)', 'var(--primary-700)', 'var(--primary-300)']
         srvContainer.innerHTML = '<div class="services-list-title">Serviços</div>' +
           stats.service_breakdown.map((svc, i) => `
             <div class="service-row">
@@ -1339,14 +1343,14 @@ async function loadDashboard() {
     if (apptList && stats.today_appointments) {
       const statusMap = { done: 'Concluído', confirmed: 'Confirmado', pending: 'Pendente', cancelled: 'Cancelado' }
       const statusClassMap = { done: 'status-done', confirmed: 'status-confirmed', pending: 'status-pending', cancelled: 'status-pending' }
-      const colorMap = { done: '#4e8f6a', confirmed: '#4a90d9', pending: '#c9894a', cancelled: '#c05050' }
+      const colorMap = { done: 'var(--success, #4e8f6a)', confirmed: 'var(--primary-500)', pending: 'var(--warning, #c9894a)', cancelled: 'var(--danger, #c05050)' }
 
       if (stats.today_appointments.length > 0) {
         if (apptBadge) apptBadge.textContent = stats.today_appointments.length + ' agendado' + (stats.today_appointments.length !== 1 ? 's' : '')
         apptList.innerHTML = stats.today_appointments.map(a => `
           <div class="appt-item" onclick="openAppointmentDetail(${a.id})" style="cursor:pointer;">
             <div class="appt-time">${a.appointment_time}</div>
-            <div class="appt-dot" style="background:${colorMap[a.status] || '#4a90d9'}"></div>
+            <div class="appt-dot" style="background:${colorMap[a.status] || 'var(--primary-500)'}"></div>
             <div class="appt-info">
               <div class="appt-name">${a.client_name}</div>
               <div class="appt-service">${a.service}</div>
@@ -1445,10 +1449,14 @@ async function loadFinanceiro() {
     // Revenue by service (donut + legend)
     const donutLegend = finPage.querySelector('.donut-legend')
     const donutSvg = finPage.querySelector('.donut-wrap svg')
-    const donutColors = ['#4a90d9', '#2563a8', '#3a7abf', '#b8d4f0', '#1a5fab']
+    const isDark = document.documentElement.getAttribute('data-color-scheme') === 'dark' || document.querySelector('.screen')?.getAttribute('data-color-scheme') === 'dark'
+    const donutColors = ['var(--primary-500)', 'var(--primary-600)', 'var(--primary-400)', 'var(--primary-700)', 'var(--primary-300)']
+    const bgStroke = isDark ? 'rgba(255, 255, 255, 0.08)' : 'var(--primary-100, #edf5fd)'
+    const textColor = isDark ? '#f0f6fc' : '#0f2340'
+
     if (donutSvg) {
       let svgContent = ''
-      const bgCircle = '<circle cx="45" cy="45" r="32" fill="none" stroke="#e8f2fc" stroke-width="14"/>'
+      const bgCircle = `<circle class="donut-bg-circle" cx="45" cy="45" r="32" fill="none" stroke="${bgStroke}" stroke-width="14"/>`
       if (s.service_revenue_breakdown && s.service_revenue_breakdown.length > 0) {
         const circumference = 2 * Math.PI * 32
         let offset = 0
@@ -1457,16 +1465,16 @@ async function loadFinanceiro() {
           const pct = svc.pct
           const dashLen = (pct / 100) * circumference
           const gapLen = circumference - dashLen
-          svgContent += `<circle cx="45" cy="45" r="32" fill="none" stroke="${donutColors[i]}" stroke-width="14"
+          svgContent += `<circle cx="45" cy="45" r="32" fill="none" stroke="${donutColors[i % donutColors.length]}" stroke-width="14"
             stroke-dasharray="${dashLen.toFixed(1)} ${gapLen.toFixed(1)}" stroke-dashoffset="${-offset.toFixed(1)}" transform="rotate(-90 45 45)"/>`
           offset += dashLen
         })
         const topPct = s.service_revenue_breakdown[0]?.pct || 0
         donutSvg.innerHTML = bgCircle + svgContent +
-          `<text x="45" y="49" text-anchor="middle" font-family="DM Serif Display,serif" font-size="14" fill="#0f2340" font-weight="600">${topPct}%</text>`
+          `<text x="45" y="45" text-anchor="middle" dominant-baseline="central" class="donut-center-text" font-family="'DM Serif Display',serif" font-size="15" fill="${textColor}" font-weight="700">${topPct}%</text>`
       } else {
         donutSvg.innerHTML = bgCircle +
-          '<text x="45" y="49" text-anchor="middle" font-family="DM Serif Display,serif" font-size="14" fill="#0f2340" font-weight="600">0%</text>'
+          `<text x="45" y="45" text-anchor="middle" dominant-baseline="central" class="donut-center-text" font-family="'DM Serif Display',serif" font-size="15" fill="${textColor}" font-weight="700">0%</text>`
       }
     }
 
@@ -1475,7 +1483,7 @@ async function loadFinanceiro() {
         donutLegend.innerHTML = s.service_revenue_breakdown.map((svc, i) => `
           <div class="donut-legend-item">
             <div class="donut-legend-dot" style="background:${donutColors[i % donutColors.length]};"></div>
-            <span class="dl-name">${svc.name}</span> <span style="margin-left:auto;color:#0f2340;font-weight:600;">${svc.pct}%</span>
+            <span class="dl-name">${svc.name}</span> <span class="donut-legend-pct">${svc.pct}%</span>
           </div>`).join('')
       } else {
         donutLegend.innerHTML = '<div style="color:var(--text-secondary);font-size:12px;">Nenhum serviço no período</div>'
@@ -1714,18 +1722,22 @@ async function loadRelatorios(period) {
         return { x, y }
       })
 
+      const isDark = document.documentElement.getAttribute('data-color-scheme') === 'dark' || document.querySelector('.screen')?.getAttribute('data-color-scheme') === 'dark'
+      const gridColor = isDark ? 'rgba(255, 255, 255, 0.08)' : '#f0f5fb'
+      const labelColor = isDark ? '#718ea8' : '#8aaccb'
+
       // Y-axis labels
       const yTicks = [0, 0.25, 0.5, 0.75, 1]
       let yHtml = yTicks.map(pct => {
         const yPos = pad.t + (1 - pct) * innerH
         const val = Math.round(maxVal * pct)
-        return `<text x="${pad.l - 4}" y="${yPos + 3}" text-anchor="end" font-size="9" fill="#8aaccb">${val}</text>`
+        return `<text x="${pad.l - 4}" y="${yPos + 3}" text-anchor="end" font-size="9" fill="${labelColor}">${val}</text>`
       }).join('')
 
       // Grid lines
       let gridHtml = yTicks.map(pct => {
         const yPos = pad.t + (1 - pct) * innerH
-        return `<line x1="${pad.l}" y1="${yPos}" x2="${w - pad.r}" y2="${yPos}" stroke="#f0f5fb" stroke-width="1"/>`
+        return `<line x1="${pad.l}" y1="${yPos}" x2="${w - pad.r}" y2="${yPos}" stroke="${gridColor}" stroke-width="1"/>`
       }).join('')
 
       // X-axis date labels inside SVG
@@ -1739,31 +1751,32 @@ async function loadRelatorios(period) {
           xHtml = dates.map((d, i) => {
             const pct = dates.length > 1 ? i / (dates.length - 1) : 0.5
             const xPos = pad.l + pct * innerW
-            return `<text x="${xPos.toFixed(1)}" y="${h - 2}" text-anchor="middle" font-size="9" fill="#8aaccb">${d}</text>`
+            return `<text x="${xPos.toFixed(1)}" y="${h - 2}" text-anchor="middle" font-size="9" fill="${labelColor}">${d}</text>`
           }).join('')
         } else {
           const indices = [0, Math.floor(dates.length / 2), dates.length - 1]
           indices.forEach(idx => {
             const pct = idx / (dates.length - 1)
             const xPos = pad.l + pct * innerW
-            xHtml += `<text x="${xPos.toFixed(1)}" y="${h - 2}" text-anchor="middle" font-size="9" fill="#8aaccb">${dates[idx]}</text>`
+            xHtml += `<text x="${xPos.toFixed(1)}" y="${h - 2}" text-anchor="middle" font-size="9" fill="${labelColor}">${dates[idx]}</text>`
           })
         }
       }
 
       // Line path
+      const chartColor = getComputedStyle(document.documentElement).getPropertyValue('--primary-500').trim() || '#4a90d9'
       const lineD = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p.x.toFixed(1) + ' ' + p.y.toFixed(1)).join(' ')
       const areaD = lineD + ' L' + pts[pts.length - 1].x.toFixed(1) + ' ' + (pad.t + innerH) + ' L' + pad.l + ' ' + (pad.t + innerH) + 'Z'
-      const defs = '<defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4a90d9"/><stop offset="100%" stop-color="#4a90d9" stop-opacity="0"/></linearGradient></defs>'
+      const defs = `<defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="${chartColor}"/><stop offset="100%" stop-color="${chartColor}" stop-opacity="0"/></linearGradient></defs>`
 
       let dotsHtml = pts.map((p, i) => {
         const isLast = i === pts.length - 1
-        return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${isLast ? 3.5 : 2.5}" fill="${isLast ? '#fff' : '#4a90d9'}" stroke="#4a90d9" stroke-width="${isLast ? 2 : 1.5}"/>`
+        return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="${isLast ? 3.5 : 2.5}" fill="${isLast ? '#fff' : chartColor}" stroke="${chartColor}" stroke-width="${isLast ? 2 : 1.5}"/>`
       }).join('')
 
       svg.innerHTML = gridHtml + yHtml + xHtml + `
         <path d="${areaD}" fill="url(#g1)" opacity="0.25"/>
-        <path d="${lineD}" fill="none" stroke="#4a90d9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="${lineD}" fill="none" stroke="${chartColor}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
         ${dotsHtml}
         ${defs}`
     }
@@ -1791,17 +1804,22 @@ async function loadRelatorios(period) {
     if (topDiv) {
       const tops = s.top_clients || []
       if (tops.length > 0) {
+        const isDark = document.documentElement.getAttribute('data-color-scheme') === 'dark' || document.querySelector('.screen')?.getAttribute('data-color-scheme') === 'dark'
+        const rankColors = isDark
+          ? ['rgba(74, 222, 128, 0.18)', 'rgba(96, 165, 250, 0.18)', 'rgba(244, 114, 182, 0.18)', 'rgba(148, 163, 184, 0.18)', 'rgba(148, 163, 184, 0.12)']
+          : ['#f0f8e8', '#f4f8ff', '#f8e8f4', '#f8f8f8', '#f4f7fc']
+        const rankTextColors = isDark
+          ? ['#4ade80', '#60a5fa', '#f472b6', '#cbd5e1', '#94a3b8']
+          : ['#4a8a2e', '#4a6888', '#8a2e6e', '#888', '#8aaccb']
+        const rankLabels = ['1°', '2°', '3°', '4°', '5°']
         topDiv.innerHTML = tops.map((c, i) => {
-          const rankColors = ['#f0f8e8', '#f4f8ff', '#f8e8f4', '#f8f8f8', '#f4f7fc']
-          const rankTextColors = ['#4a8a2e', '#4a6888', '#8a2e6e', '#888', '#8aaccb']
-          const rankLabels = ['1°', '2°', '3°', '4°', '5°']
           const lastDate = c.last_visit ? c.last_visit.split('T')[0].split('-').reverse().join('/') : '—'
           return `
             <div class="top-client-row">
               <div class="rank-badge" style="background:${rankColors[i]};color:${rankTextColors[i]};">${rankLabels[i]}</div>
               <div class="client-av" style="width:28px;height:28px;font-size:11px;">${c.avatar_initials || '?'}</div>
-              <div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:500;color:#0f2340;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.name}</div><div style="font-size:11px;color:#8aaccb;">${c.visits} visitas · última: ${lastDate}</div></div>
-              <div style="font-size:14px;font-weight:600;color:#1a5fab;flex-shrink:0;">R$ ${Number(c.total_spent).toLocaleString('pt-BR', {minimumFractionDigits: 0})}</div>
+              <div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:500;color:var(--text-dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${c.name}</div><div style="font-size:11px;color:var(--text-muted);">${c.visits} visitas · última: ${lastDate}</div></div>
+              <div style="font-size:14px;font-weight:600;color:var(--info);flex-shrink:0;">R$ ${Number(c.total_spent).toLocaleString('pt-BR', {minimumFractionDigits: 0})}</div>
             </div>`
         }).join('')
       } else {
@@ -1814,10 +1832,10 @@ async function loadRelatorios(period) {
       const svcs = s.service_breakdown || []
       if (svcs.length > 0) {
         const maxCount = Math.max(...svcs.map(v => v.count), 1)
-        const svcColors = ['#4a90d9', '#2563a8', '#3a7abf', '#b8d4f0', '#1a5fab']
+        const svcColors = ['var(--primary-500)', 'var(--primary-600)', 'var(--primary-400)', 'var(--primary-700)', 'var(--primary-300)']
         svcDiv.innerHTML = svcs.map((v, i) => {
           const pct = (v.count / maxCount) * 100
-          return `<div><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:12px;font-weight:500;color:#0f2340;">${v.name}</span><span style="font-size:12px;color:${svcColors[i % svcColors.length]};font-weight:600;">${v.count}x</span></div><div class="meta-progress-bar" style="height:8px;"><div class="meta-progress-fill" style="width:${pct}%;border-radius:4px;height:8px;background:${svcColors[i % svcColors.length]};"></div></div></div>`
+          return `<div><div style="display:flex;justify-content:space-between;margin-bottom:4px;"><span style="font-size:12px;font-weight:500;color:var(--text-dark);">${v.name}</span><span style="font-size:12px;color:${svcColors[i % svcColors.length]};font-weight:600;">${v.count}x</span></div><div class="meta-progress-bar" style="height:8px;"><div class="meta-progress-fill" style="width:${pct}%;border-radius:4px;height:8px;background:${svcColors[i % svcColors.length]};"></div></div></div>`
         }).join('')
       } else {
         svcDiv.innerHTML = '<div style="padding:10px 0;color:var(--text-secondary);font-size:13px;text-align:center;">Nenhum serviço no período</div>'
@@ -1919,13 +1937,13 @@ function renderHeatmap(s, targetId = 'rpt-heatmap') {
       }
     })
     const maxVal = Math.max(...Object.values(matrix).flatMap(d => Object.values(d)), 1)
-    const getColor = (v) => {
+    const getLevel = (v) => {
+      if (v === 0) return 0
       const pct = v / maxVal
-      if (pct === 0) return '#f0f5fb'
-      if (pct <= 0.25) return '#daeaf8'
-      if (pct <= 0.5) return '#b8d4f0'
-      if (pct <= 0.75) return '#7ab0e8'
-      return '#4a90d9'
+      if (pct <= 0.25) return 1
+      if (pct <= 0.5) return 2
+      if (pct <= 0.75) return 3
+      return 4
     }
     let html = '<div class="heatmap-hours"><div class="heatmap-day-label" style="width:24px;"></div>'
     hours.forEach(h => { html += '<div class="heatmap-hour-label">' + h + '</div>' })
@@ -1934,14 +1952,14 @@ function renderHeatmap(s, targetId = 'rpt-heatmap') {
       html += '<div class="heatmap-row"><div class="heatmap-day-label">' + d + '</div>'
       hours.forEach(h => {
         const v = matrix[d][h] || 0
-        html += '<div class="hm-cell" style="background:' + getColor(v) + ';" title="' + d + ' ' + h + ': ' + v + ' agendamento(s)"></div>'
+        const lvl = getLevel(v)
+        html += `<div class="hm-cell hm-lvl-${lvl}" title="${d} ${h}: ${v} agendamento(s)"></div>`
       })
       html += '</div>'
     })
     html += '<div class="heatmap-legend"><span>Menos</span><div class="heatmap-legend-bar">'
-    ;[0, 0.25, 0.5, 0.75, 1].forEach(pct => {
-      const fakeV = Math.round(pct * maxVal) || 1
-      html += '<div class="heatmap-legend-step" style="background:' + getColor(fakeV) + ';"></div>'
+    ;[0, 1, 2, 3, 4].forEach(lvl => {
+      html += `<div class="heatmap-legend-step hm-lvl-${lvl}"></div>`
     })
     html += '</div><span>Mais</span></div>'
     heatDiv.innerHTML = html
@@ -2441,7 +2459,7 @@ async function openAppointmentDetail(apptId) {
     document.getElementById('detail-time').textContent = a.appointment_time
 
     const statusLabels = { pending: 'Pendente', confirmed: 'Confirmado', done: 'Concluído', cancelled: 'Cancelado' }
-    const statusColors = { pending: '#c9894a', confirmed: '#4a90d9', done: '#4e8f6a', cancelled: '#c05050' }
+    const statusColors = { pending: 'var(--warning, #c9894a)', confirmed: 'var(--primary-500)', done: 'var(--success, #4e8f6a)', cancelled: 'var(--danger, #c05050)' }
     const statusEl = document.getElementById('detail-status')
     statusEl.innerHTML = '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' +
       (statusColors[a.status] || '#999') + ';margin-right:6px;vertical-align:middle;"></span>' +
@@ -2647,7 +2665,7 @@ function openServiceModal(svcId) {
   document.getElementById('service-duration').value = ''
   document.getElementById('service-buffer').value = '15'
   document.getElementById('service-price').value = ''
-  document.getElementById('service-color').value = '#4a90d9'
+  document.getElementById('service-color').value = getComputedStyle(document.documentElement).getPropertyValue('--primary-500').trim() || '#4a90d9'
 
   if (svcId) {
     const svc = servicesCache.find(s => s.id === svcId)
@@ -3596,7 +3614,7 @@ async function renderDayView() {
 
   const sc = { done: 'done', confirmed: 'confirmed', pending: 'pending', cancelled: 'cancelled' }
   const statusLabels = { done: 'Concluído', confirmed: 'Confirmado', pending: 'Pendente', cancelled: 'Cancelado' }
-  const statusColors = { done: '#4e8f6a', confirmed: '#4a90d9', pending: '#c9894a', cancelled: '#c05050' }
+  const statusColors = { done: 'var(--success, #4e8f6a)', confirmed: 'var(--primary-500)', pending: 'var(--warning, #c9894a)', cancelled: 'var(--danger, #c05050)' }
 
   let html = '<div class="day-view-panel">'
   if (appts.length > 0) {
@@ -3750,12 +3768,12 @@ async function populateWeekGrid(numDays) {
 
     if (isClosed) {
       for (let t = globalOpen; t < globalClose; t += hourStep) {
-        dayHtml += '<div class="hour-line closed-slot" style="height:' + slotHeight + 'px;background:#f8f9fc;"></div>'
+        dayHtml += '<div class="hour-line closed-slot" style="height:' + slotHeight + 'px;"></div>'
       }
       dayHtml += '<div class="folga-overlay"></div><div class="folga-label">Folga</div>'
     } else {
       for (let t = globalOpen; t < dayOpenMin; t += hourStep) {
-        dayHtml += '<div class="hour-line closed-slot" style="height:' + slotHeight + 'px;background:#f8f9fc;"></div>'
+        dayHtml += '<div class="hour-line closed-slot" style="height:' + slotHeight + 'px;"></div>'
       }
       for (let t = dayOpenMin; t < dayCloseMin; t += hourStep) {
         const hh = Math.floor(t / 60)
@@ -3763,7 +3781,7 @@ async function populateWeekGrid(numDays) {
         dayHtml += '<div class="hour-line" style="height:' + slotHeight + 'px;" data-date="' + dayStr + '" data-hour="' + String(hh).padStart(2,'0') + ':' + String(mm).padStart(2,'0') + '"></div>'
       }
       for (let t = dayCloseMin; t < globalClose; t += hourStep) {
-        dayHtml += '<div class="hour-line closed-slot" style="height:' + slotHeight + 'px;background:#f8f9fc;"></div>'
+        dayHtml += '<div class="hour-line closed-slot" style="height:' + slotHeight + 'px;"></div>'
       }
     }
 
@@ -3984,14 +4002,26 @@ function closeMobileMenu() {
 }
 
 function setTheme(theme, el) {
-  document.querySelector('.screen').setAttribute('data-theme', theme)
+  document.documentElement.setAttribute('data-theme', theme)
+  const screen = document.querySelector('.screen')
+  if (screen) screen.setAttribute('data-theme', theme)
   document.querySelectorAll('.theme-option').forEach(o => o.classList.remove('active'))
   if (el) el.classList.add('active')
   localStorage.setItem('beautyflow-theme', theme)
+
+  const activePage = document.querySelector('.page:not(.hide)')
+  if (activePage) {
+    if (activePage.id === 'page-dashboard') loadDashboard()
+    else if (activePage.id === 'page-financeiro') loadFinanceiro()
+    else if (activePage.id === 'page-relatorios') loadReports()
+    else if (activePage.id === 'page-agenda') renderAgenda()
+  }
 }
 
 function setFontSize(size, el) {
-  document.querySelector('.screen').setAttribute('data-font-size', size)
+  document.documentElement.setAttribute('data-font-size', size)
+  const screen = document.querySelector('.screen')
+  if (screen) screen.setAttribute('data-font-size', size)
   document.querySelectorAll('.font-size-option').forEach(o => o.classList.remove('active'))
   if (el) el.classList.add('active')
   localStorage.setItem('beautyflow-fontsize', size)
@@ -4020,22 +4050,34 @@ function setLayoutMode(mode, el) {
 }
 
 function setColorScheme(scheme, el) {
-  document.querySelector('.screen').setAttribute('data-color-scheme', scheme)
+  document.documentElement.setAttribute('data-color-scheme', scheme)
+  const screen = document.querySelector('.screen')
+  if (screen) screen.setAttribute('data-color-scheme', scheme)
   document.querySelectorAll('.scheme-option').forEach(o => o.classList.remove('active'))
   if (el) el.classList.add('active')
   localStorage.setItem('beautyflow-scheme', scheme)
+
+  const activePage = document.querySelector('.page:not(.hide)')
+  if (activePage) {
+    if (activePage.id === 'page-dashboard') loadDashboard()
+    else if (activePage.id === 'page-financeiro') loadFinanceiro()
+    else if (activePage.id === 'page-relatorios') loadReports()
+    else if (activePage.id === 'page-agenda') renderAgenda()
+  }
 }
 
 ;(function init() {
   const screen = document.querySelector('.screen')
   const savedTheme = localStorage.getItem('beautyflow-theme') || 'default'
-  screen.setAttribute('data-theme', savedTheme)
+  document.documentElement.setAttribute('data-theme', savedTheme)
+  if (screen) screen.setAttribute('data-theme', savedTheme)
   document.querySelectorAll('.theme-option').forEach(o => o.classList.remove('active'))
   const activeTheme = document.querySelector(`.theme-option[data-theme="${savedTheme}"]`)
   if (activeTheme) activeTheme.classList.add('active')
 
   const savedScheme = localStorage.getItem('beautyflow-scheme') || 'light'
-  screen.setAttribute('data-color-scheme', savedScheme)
+  document.documentElement.setAttribute('data-color-scheme', savedScheme)
+  if (screen) screen.setAttribute('data-color-scheme', savedScheme)
   document.querySelectorAll('.scheme-option').forEach(o => o.classList.remove('active'))
   const activeScheme = document.querySelector(`.scheme-option[data-scheme="${savedScheme}"]`)
   if (activeScheme) activeScheme.classList.add('active')

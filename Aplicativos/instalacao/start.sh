@@ -10,14 +10,14 @@ if docker compose version &> /dev/null; then
 elif command -v docker-compose &> /dev/null; then
     COMPOSE_CMD="docker-compose"
 else
-    echo "❌ Erro: Docker Compose não foi encontrado."
+    echo "[ERRO] Docker Compose nao foi encontrado."
     exit 1
 fi
 
-echo "🚀 Iniciando plataforma BeautyFlow..."
+echo "[*] Iniciando plataforma BeautyFlow..."
 $COMPOSE_CMD up -d
 
-echo "⏳ Aguardando serviços inicializarem..."
+echo "[*] Aguardando servicos inicializarem..."
 for i in $(seq 1 30); do
     all_ok=1
     unhealthy=""
@@ -29,8 +29,8 @@ for i in $(seq 1 30); do
         fi
     done < <($COMPOSE_CMD ps --format '{{.Service}}={{.State}}={{.Health}}' 2>/dev/null)
     if [ -n "$unhealthy" ]; then
-        echo "❌ Serviço(s) com problema:${unhealthy}"
-        echo "🔎 Execute: $COMPOSE_CMD logs --tail=100 <servico>"
+        echo "[ERRO] Servico(s) com problema:${unhealthy}"
+        echo "Executar para diagnostico: $COMPOSE_CMD logs --tail=100 <servico>"
         exit 1
     fi
     if [ "$all_ok" -eq 1 ]; then
@@ -40,6 +40,7 @@ for i in $(seq 1 30); do
 done
 
 echo ""
-echo "✓ Serviços rodando:"
-echo "  • CRM BeautyFlow:        http://localhost:3001"
-echo "  • Portal de Agendamento: http://localhost:5173"
+echo "[OK] Servicos ativos:"
+echo "  • CRM BeautyFlow (Painel):   http://localhost:3001 (admin / admin)"
+echo "  • Portal de Agendamento:     http://localhost:5173"
+echo "  • Banco de Dados PostgreSQL: localhost:5432"

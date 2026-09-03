@@ -9,6 +9,8 @@
 (function(){
   var theme = localStorage.getItem('beautyflow-theme') || 'default';
   var scheme = localStorage.getItem('beautyflow-scheme') || 'light';
+  document.documentElement.setAttribute('data-theme', theme);
+  document.documentElement.setAttribute('data-color-scheme', scheme);
   var map = {
     default:  { bg:'#0a1628', text:'#b8d4f0', sub:'#8aaccb', spin:'#7ab0e8' },
     emerald:  { bg:'#0a2818', text:'#b8f0d0', sub:'#8acc9a', spin:'#7ae8aa' },
@@ -163,12 +165,12 @@
     <div class="sidebar-footer">
       <div class="user-card">
         <div class="avatar">?</div>
-        <div>
+        <div class="user-info">
           <div class="user-name">Carregando...</div>
           <div class="user-role">...</div>
         </div>
       </div>
-      <button class="logout-btn" onclick="logout()" title="Sair">
+      <button class="logout-btn" onclick="logout()" title="Sair do sistema" aria-label="Sair">
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
           <path d="M6 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3M11 11l3-3-3-3M14 8H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
@@ -201,7 +203,7 @@
         </button>
         <div class="badge-notif" onclick="toggleNotifPanel()">
           <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-            <path d="M8 1a5 5 0 0 1 5 5c0 3 1 4 1 4H2s1-1 1-4a5 5 0 0 1 5-5zM6.5 13.5a1.5 1.5 0 0 0 3 0" stroke="#4a90d9" stroke-width="1.2" stroke-linecap="round"/>
+            <path d="M8 1a5 5 0 0 1 5 5c0 3 1 4 1 4H2s1-1 1-4a5 5 0 0 1 5-5zM6.5 13.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
           </svg>
           <div class="notif-dot" id="notif-dot"></div>
           <div id="notif-panel" class="notif-panel" style="display:none;" onclick="event.stopPropagation()">
@@ -388,11 +390,11 @@
         <div class="agenda-toolbar">
           <div class="agenda-nav">
             <button class="agenda-nav-btn" onclick="agendaNavPrev()">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 2L4 6l3.5 4" stroke="#4a90d9" stroke-width="1.4" stroke-linecap="round"/></svg>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M7.5 2L4 6l3.5 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
             </button>
             <span class="agenda-period" id="agenda-period">—</span>
             <button class="agenda-nav-btn" onclick="agendaNavNext()">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 2L8 6l-3.5 4" stroke="#4a90d9" stroke-width="1.4" stroke-linecap="round"/></svg>
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M4.5 2L8 6l-3.5 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
             </button>
             <button class="btn-outline agenda-today-btn" onclick="agendaNavToday()">Hoje</button>
           </div>
@@ -554,8 +556,8 @@
               <div class="panel-header">
                 <div class="panel-title">Receita vs Despesas</div>
                 <div class="chart-legend">
-                  <div class="legend-item"><div class="legend-dot" style="background:#4a90d9;"></div>Receita</div>
-                  <div class="legend-item"><div class="legend-dot" style="background:#b8d4f0;"></div>Despesa</div>
+                  <div class="legend-item"><div class="legend-dot" style="background:var(--primary-500);"></div>Receita</div>
+                  <div class="legend-item"><div class="legend-dot" style="background:var(--primary-300);"></div>Despesa</div>
                 </div>
               </div>
               <div class="chart-area">
@@ -587,8 +589,8 @@
               <div class="panel-header"><div class="panel-title">Receita por Serviço</div></div>
               <div class="donut-wrap">
                 <svg width="130" height="130" viewBox="0 0 90 90">
-                  <circle cx="45" cy="45" r="32" fill="none" stroke="#e8f2fc" stroke-width="14"/>
-                  <text x="45" y="49" text-anchor="middle" font-family="DM Serif Display,serif" font-size="14" fill="#0f2340" font-weight="600">0%</text>
+                  <circle class="donut-bg-circle" cx="45" cy="45" r="32" fill="none" stroke="#e8f2fc" stroke-width="14"/>
+                  <text x="45" y="45" text-anchor="middle" dominant-baseline="central" class="donut-center-text" font-family="'DM Serif Display',serif" font-size="15" font-weight="700">0%</text>
                 </svg>
                 <div class="donut-legend">
                   <div style="color:var(--text-secondary);font-size:12px;">Nenhum serviço no período</div>
@@ -1077,7 +1079,7 @@
             <div class="meta-card">
               <div class="meta-card-icon">
                 <svg width="28" height="28" viewBox="0 0 16 16" fill="none">
-                  <path d="M8 1l1.8 4H14l-3.5 2.5 1.3 4.2L8 9.2l-3.8 2.5L5.5 7.5 2 5h4.2z" stroke="#4a90d9" stroke-width="1.2" fill="none"/>
+                  <path d="M8 1l1.8 4H14l-3.5 2.5 1.3 4.2L8 9.2l-3.8 2.5L5.5 7.5 2 5h4.2z" stroke="currentColor" stroke-width="1.2" fill="none"/>
                 </svg>
               </div>
               <div class="meta-card-content">
@@ -1528,20 +1530,43 @@
 .btn-danger:hover { background: #fef0f0 !important; }
 
 [data-color-scheme="dark"] .modal-card {
-  background: var(--dark-bg-white, #1a2640);
-  box-shadow: 0 16px 48px rgba(0,0,0,.4);
+  background: var(--dark-bg-white, #132235);
+  border: 1px solid var(--dark-border, #1e3550);
+  box-shadow: 0 16px 48px rgba(0,0,0,.6);
 }
 [data-color-scheme="dark"] .modal-header {
-  border-color: var(--dark-bg-raised, #263050);
+  border-color: var(--dark-border, #1e3550);
 }
-[data-color-scheme="dark"] .modal-actions {
-  border-color: var(--dark-bg-raised, #263050);
+[data-color-scheme="dark"] .modal-title {
+  color: var(--dark-text-dark, #f0f6fc);
 }
-[data-color-scheme="dark"] .detail-row {
-  border-color: var(--dark-bg-raised, #263050);
+[data-color-scheme="dark"] .modal-close {
+  color: var(--dark-text-muted, #718ea8);
 }
 [data-color-scheme="dark"] .modal-close:hover {
-  color: var(--text-primary, #b8d4f0);
+  color: var(--dark-text-dark, #f0f6fc);
+  background: rgba(255, 255, 255, 0.06);
+}
+[data-color-scheme="dark"] .modal-actions {
+  border-color: var(--dark-border, #1e3550);
+}
+[data-color-scheme="dark"] .detail-row {
+  border-color: var(--dark-border-lighter, #1b3149);
+}
+[data-color-scheme="dark"] .detail-label {
+  color: var(--dark-text-muted, #718ea8);
+}
+[data-color-scheme="dark"] .detail-value {
+  color: var(--dark-text-dark, #f0f6fc);
+}
+[data-color-scheme="dark"] .btn-danger {
+  color: #f87171 !important;
+  border-color: rgba(239, 68, 68, 0.35) !important;
+  background: transparent !important;
+}
+[data-color-scheme="dark"] .btn-danger:hover {
+  background: rgba(239, 68, 68, 0.18) !important;
+  border-color: #f87171 !important;
 }
 </style>
 

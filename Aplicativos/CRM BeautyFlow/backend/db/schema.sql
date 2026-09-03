@@ -748,6 +748,7 @@ ALTER TABLE ONLY public.transactions
 --
 
 INSERT INTO public.schema_migrations (version) VALUES
+    ('001'),
     ('20260725000001'),
     ('20260725000002'),
     ('20260725000003'),
@@ -758,4 +759,36 @@ INSERT INTO public.schema_migrations (version) VALUES
     ('20260725000008'),
     ('20260725000009'),
     ('20260725000010'),
-    ('20260725000011');
+    ('20260725000011')
+ON CONFLICT (version) DO NOTHING;
+
+--
+-- Initial seed data for clean installations
+--
+
+INSERT INTO public.business_hours (day, open, close, closed) VALUES
+    ('segunda', '08:00', '18:00', false),
+    ('terca',   '08:00', '18:00', false),
+    ('quarta',  '08:00', '18:00', false),
+    ('quinta',  '08:00', '18:00', false),
+    ('sexta',   '08:00', '18:00', false),
+    ('sabado',  '08:00', '13:00', false),
+    ('domingo', '',      '',      true)
+ON CONFLICT (day) DO NOTHING;
+
+INSERT INTO public.services (name, duration, buffer, price, color) VALUES
+    ('Manicure Tradicional', 45, 15, 45.0, '#E07A5F'),
+    ('Pedicure Tradicional', 45, 15, 50.0, '#3D405B'),
+    ('Combo Manicure + Pedicure', 80, 15, 85.0, '#81B29A'),
+    ('Alongamento em Gel', 120, 15, 150.0, '#F2CC8F'),
+    ('Spa dos Pés', 60, 15, 70.0, '#D4A373'),
+    ('Esmaltação em Gel', 60, 15, 65.0, '#C084FC')
+ON CONFLICT (name) DO NOTHING;
+
+INSERT INTO public.settings (key, value) VALUES
+    ('meta_mensal', '7000')
+ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO public.users (name, email, phone, password_hash, role) VALUES
+    ('Administrador', 'admin', '', 'scrypt:32768:8:1$kq437aO5wIVX7lZw$3e6f2a22fdbc83cc0b7919c7d1e7a7532d1d8c9e0bddcab485e447e46f69e473f40634949b20102cca401ab947f403c7a1f23f7ab14b9b0969c15ba0cb736002', 'admin')
+ON CONFLICT (email) DO NOTHING;

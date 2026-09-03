@@ -14,8 +14,8 @@ O BeautyFlow é uma plataforma integrada de gestão e atendimento para salões d
 beleza e estética, composta por 3 pilares principais:
 
 1. CRM BeautyFlow (Painel de Gestão Administrativa e Financeira)
-2. Agendamento Vinicius (Portal Web responsivo para autoatendimento dos clientes)
-3. Infraestrutura & DevOps (Instaladores automatizados, Docker e Banco de Dados)
+2. Beatriz Gomes Studio (Portal Web responsivo para autoatendimento dos clientes)
+3. Infraestrutura & DevOps (Hub TUI de Gestão, Docker Compose e Banco de Dados)
 
 ================================================================================
 2. STACK TECNOLÓGICO E BIBLIOTECAS (FERRAMENTAS TÉCNICAS)
@@ -254,6 +254,9 @@ seguintes ferramentas e telas:
 • Aba "Aparência":
   - 5 Temas de Cores: Azul (Padrão), Esmeralda (Verde), Rosa, Púrpura, Luz do Sol.
   - Modo de Cor: Tema Claro (Light) e Tema Escuro (Dark).
+  - Padronização dinâmica integral: cartões de métricas, gráficos SVG, heatmaps de
+    horários de pico, chips, anéis de foco e botões respondem em tempo real ao tema
+    selecionado sem cores fixas remanescentes.
   - Tamanho da Fonte: Pequeno, Médio e Grande.
   - Modo de Layout: Barra Lateral Vertical ou Topbar Horizontal.
 • Aba "Empresa":
@@ -262,7 +265,7 @@ seguintes ferramentas e telas:
   - Informações utilizadas automaticamente no cabeçalho dos relatórios exportados.
 
 ================================================================================
-4. PORTAL DE AGENDAMENTO VINICIUS (PORTAL DO CLIENTE FINAL)
+4. PORTAL DE AGENDAMENTO BEATRIZ GOMES STUDIO (PORTAL DO CLIENTE FINAL)
 ================================================================================
 
 Aplicação web moderna em React 19 + Tailwind CSS 4 na porta 5173, focada em
@@ -324,28 +327,46 @@ O diretório `Aplicativos/instalacao/` contém o ecossistema de implantação:
   3. `beautyflow-agendamento`: Frontend React servido via Nginx na porta 5173
      (mapeado para porta 80 interna), com build-arg `VITE_API_URL` configurável.
 
-5.2. SCRIPTS DE INSTALAÇÃO E EXECUÇÃO
+5.2. HUB TUI DE INSTALAÇÃO, MANUTENÇÃO E GESTÃO
 --------------------------------------------------------------------------------
-• `install.sh` (Linux / macOS):
-  - Detecta automaticamente a distribuição do Linux (Ubuntu, Debian, Arch,
-    Fedora, openSUSE, etc.) ou macOS.
-  - Oferece instalação automatizada do Docker e Docker Compose se não existirem.
-  - Identifica o IP local da máquina (`hostname -I`) para permitir que outros
-    dispositivos (celulares, tablets na mesma rede Wi-Fi) acessem o agendamento.
-  - Gera os arquivos `.env` do CRM, do Agendamento e do Docker Compose com o IP.
-  - Executa o build e inicialização dos contêineres com `--force-recreate`.
-  - Executa um loop de healthcheck verificando a saúde de todos os serviços.
-• `install.bat` (Windows):
-  - Launcher em lote para execução simplificada no prompt de comando do Windows.
-• `start.sh`:
-  - Script para iniciar os contêineres existentes com checagem rápida de status.
+• `install.sh` (Linux / macOS) & `install.bat` (Windows):
+  - Interface Interativa TUI em Terminal: estética elegante com caracteres de
+    desenho de caixa (`┌─┐│└┘`), indicadores de status em tempo real (`[ ONLINE ]`
+    e `[ OFFLINE ]`), sem uso de emojis.
+  - Opção 1 — Instalação Completa: detecção de dependências, resolução de conflitos
+    de portas (5432, 3001, 5173), autodetecção do IP de rede para acesso mobile
+    e carga de sementes no banco.
+  - Opção 2 — Iniciar Serviços: sobe os 3 contêineres em background.
+  - Opção 3 — Parar Serviços: pausa a stack com segurança sem perda de dados.
+  - Opção 4 — Reiniciar Serviços: reinicia os contêineres e valida healthchecks.
+  - Opção 5 — Atualizar Plataforma: sincronização Git opcional e rebuild completo
+    mantendo intacto o volume persistente do banco de dados.
+  - Opção 6 — Submenu de Banco de Dados:
+      * [1] Criar Backup Completo (`pg_dump` com timestamp em `backups/`).
+      * [2] Restaurar Backup a partir de arquivo `.sql`.
+      * [3] Listar Backups Existentes com datas e tamanhos.
+      * [4] Testar Conexão e Integridade das Tabelas.
+      * [5] Resetar Banco (recriação limpa com sementes padrão via `schema.sql`).
+  - Opção 7 — Configuração de Rede & IP: ajusta a URL da API e recompila o portal.
+  - Opção 8 — Visualização de Logs: streaming em tempo real geral ou filtrado.
+  - Opção 9 — Redefinir Senha do Administrador: troca a senha do usuário `admin`.
+  - Opção 10 — Desinstalar: limpeza de ambiente protegida por palavra de segurança.
+
+• Scripts Rápidos de 1 Clique (Dia a Dia):
+  - `start.sh` (Linux) / `start.bat` (Windows): inicia a plataforma com 1 comando.
+  - `stop.sh` (Linux) / `stop.bat` (Windows): desliga a plataforma preservando dados.
+
 • `Dockerfile.crm`:
   - Build baseado em `python:3.11-slim`, instalação de requirements e execução.
+  - Healthcheck ativo via consulta HTTP na porta 3001.
+
 • `Dockerfile.agendamento`:
   - Build multi-stage: Node.js 20-alpine para compilar a aplicação React Vite,
-    seguido de Nginx Alpine para servir os arquivos estáticos com peso mínimo.
+    seguido de Nginx Alpine com SPA Fallback (`try_files $uri $uri/ /index.html;`).
+  - Healthcheck ativo via `wget` na porta 80.
+
 • `tutorial.md`:
-  - Manual passo a passo para configuração em servidores locais ou remotos (VPS).
+  - Manual operacional completo do hub interativo e documentação de deploy.
 
 ================================================================================
 6. MODELO DE DADOS (TABELAS, VIEWS E REGRAS DE NEGÓCIO)

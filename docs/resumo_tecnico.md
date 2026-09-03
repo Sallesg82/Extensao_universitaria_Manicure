@@ -31,21 +31,22 @@ backend/                      # API Flask + WebSocket
 
 ---
 
-## Banco de Dados (Supabase PostgreSQL)
+## Banco de Dados (PostgreSQL 16 / 18)
 
-8 tabelas + 3 views:
+9 tabelas + 3 views + 28 índices ativos:
 
 | Tabela | Função |
 |--------|--------|
-| `clients` | Cadastro com avatar, status (regular/frequente/novo/inativo/inadimplente) |
-| `appointments` | Agendamentos com FK → clients, status (pending/confirmed/done/cancelled), payment_status (unpaid/paid) |
+| `clients` | Cadastro com avatar, CPF, status (regular/frequente/novo/inativo/inadimplente) |
+| `appointments` | Agendamentos com FK → clients (ON DELETE SET NULL), status (pending/confirmed/done/cancelled), payment_status (unpaid/paid) |
 | `services` | Catálogo de serviços com preço, duração, buffer, cor |
-| `transactions` | Lançamentos financeiros (income/expense) com appointment_id opcional e nome_completo |
-| `settings` | Chave-valor (meta_mensal, notificações, trash de agendamentos) |
-| `business_hours` | Horários de funcionamento por dia da semana |
-| `notifications` | Notificações do sistema (meta atingida, etc.) |
-| `users` | Usuários com autenticação (bcrypt) |
-| `v_clients` | View: clientes com visitas, total_gasto, última_visita |
+| `transactions` | Lançamentos financeiros (income/expense) com appointment_id e snapshots imutáveis (client_name, service) |
+| `settings` | Chave-valor (meta_mensal, notificações, empresa, configurações) |
+| `business_hours` | Horários de funcionamento por dia da semana (Seg-Dom) |
+| `notifications` | Notificações do sistema (meta atingida, agendamentos, etc.) |
+| `integrations` | Integrações configuradas (webhook, n8n, Google Calendar) em JSONB |
+| `users` | Usuários com autenticação segura (scrypt / Werkzeug) |
+| `v_clients` | View: clientes com visitas, total_spent (payment_status='paid'), last_visit |
 | `v_month_stats` | View: receita/despesas/agendamentos do mês |
 | `v_daily_stats` | View: receita/despesa por dia |
 
@@ -61,7 +62,9 @@ CREATE TABLE transactions (
     payment_method    TEXT DEFAULT '',
     date              DATE NOT NULL,
     appointment_id    INTEGER REFERENCES appointments(id) ON DELETE SET NULL,
-    nome_completo     TEXT DEFAULT '',
+    client_id         INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+    client_name       TEXT DEFAULT '',
+    service           TEXT DEFAULT '',
     created_at        TIMESTAMPTZ DEFAULT NOW()
 );
 ```

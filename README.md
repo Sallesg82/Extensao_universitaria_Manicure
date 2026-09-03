@@ -353,7 +353,7 @@ python run.py
 
 ## 📱 2. Portal de Agendamento Online
 
-> `Aplicativos/agendamento Vinicius/` — **Porta 5173**
+> `Aplicativos/Beatriz Gomes Studio/` — **Porta 5173**
 
 Interface de agendamento para o cliente final com fluxo conversacional tipo assistente virtual. O cliente escolhe o serviço, data e horário — tudo é refletido em tempo real no CRM do profissional.
 
@@ -378,7 +378,7 @@ Interface de agendamento para o cliente final com fluxo conversacional tipo assi
 ### Estrutura de Diretórios
 
 ```
-agendamento Vinicius/
+Beatriz Gomes Studio/
 ├── index.html              # HTML5 de entrada
 ├── vite.config.js          # Config Vite (host: 0.0.0.0, porta 5173)
 ├── package.json            # Dependências npm
@@ -387,7 +387,7 @@ agendamento Vinicius/
 ├── src/
 │   ├── main.jsx            # Entrada React 19 (StrictMode)
 │   ├── App.jsx             # Componente principal + subcomponentes
-│   ├── App.css             # (migrado para index.css)
+│   ├── App.css             # Estilos auxiliares
 │   ├── index.css           # Design system completo + animações
 │   └── assets/
 │       └── hero.png
@@ -409,7 +409,7 @@ agendamento Vinicius/
 ### Como Iniciar (Desenvolvimento)
 
 ```bash
-cd "Aplicativos/agendamento Vinicius"
+cd "Aplicativos/Beatriz Gomes Studio"
 npm install
 npm run dev
 # → http://localhost:5173
@@ -449,13 +449,13 @@ PostgreSQL 16 com 9 tabelas, 3 views e triggers automáticos.
 
 ---
 
-## 🚀 Instalação
+## 🚀 Instalação e Hub de Gestão
 
 > `Aplicativos/instalacao/`
 
-### Opção 1 — Docker (Recomendado)
+A plataforma conta com um **Hub Interativo em Terminal (TUI)** multiplataforma para gerenciar instalação, inicialização, backups, restaurações, redefinição de senhas e atualizações.
 
-O projeto possui um instalador interativo que detecta seu SO e configura tudo automaticamente:
+### Opção 1 — Linux / macOS (Hub Interativo)
 
 ```bash
 cd "Aplicativos/instalacao"
@@ -464,26 +464,35 @@ chmod +x install.sh
 ```
 
 O script `install.sh`:
-- Detecta a distribuição Linux (Ubuntu, Debian, Pop!_OS, Mint, Arch, Manjaro, Fedora, RHEL, openSUSE) ou macOS
-- Instala Docker e Docker Compose se necessário
-- Detecta o IP da rede local para acesso por celulares e outros dispositivos
-- Gera os arquivos `.env` automaticamente
-- Sobe os 3 contêineres com healthcheck
+- Detecta a distribuição do sistema operacional (Ubuntu, Debian, Arch, Fedora, openSUSE, macOS)
+- Verifica e instala automaticamente o Docker e Docker Compose caso necessário
+- Checa preventivamente conflitos de portas (`5432`, `3001`, `5173`)
+- Detecta o IP local na rede Wi-Fi/Ethernet para acesso remoto e via smartphones
+- Inicializa os contêineres com healthchecks HTTP e sementes completas de dados no PostgreSQL
+- Disponibiliza submenu de backup (`pg_dump`) e restauração (`psql`)
 
-#### Contêineres Docker Compose
+### Opção 2 — Windows (Hub Interativo)
 
-| Serviço | Imagem Base | Porta |
-|---|---|---|
-| `beautyflow-postgres` | `postgres:16-alpine` | `5432` |
-| `crm-backend` | `python:3.11-slim` | `3001` |
-| `agendamento-app` | `node:20-alpine` → `nginx:alpine` | `5173:80` |
-
-### Opção 2 — Windows
-
+Dê dois cliques no arquivo `install.bat` ou abra o CMD/PowerShell:
 ```cmd
 cd Aplicativos\instalacao
 install.bat
 ```
+
+### Scripts Rápidos de 1 Clique (Dia a Dia)
+
+Para quem deseja apenas ligar ou desligar a plataforma sem abrir o menu interativo:
+
+* **Iniciar:** `./start.sh` (Linux/macOS) ou clique duplo em `start.bat` (Windows)
+* **Parar:** `./stop.sh` (Linux/macOS) ou clique duplo em `stop.bat` (Windows)
+
+#### Contêineres Docker Compose
+
+| Serviço | Contêiner | Imagem Base | Porta |
+|---|---|---|---|
+| PostgreSQL | `beautyflow-postgres` | `postgres:16-alpine` | `5432` |
+| CRM BeautyFlow | `beautyflow-crm` | `python:3.11-slim` | `3001` |
+| Portal Agendamento | `beautyflow-agendamento` | `node:20-alpine` → `nginx:alpine` | `5173:80` |
 
 ### Opção 3 — Manual (Desenvolvimento)
 
@@ -491,7 +500,7 @@ install.bat
 - Python 3.11+
 - Node.js 20+
 - npm
-- PostgreSQL 16 (local ou cloud)
+- PostgreSQL 16/18 (local ou Docker)
 
 ```bash
 # 1. Banco de dados
@@ -506,7 +515,7 @@ pip install -r requirements.txt
 python run.py
 
 # 3. Portal de Agendamento (novo terminal)
-cd "Aplicativos/agendamento Vinicius"
+cd "Aplicativos/Beatriz Gomes Studio"
 npm install
 npm run dev
 ```
@@ -515,10 +524,11 @@ npm run dev
 
 | Script | Plataforma | Finalidade |
 |---|---|---|
-| `install.sh` | Linux / macOS | Instalador interativo completo |
-| `install.bat` | Windows | Launcher Docker Desktop |
-| `start.sh` | Linux / macOS | Inicia contêineres já construídos |
-| `docker-compose.yml` | Todos | Orquestração dos 3 serviços |
+| `install.sh` | Linux / macOS | Hub TUI completo de instalação, backup, restore e gestão |
+| `install.bat` | Windows | Hub TUI completo de instalação, backup, restore e gestão |
+| `start.sh` / `start.bat` | Linux / Windows | Inicializador rápido de 1 clique |
+| `stop.sh` / `stop.bat` | Linux / Windows | Parada rápida de 1 clique sem perda de dados |
+| `docker-compose.yml` | Todos | Orquestração dos 3 serviços com healthchecks ativos |
 
 ---
 
@@ -544,7 +554,7 @@ npm run dev
                 │   │   (Socket.IO)
                 │   │
            ┌────▼───▼─────────────────────┐
-           │   PostgreSQL 16              │
+           │   PostgreSQL 16 / 18         │
            │   Docker ou Cloud            │
            └──────────────────────────────┘
                 │               │
@@ -561,12 +571,11 @@ npm run dev
 ### CRM Backend (`Aplicativos/CRM BeautyFlow/backend/.env`)
 
 ```env
-DATABASE_URL=postgresql://beautyflow:CRMbeauty@localhost:5432/beautyflow?sslmode=disable
-POSTGRES_PASSWORD=CRMbeauty
-N8N_WEBHOOK_URL=https://seu-n8n.com/webhook/calendar-webhook
+DATABASE_URL=postgresql://postgres:beautyflow_pass@postgres:5432/beautyflow
+N8N_WEBHOOK_URL=https://mirianfiorini.app.n8n.cloud/webhook/calendar-webhook
 ```
 
-### Portal de Agendamento (`Aplicativos/agendamento Vinicius/.env`)
+### Portal de Agendamento (`Aplicativos/Beatriz Gomes Studio/.env`)
 
 ```env
 VITE_API_URL=http://localhost:3001/api
@@ -575,8 +584,12 @@ VITE_API_URL=http://localhost:3001/api
 ### Docker Compose (`Aplicativos/instalacao/.env`)
 
 ```env
-VITE_API_URL=http://<IP_DA_MÁQUINA>:3001/api
+VITE_API_URL=http://<IP_OU_HOST>:3001/api
 ```
+
+### Credenciais Padrão do Sistema
+* **Usuário:** `admin`
+* **Senha:** `admin`
 
 ---
 

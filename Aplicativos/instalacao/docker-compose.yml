@@ -34,6 +34,12 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3001/')"]
+      interval: 5s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
     networks:
       - beautyflow-net
 
@@ -49,7 +55,13 @@ services:
       - "5173:80"
     depends_on:
       crm-backend:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     networks:
       - beautyflow-net
 
