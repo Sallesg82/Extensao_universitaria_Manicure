@@ -270,9 +270,8 @@ const pageConfig = {
   agenda:         { title: 'Agenda',          sub: '',      btn: '+ Novo Agendamento' },
   clientes:       { title: 'Clientes',        sub: '',      btn: '+ Nova Cliente' },
   servicos:       { title: 'Serviços',        sub: '',      btn: '+ Novo Serviço' },
-  metas:          { title: 'Metas',           sub: '',      btn: null },
   financeiro:     { title: 'Financeiro',      sub: '',      btn: '+ Novo Lançamento' },
-  despesas:       { title: 'Despesas do Mês', sub: 'Acompanhe seus gastos do mês', btn: '+ Nova Despesa' },
+  despesas:       { title: 'Saídas do Mês',   sub: 'Acompanhe suas saídas do mês', btn: '+ Nova Saída' },
   relatorios:     { title: 'Relatórios',      sub: 'Análise - Mês',      btn: '⬇ Exportar PDF' },
   usuarios:       { title: 'Usuários',        sub: 'Gerenciar contas de acesso',          btn: null },
   configuracoes:  { title: 'Configurações',   sub: 'Gerencie seu sistema BeautyFlow',      btn: null },
@@ -280,6 +279,11 @@ const pageConfig = {
 
 function showPage(pageId, navEl) {
   stopPageRefresh()
+
+  if (pageId === 'metas') {
+    pageId = 'financeiro'
+    navEl = document.querySelector('.nav-item[onclick*="\'financeiro\'"]')
+  }
 
   if (pageId === 'usuarios' && currentUser && currentUser.role !== 'admin') {
     pageId = 'dashboard'
@@ -318,12 +322,13 @@ function showPage(pageId, navEl) {
   if (cfg.btn) { btn.textContent = cfg.btn; btn.style.display = '' }
   else { btn.style.display = 'none' }
 
+  syncGlobalDateControls()
+
   if (pageId === 'dashboard') loadDashboard()
   else if (pageId === 'clientes') loadClients()
   else if (pageId === 'servicos') loadServicos()
-  else if (pageId === 'metas') loadMetas()
   else if (pageId === 'agenda') loadAgenda()
-  else if (pageId === 'financeiro') loadFinanceiro()
+  else if (pageId === 'financeiro') { _financeCurrentDrillWeek = null; loadFinanceiro() }
   else if (pageId === 'despesas') loadDespesas()
   else if (pageId === 'usuarios') loadUsuarios()
   else if (pageId === 'relatorios') loadRelatorios()
@@ -1109,95 +1114,161 @@ function clearClientDetail() {
   selectedClientId = null
 }
 
-// ── DASHBOARD ─────────────────────────────────────
+// ── CONTROLE GLOBAL DE MÊS E ANO (TODAS AS ABAS) ──
 
-let dashSelectedMonth = new Date().getMonth() + 1
-let dashSelectedYear = new Date().getFullYear()
+let globalSelectedMonth = new Date().getMonth() + 1
+let globalSelectedYear = new Date().getFullYear()
+let dashSelectedMonth = globalSelectedMonth
+let dashSelectedYear = globalSelectedYear
 
-function populateDashboardYearSelect() {
-  const yEl = document.getElementById('dash-select-year')
-  if (!yEl) return
+function populateGlobalYearSelect() {
   const currentYear = new Date().getFullYear()
-  if (yEl.options.length > 0 && yEl.querySelector(`option[value="${dashSelectedYear}"]`)) {
-    return
+  const startYear = Math.min(currentYear - 4, globalSelectedYear - 1)
+  const endYear = Math.max(currentYear + 3, globalSelectedYear + 1)
+  
+  const yGlobal = document.getElementById('global-select-year')
+  if (yGlobal && (!yGlobal.options.length || !yGlobal.querySelector(`option[value="${globalSelectedYear}"]`))) {
+    yGlobal.innerHTML = ''
+    for (let y = startYear; y <= endYear; y++) {
+      const opt = document.createElement('option')
+      opt.value = y
+      opt.textContent = y
+      yGlobal.appendChild(opt)
+    }
   }
-  const startYear = Math.min(currentYear - 4, dashSelectedYear - 1)
-  const endYear = Math.max(currentYear + 3, dashSelectedYear + 1)
-  yEl.innerHTML = ''
-  for (let y = startYear; y <= endYear; y++) {
-    const opt = document.createElement('option')
-    opt.value = y
-    opt.textContent = y
-    yEl.appendChild(opt)
+
+  const yDash = document.getElementById('dash-select-year')
+  if (yDash && (!yDash.options.length || !yDash.querySelector(`option[value="${globalSelectedYear}"]`))) {
+    yDash.innerHTML = ''
+    for (let y = startYear; y <= endYear; y++) {
+      const opt = document.createElement('option')
+      opt.value = y
+      opt.textContent = y
+      yDash.appendChild(opt)
+    }
   }
 }
+const populateDashboardYearSelect = populateGlobalYearSelect
 
-function syncDashboardControls() {
-  populateDashboardYearSelect()
+function syncGlobalDateControls() {
+  populateGlobalYearSelect()
 
-  const mEl = document.getElementById('dash-select-month')
-  const yEl = document.getElementById('dash-select-year')
-  if (mEl) mEl.value = String(dashSelectedMonth)
-  if (yEl) yEl.value = String(dashSelectedYear)
+  const mGlobal = document.getElementById('global-select-month')
+  const yGlobal = document.getElementById('global-select-year')
+  if (mGlobal) mGlobal.value = String(globalSelectedMonth)
+  if (yGlobal) yGlobal.value = String(globalSelectedYear)
+
+  const mDash = document.getElementById('dash-select-month')
+  const yDash = document.getElementById('dash-select-year')
+  if (mDash) mDash.value = String(globalSelectedMonth)
+  if (yDash) yDash.value = String(globalSelectedYear)
 
   const monthNames = [
     'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
     'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
   ]
-  const periodText = (monthNames[dashSelectedMonth - 1] || '') + ' de ' + dashSelectedYear
+  const periodText = (monthNames[globalSelectedMonth - 1] || '') + ' de ' + globalSelectedYear
   const periodTextEl = document.getElementById('dash-period-text')
   if (periodTextEl) periodTextEl.textContent = periodText
 
   const now = new Date()
-  const isCurrent = (dashSelectedMonth === (now.getMonth() + 1) && dashSelectedYear === now.getFullYear())
-  const todayBtn = document.getElementById('dash-today-btn')
-  if (todayBtn) {
-    todayBtn.classList.toggle('is-current', isCurrent)
-    todayBtn.title = isCurrent ? 'Você está visualizando o mês atual' : 'Voltar para o mês atual'
+  const isCurrent = (globalSelectedMonth === (now.getMonth() + 1) && globalSelectedYear === now.getFullYear())
+  
+  const todayBtnTop = document.getElementById('topbar-period-today')
+  if (todayBtnTop) {
+    todayBtnTop.classList.toggle('is-current', isCurrent)
+    todayBtnTop.title = isCurrent ? 'Mês atual selecionado' : 'Voltar para o mês atual'
+  }
+
+  const todayBtnDash = document.getElementById('dash-today-btn')
+  if (todayBtnDash) {
+    todayBtnDash.classList.toggle('is-current', isCurrent)
+    todayBtnDash.title = isCurrent ? 'Você está visualizando o mês atual' : 'Voltar para o mês atual'
   }
 }
+const syncDashboardControls = syncGlobalDateControls
 
-function changeDashboardMonth(delta) {
-  dashSelectedMonth += delta
-  if (dashSelectedMonth > 12) {
-    dashSelectedMonth = 1
-    dashSelectedYear += 1
-  } else if (dashSelectedMonth < 1) {
-    dashSelectedMonth = 12
-    dashSelectedYear -= 1
+function changeGlobalMonth(delta) {
+  _financeCurrentDrillWeek = null
+  globalSelectedMonth += delta
+  if (globalSelectedMonth > 12) {
+    globalSelectedMonth = 1
+    globalSelectedYear += 1
+  } else if (globalSelectedMonth < 1) {
+    globalSelectedMonth = 12
+    globalSelectedYear -= 1
   }
-  syncDashboardControls()
-  loadDashboard()
+  dashSelectedMonth = globalSelectedMonth
+  dashSelectedYear = globalSelectedYear
+  syncGlobalDateControls()
+  refreshCurrentActivePage()
+}
+const changeDashboardMonth = changeGlobalMonth
+
+function onGlobalDateSelectChange() {
+  _financeCurrentDrillWeek = null
+  const mGlobal = document.getElementById('global-select-month')
+  const yGlobal = document.getElementById('global-select-year')
+  if (mGlobal && yGlobal) {
+    globalSelectedMonth = parseInt(mGlobal.value, 10)
+    globalSelectedYear = parseInt(yGlobal.value, 10)
+  }
+  dashSelectedMonth = globalSelectedMonth
+  dashSelectedYear = globalSelectedYear
+  syncGlobalDateControls()
+  refreshCurrentActivePage()
 }
 
 function onDashboardDateSelectChange() {
-  const mEl = document.getElementById('dash-select-month')
-  const yEl = document.getElementById('dash-select-year')
-  if (mEl && yEl) {
-    dashSelectedMonth = parseInt(mEl.value, 10)
-    dashSelectedYear = parseInt(yEl.value, 10)
-    syncDashboardControls()
-    loadDashboard()
+  _financeCurrentDrillWeek = null
+  const mDash = document.getElementById('dash-select-month')
+  const yDash = document.getElementById('dash-select-year')
+  if (mDash && yDash) {
+    globalSelectedMonth = parseInt(mDash.value, 10)
+    globalSelectedYear = parseInt(yDash.value, 10)
   }
+  dashSelectedMonth = globalSelectedMonth
+  dashSelectedYear = globalSelectedYear
+  syncGlobalDateControls()
+  refreshCurrentActivePage()
 }
 
-function resetDashboardMonth() {
+function resetGlobalMonth() {
+  _financeCurrentDrillWeek = null
   const now = new Date()
-  dashSelectedMonth = now.getMonth() + 1
-  dashSelectedYear = now.getFullYear()
-  syncDashboardControls()
-  loadDashboard()
+  globalSelectedMonth = now.getMonth() + 1
+  globalSelectedYear = now.getFullYear()
+  dashSelectedMonth = globalSelectedMonth
+  dashSelectedYear = globalSelectedYear
+  syncGlobalDateControls()
+  refreshCurrentActivePage()
+}
+const resetDashboardMonth = resetGlobalMonth
+
+function refreshCurrentActivePage() {
+  const activePage = document.querySelector('.page.active')
+  if (!activePage) return
+  const pageId = activePage.id.replace('page-', '')
+  if (pageId === 'dashboard') loadDashboard()
+  else if (pageId === 'financeiro') loadFinanceiro()
+  else if (pageId === 'despesas') loadDespesas()
+  else if (pageId === 'relatorios') loadRelatorios()
+  else if (pageId === 'agenda') {
+    if (agendaDate) {
+      agendaDate.setFullYear(globalSelectedYear)
+      agendaDate.setMonth(globalSelectedMonth - 1)
+    }
+    showAgendaView()
+  }
 }
 
 async function loadDashboard() {
   try {
-    const now = new Date()
-    if (!dashSelectedMonth) dashSelectedMonth = now.getMonth() + 1
-    if (!dashSelectedYear) dashSelectedYear = now.getFullYear()
+    dashSelectedMonth = globalSelectedMonth
+    dashSelectedYear = globalSelectedYear
+    syncGlobalDateControls()
 
-    syncDashboardControls()
-
-    const res = await fetch(`${API}/stats?month=${dashSelectedMonth}&year=${dashSelectedYear}`)
+    const res = await fetch(`${API}/stats?month=${globalSelectedMonth}&year=${globalSelectedYear}`)
     const stats = await res.json()
 
     const dot = document.getElementById('notif-dot')
@@ -1232,8 +1303,11 @@ async function loadDashboard() {
     const monthCl = Number(stats.month_clients || 0)
     const avgTkt = Number(stats.avg_ticket || 0)
 
+    _currentMonthRevenue = monthRev
+    if (stats.meta_mensal) _currentMetaVal = Number(stats.meta_mensal)
+
     if (isCurrentMonth) {
-      setEl('metric-receita-label', 'Receita Hoje')
+      setEl('metric-receita-label', 'Entrada Hoje')
       setEl('metric-receita', 'R$ ' + todayRev.toFixed(0))
       setEl('metric-receita-change', 'R$ ' + monthRev.toLocaleString('pt-BR', {minimumFractionDigits: 0}) + ' no mês')
 
@@ -1249,7 +1323,7 @@ async function loadDashboard() {
       setEl('metric-ticket', 'R$ ' + avgTkt.toFixed(0))
       setEl('metric-ticket-change', '')
     } else {
-      setEl('metric-receita-label', 'Receita no Mês')
+      setEl('metric-receita-label', 'Entrada no Mês')
       setEl('metric-receita', 'R$ ' + monthRev.toLocaleString('pt-BR', {minimumFractionDigits: 0}))
       setEl('metric-receita-change', (stats.month_label || '') + ' de ' + stats.month_year)
 
@@ -1371,13 +1445,269 @@ async function loadDashboard() {
 }
 
 // ── FINANCEIRO ─────────────────────────────────────
+let _financeSelectedYear = new Date().getFullYear()
+let _financeSelectedMonth = new Date().getMonth() + 1
+let _financeMonthLabel = ''
+let _financeMonthYear = ''
+let _financeStatsData = null
+let _financeWeeksCache = []
+let _financeCurrentDrillWeek = null
+let _lastMetaPct = 0
+
+function formatFinanceBarValue(val) {
+  if (!val || val === 0) return '—'
+  if (val >= 100000) return 'R$ ' + (val / 1000).toFixed(0) + 'k'
+  if (val >= 10000) return 'R$ ' + (val / 1000).toFixed(1).replace('.', ',') + 'k'
+  return 'R$ ' + Math.round(val).toLocaleString('pt-BR')
+}
+
+function buildMonthWeeks(year, month, dailyBreakdown = []) {
+  const lastDay = new Date(year, month, 0).getDate()
+  const dayMap = {}
+  dailyBreakdown.forEach(d => {
+    if (d && d.date) dayMap[d.date] = d
+  })
+
+  const dayNames = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
+  const weeks = []
+  let currentWeekDays = []
+  let weekNum = 1
+
+  for (let d = 1; d <= lastDay; d++) {
+    const dt = new Date(year, month - 1, d, 12, 0, 0)
+    const dayOfWeek = (dt.getDay() + 6) % 7 // 0 = Seg, 6 = Dom
+    const dStr = String(d).padStart(2, '0')
+    const mStr = String(month).padStart(2, '0')
+    const dateStr = `${year}-${mStr}-${dStr}`
+    const tx = dayMap[dateStr] || { revenue: 0, expense: 0 }
+
+    currentWeekDays.push({
+      day: dayNames[dayOfWeek],
+      dayNum: dStr,
+      date: dateStr,
+      dayIndex: dayOfWeek,
+      revenue: Number(tx.revenue || 0),
+      expense: Number(tx.expense || 0)
+    })
+
+    if (dayOfWeek === 6 || d === lastDay) {
+      const firstD = currentWeekDays[0].dayNum
+      const lastD = currentWeekDays[currentWeekDays.length - 1].dayNum
+      const wRev = currentWeekDays.reduce((a, b) => a + b.revenue, 0)
+      const wExp = currentWeekDays.reduce((a, b) => a + b.expense, 0)
+      weeks.push({
+        weekNum: weekNum++,
+        label: `Semana ${weeks.length + 1}`,
+        rangeLabel: `${firstD} a ${lastD}/${mStr}`,
+        shortLabel: `Sem ${weeks.length + 1}`,
+        days: currentWeekDays,
+        revenue: wRev,
+        expense: wExp
+      })
+      currentWeekDays = []
+    }
+  }
+  return weeks
+}
+
+function renderFinanceWeeklyChart() {
+  _financeCurrentDrillWeek = null
+  const barsContainer = document.getElementById('finance-month-bars')
+  const chartTitle = document.getElementById('finance-chart-title')
+  const backBtn = document.getElementById('finance-chart-back-btn')
+  const viewBadge = document.getElementById('finance-chart-view-badge')
+  const weekPills = document.getElementById('finance-week-pills')
+
+  if (!barsContainer) return
+
+  const monthNames = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ]
+  const monthName = _financeMonthLabel || monthNames[globalSelectedMonth - 1] || ''
+  const year = _financeSelectedYear || globalSelectedYear
+
+  if (chartTitle) chartTitle.textContent = `Entradas vs Saídas — ${monthName} de ${year}`
+  if (backBtn) backBtn.style.display = 'none'
+  if (viewBadge) {
+    viewBadge.textContent = 'Visão Semanal'
+    viewBadge.className = 'panel-badge'
+  }
+  if (weekPills) weekPills.style.display = 'none'
+
+  const weeks = _financeWeeksCache
+  if (!weeks || weeks.length === 0) {
+    barsContainer.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);width:100%;">Nenhum lançamento no período</div>'
+    return
+  }
+
+  const maxVal = Math.max(...weeks.map(w => Math.max(w.revenue, w.expense, 1)))
+
+  barsContainer.innerHTML = weeks.map(w => {
+    const rev = w.revenue
+    const exp = w.expense
+    const revH = rev > 0 ? Math.max(6, Math.round((rev / maxVal) * 92)) : 2
+    const expH = exp > 0 ? Math.max(6, Math.round((exp / maxVal) * 92)) : 2
+
+    const revValStr = formatFinanceBarValue(rev)
+    const expValStr = formatFinanceBarValue(exp)
+
+    const titleTip = `${w.label} (${w.rangeLabel}): Entrada R$ ${rev.toLocaleString('pt-BR', {minimumFractionDigits: 2})} | Saída R$ ${exp.toLocaleString('pt-BR', {minimumFractionDigits: 2})} — Clique para detalhar os dias`
+
+    return `
+      <div class="month-bar-group is-week" onclick="drillDownFinanceWeek(${w.weekNum})" title="${titleTip}">
+        <div class="month-bar-pair">
+          <div class="bar-col">
+            <span class="bar-val rev ${rev === 0 ? 'zero' : ''}">${revValStr}</span>
+            <div class="month-bar rev" style="height:${revH}px;"></div>
+          </div>
+          <div class="bar-col">
+            <span class="bar-val exp ${exp === 0 ? 'zero' : ''}">${expValStr}</span>
+            <div class="month-bar exp" style="height:${expH}px;"></div>
+          </div>
+        </div>
+        <div class="month-label" style="font-weight:600;">
+          ${w.label}
+          <div style="font-size:10px;font-weight:400;color:var(--text-secondary);margin-top:1px;text-transform:none;">${w.rangeLabel}</div>
+          <div class="week-drill-hint">🔍 Ver dias</div>
+        </div>
+      </div>`
+  }).join('')
+}
+
+function drillDownFinanceWeek(weekNum) {
+  _financeCurrentDrillWeek = weekNum
+  const barsContainer = document.getElementById('finance-month-bars')
+  const chartTitle = document.getElementById('finance-chart-title')
+  const backBtn = document.getElementById('finance-chart-back-btn')
+  const viewBadge = document.getElementById('finance-chart-view-badge')
+  const weekPills = document.getElementById('finance-week-pills')
+
+  if (!barsContainer) return
+
+  const targetWeek = _financeWeeksCache.find(w => w.weekNum === weekNum) || _financeWeeksCache[0]
+  if (!targetWeek) return
+
+  const monthNames = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+  ]
+  const monthName = _financeMonthLabel || monthNames[globalSelectedMonth - 1] || ''
+
+  if (chartTitle) chartTitle.textContent = `Entradas vs Saídas — ${targetWeek.label} (${targetWeek.rangeLabel} de ${monthName})`
+  if (backBtn) backBtn.style.display = 'inline-flex'
+  if (viewBadge) {
+    viewBadge.textContent = 'Detalhamento Diário'
+    viewBadge.className = 'panel-badge green'
+  }
+
+  // Render quick week switcher pills
+  if (weekPills) {
+    weekPills.style.display = 'flex'
+    weekPills.innerHTML = _financeWeeksCache.map(w => `
+      <button type="button" class="finance-week-pill ${w.weekNum === targetWeek.weekNum ? 'active' : ''}" onclick="drillDownFinanceWeek(${w.weekNum})" title="Ver dias da ${w.label} (${w.rangeLabel})">
+        ${w.label} (${w.rangeLabel})
+      </button>
+    `).join('')
+  }
+
+  const days = targetWeek.days || []
+  if (days.length === 0) {
+    barsContainer.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);width:100%;">Nenhum dado nesta semana</div>'
+    return
+  }
+
+  const maxVal = Math.max(...days.map(d => Math.max(d.revenue, d.expense, 1)))
+
+  barsContainer.innerHTML = days.map(d => {
+    const rev = d.revenue
+    const exp = d.expense
+    const revH = rev > 0 ? Math.max(6, Math.round((rev / maxVal) * 92)) : 2
+    const expH = exp > 0 ? Math.max(6, Math.round((exp / maxVal) * 92)) : 2
+
+    const revValStr = formatFinanceBarValue(rev)
+    const expValStr = formatFinanceBarValue(exp)
+
+    const titleTip = `${d.day}, ${d.dayNum}/${String(globalSelectedMonth).padStart(2, '0')}: Entrada R$ ${rev.toLocaleString('pt-BR', {minimumFractionDigits: 2})} | Saída R$ ${exp.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`
+
+    return `
+      <div class="month-bar-group is-day" title="${titleTip}">
+        <div class="month-bar-pair">
+          <div class="bar-col">
+            <span class="bar-val rev ${rev === 0 ? 'zero' : ''}">${revValStr}</span>
+            <div class="month-bar rev" style="height:${revH}px;"></div>
+          </div>
+          <div class="bar-col">
+            <span class="bar-val exp ${exp === 0 ? 'zero' : ''}">${expValStr}</span>
+            <div class="month-bar exp" style="height:${expH}px;"></div>
+          </div>
+        </div>
+        <div class="month-label">${d.day} <span style="font-size:10px;opacity:0.75;font-weight:600;">${d.dayNum}</span></div>
+      </div>`
+  }).join('')
+}
+
+function setMotivationalNote(pctInt, forceAnimation = true) {
+  const note = document.getElementById('fin-meta-note')
+  if (!note) return
+
+  const msgs = {
+    100: ['Meta atingida! Parabéns! 🎉', 'Você conseguiu! Incrível! 🚀', 'Meta batida! Show! ✨', 'Perfeito! Meta alcançada! 🌟', 'Parabéns! Você é demais! 🏆'],
+    90:  ['Falta pouco! Quase lá! 🎯', 'Já está quase no topo! ⚡', 'Mais um esforço e chega! 💪', 'Foco total! Você está chegando! 🔥', 'A reta final é sua! 🚀'],
+    75:  ['Passou dos 75%! Continue! 💫', 'Rumo aos 100%! Vamos! 🎯', 'Mais 25% e você chega! 🌟', 'A meta está ao alcance! ✨', 'Não pare agora! Continue! 💪'],
+    50:  ['Metade do caminho! Vai! 🚀', 'Você já percorreu 50%! 🎯', 'Continue assim! Está no meio! ✨', 'Metade vencida! A meta vem! 🌟', 'Já passou da metade! Rumo ao topo! 🔥'],
+    25:  ['Primeiros 25%! Bora! 💪', 'Bom começo! Continue firme! 🌟', '25% concluídos! Vai! 🚀', 'Já começou! Não pare! 🎯', 'O primeiro quarto foi! Continue! ✨'],
+    5:   ['Já começou! Cada passo conta! 👣', 'Primeiro passo dado! Vamos! 🚀', 'Toda jornada começa assim! 🌟', 'O começo é o mais importante! ✨', 'Foco! Você já está no jogo! 🎯'],
+    0:   ['Vamos começar! Tudo é possível! 🌟', 'Primeiro passo rumo à meta! 🚀', 'A jornada começa agora! ✨', 'Pronto para alcançar seus objetivos! 🎯', 'Toda grande conquista começa aqui! 💪'],
+  }
+  const keys = Object.keys(msgs).map(Number).sort((a, b) => b - a)
+  let pool = msgs[0]
+  for (const k of keys) {
+    if (pctInt >= k) {
+      pool = msgs[k]
+      break
+    }
+  }
+
+  const currentText = (note.textContent || '').trim()
+  const candidates = pool.filter(m => m !== currentText)
+  const chosen = candidates.length > 0
+    ? candidates[Math.floor(Math.random() * candidates.length)]
+    : pool[Math.floor(Math.random() * pool.length)]
+
+  _lastMetaPct = pctInt
+
+  if (forceAnimation) {
+    note.classList.remove('note-animated')
+    void note.offsetWidth
+    note.textContent = chosen
+    note.classList.add('note-animated')
+  } else {
+    note.textContent = chosen
+  }
+  note.title = 'Clique para ver outra frase motivacional'
+}
+
+function cycleMetaMotivationalNote() {
+  setMotivationalNote(_lastMetaPct, true)
+}
+window.renderFinanceWeeklyChart = renderFinanceWeeklyChart
+window.drillDownFinanceWeek = drillDownFinanceWeek
+window.cycleMetaMotivationalNote = cycleMetaMotivationalNote
+window.setMotivationalNote = setMotivationalNote
 
 async function loadFinanceiro() {
   try {
-    const res = await fetch(API + '/stats')
+    syncGlobalDateControls()
+    const res = await fetch(`${API}/stats?month=${globalSelectedMonth}&year=${globalSelectedYear}`)
     const s = await res.json()
     const finPage = document.getElementById('page-financeiro')
     if (!finPage) return
+
+    _financeSelectedYear = globalSelectedYear
+    _financeSelectedMonth = globalSelectedMonth
+    _financeMonthLabel = s.month_label || ''
+    _financeMonthYear = s.month_year || globalSelectedYear
 
     const monthYearLabel = s.month_label + ' ' + s.month_year
     pageConfig.financeiro.sub = monthYearLabel
@@ -1386,47 +1716,47 @@ async function loadFinanceiro() {
     // Metric cards
     const fm = finPage.querySelectorAll('.metrics .metric-card')
     if (fm.length >= 4) {
+      _currentMonthRevenue = Number(s.month_revenue || 0)
+      _currentMetaVal = Number(s.meta_mensal || 7000)
+
       const profit = s.month_revenue - s.month_expenses
+      const pctInt = Math.round(s.meta_pct || 0)
       fm[0].querySelector('.metric-value').textContent = 'R$ ' + s.month_revenue.toLocaleString('pt-BR', {minimumFractionDigits: 0})
       fm[1].querySelector('.metric-value').textContent = 'R$ ' + s.month_expenses.toLocaleString('pt-BR', {minimumFractionDigits: 0})
       fm[2].querySelector('.metric-value').textContent = 'R$ ' + profit.toLocaleString('pt-BR', {minimumFractionDigits: 0})
-      fm[3].querySelector('.metric-value').textContent = 'R$ ' + s.meta_mensal.toLocaleString('pt-BR', {minimumFractionDigits: 0})
+      fm[3].querySelector('.metric-value').textContent = pctInt + '%'
 
-      const margin = s.month_revenue > 0 ? Math.round((profit / s.month_revenue) * 100) : 0
-      fm[2].querySelector('.metric-change').innerHTML = '<svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 2v8M2 5l4-3 4 3" stroke="#4e8f6a" stroke-width="1.3" stroke-linecap="round"/></svg>Margem ' + margin + '%'
-      fm[3].querySelector('.metric-change').textContent = s.meta_pct + '% atingido'
+      fm[2].querySelector('.metric-change').textContent = ''
+      fm[3].querySelector('.metric-change').innerHTML = 'Meta: R$ ' + s.meta_mensal.toLocaleString('pt-BR', {minimumFractionDigits: 0}) + ' <span style="font-size:10px;opacity:0.7;">✎</span>'
     }
 
-    // Panel title
-    const chartTitle = finPage.querySelector('.big-chart .panel-title')
-    if (chartTitle) chartTitle.textContent = 'Receita vs Despesas — ' + monthYearLabel
+    // Weekly bar chart with daily drilldown
+    _financeStatsData = s
+    _financeWeeksCache = buildMonthWeeks(_financeSelectedYear, _financeSelectedMonth, s.daily_breakdown || [])
+    if (_financeCurrentDrillWeek && _financeWeeksCache.some(w => w.weekNum === _financeCurrentDrillWeek)) {
+      drillDownFinanceWeek(_financeCurrentDrillWeek)
+    } else {
+      renderFinanceWeeklyChart()
+    }
 
-    // Daily bar chart
-    const bars = finPage.querySelectorAll('.month-bar-group')
-    if (s.daily_breakdown && s.daily_breakdown.length > 0) {
-      const maxVal = Math.max(...s.daily_breakdown.map(d => Math.max(d.revenue, d.expense, 1)))
-      s.daily_breakdown.forEach((d, i) => {
-        if (bars[i]) {
-          const revH = Math.round((d.revenue / maxVal) * 120)
-          const expH = Math.round((d.expense / maxVal) * 120)
-          bars[i].querySelector('.month-bar.rev').style.height = Math.max(1, revH) + 'px'
-          bars[i].querySelector('.month-bar.exp').style.height = Math.max(1, expH) + 'px'
-        }
-      })
-      for (let i = s.daily_breakdown.length; i < bars.length; i++) {
-        bars[i].style.display = 'none'
-      }
+    // Badge for recent transactions
+    const finTxBadge = document.getElementById('fin-tx-badge')
+    if (finTxBadge) {
+      const recCount = s.recent_transactions ? s.recent_transactions.length : 0
+      finTxBadge.textContent = recCount > 0 ? `${recCount} recentes` : ''
     }
 
     // Recent transactions
-    const txTable = finPage.querySelector('.transactions-table')
+    const txTable = document.getElementById('fin-recent-tx-table') || finPage.querySelector('.transactions-table')
     if (txTable && s.recent_transactions) {
       if (s.recent_transactions.length > 0) {
         txTable.innerHTML = s.recent_transactions.map(t => {
           const isIncome = t.type === 'income'
-          const desc = t.description || (t.client_name ? t.client_name : '')
+          const desc = t.description || (t.client_name ? t.client_name : (isIncome ? 'Entrada' : 'Saída'))
           const dateStr = t.date ? t.date.split('-').reverse().join('/') : ''
           const method = t.payment_method || ''
+          const cat = t.category || ''
+          const details = [dateStr, cat, method].filter(Boolean).join(' · ')
           return `
             <div class="tx-row">
               <div class="tx-icon ${isIncome ? 'in' : 'out'}">
@@ -1436,9 +1766,9 @@ async function loadFinanceiro() {
               </div>
               <div class="tx-desc">
                 <div class="tx-name">${desc}</div>
-                <div class="tx-date">${dateStr}${method ? ' · ' + method : ''}</div>
+                <div class="tx-date">${details}</div>
               </div>
-              <div class="tx-amount ${isIncome ? 'in' : 'out'}">${isIncome ? '+' : '−'}R$ ${Number(t.amount).toFixed(2)}</div>
+              <div class="tx-amount ${isIncome ? 'in' : 'out'}">${isIncome ? '+' : '−'}R$ ${Number(t.amount).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
             </div>`
         }).join('')
       } else {
@@ -1446,52 +1776,26 @@ async function loadFinanceiro() {
       }
     }
 
-    // Revenue by service (donut + legend)
-    const donutLegend = finPage.querySelector('.donut-legend')
-    const donutSvg = finPage.querySelector('.donut-wrap svg')
-    const isDark = document.documentElement.getAttribute('data-color-scheme') === 'dark' || document.querySelector('.screen')?.getAttribute('data-color-scheme') === 'dark'
-    const donutColors = ['var(--primary-500)', 'var(--primary-600)', 'var(--primary-400)', 'var(--primary-700)', 'var(--primary-300)']
-    const bgStroke = isDark ? 'rgba(255, 255, 255, 0.08)' : 'var(--primary-100, #edf5fd)'
-    const textColor = isDark ? '#f0f6fc' : '#0f2340'
-
-    if (donutSvg) {
-      let svgContent = ''
-      const bgCircle = `<circle class="donut-bg-circle" cx="45" cy="45" r="32" fill="none" stroke="${bgStroke}" stroke-width="14"/>`
-      if (s.service_revenue_breakdown && s.service_revenue_breakdown.length > 0) {
-        const circumference = 2 * Math.PI * 32
-        let offset = 0
-        const slices = s.service_revenue_breakdown.slice(0, 4)
-        slices.forEach((svc, i) => {
-          const pct = svc.pct
-          const dashLen = (pct / 100) * circumference
-          const gapLen = circumference - dashLen
-          svgContent += `<circle cx="45" cy="45" r="32" fill="none" stroke="${donutColors[i % donutColors.length]}" stroke-width="14"
-            stroke-dasharray="${dashLen.toFixed(1)} ${gapLen.toFixed(1)}" stroke-dashoffset="${-offset.toFixed(1)}" transform="rotate(-90 45 45)"/>`
-          offset += dashLen
-        })
-        const topPct = s.service_revenue_breakdown[0]?.pct || 0
-        donutSvg.innerHTML = bgCircle + svgContent +
-          `<text x="45" y="45" text-anchor="middle" dominant-baseline="central" class="donut-center-text" font-family="'DM Serif Display',serif" font-size="15" fill="${textColor}" font-weight="700">${topPct}%</text>`
-      } else {
-        donutSvg.innerHTML = bgCircle +
-          `<text x="45" y="45" text-anchor="middle" dominant-baseline="central" class="donut-center-text" font-family="'DM Serif Display',serif" font-size="15" fill="${textColor}" font-weight="700">0%</text>`
-      }
-    }
-
-    if (donutLegend) {
-      if (s.service_revenue_breakdown && s.service_revenue_breakdown.length > 0) {
-        donutLegend.innerHTML = s.service_revenue_breakdown.map((svc, i) => `
-          <div class="donut-legend-item">
-            <div class="donut-legend-dot" style="background:${donutColors[i % donutColors.length]};"></div>
-            <span class="dl-name">${svc.name}</span> <span class="donut-legend-pct">${svc.pct}%</span>
+    // Revenue by service (same format and visualization as expenses by category)
+    const srvBreakdown = document.getElementById('service-revenue-breakdown') || finPage.querySelector('#service-revenue-breakdown')
+    if (srvBreakdown && s.service_revenue_breakdown) {
+      const srvColors = ['var(--primary-500)', 'var(--primary-600)', 'var(--primary-400)', 'var(--primary-700)', 'var(--primary-300)']
+      const maxSrv = Math.max(...s.service_revenue_breakdown.map(svc => svc.revenue), 1)
+      if (s.service_revenue_breakdown.length > 0) {
+        srvBreakdown.innerHTML = s.service_revenue_breakdown.map((svc, i) => `
+          <div class="exp-row">
+            <div class="service-dot" style="background:${srvColors[i % srvColors.length]};"></div>
+            <div class="exp-name" title="${svc.name}">${svc.name}</div>
+            <div class="exp-bar-bg"><div class="exp-bar-fill" style="width:${Math.round((svc.revenue / maxSrv) * 100)}%;background:${srvColors[i % srvColors.length]};"></div></div>
+            <div class="exp-val">R$ ${Number(svc.revenue).toLocaleString('pt-BR', {minimumFractionDigits: 0})}</div>
           </div>`).join('')
       } else {
-        donutLegend.innerHTML = '<div style="color:var(--text-secondary);font-size:12px;">Nenhum serviço no período</div>'
+        srvBreakdown.innerHTML = '<div style="padding:10px 0;color:var(--text-secondary);font-size:13px;">Nenhum serviço no período</div>'
       }
     }
 
     // Expenses by category
-    const expBreakdown = finPage.querySelector('.expense-breakdown')
+    const expBreakdown = document.getElementById('expense-breakdown') || finPage.querySelector('#expense-breakdown') || finPage.querySelector('.expense-breakdown:not(#service-revenue-breakdown)')
     if (expBreakdown && s.expenses_by_category) {
       const expColors = ['#c05050', '#c9894a', '#8aaccb', '#b8d4f0']
       const maxExp = Math.max(...s.expenses_by_category.map(e => e.amount), 1)
@@ -1499,46 +1803,39 @@ async function loadFinanceiro() {
         expBreakdown.innerHTML = s.expenses_by_category.map((e, i) => `
           <div class="exp-row">
             <div class="service-dot" style="background:${expColors[i % expColors.length]};"></div>
-            <div class="exp-name">${e.category}</div>
+            <div class="exp-name" title="${e.category}">${e.category}</div>
             <div class="exp-bar-bg"><div class="exp-bar-fill" style="width:${Math.round((e.amount / maxExp) * 100)}%;background:${expColors[i % expColors.length]};"></div></div>
-            <div class="exp-val">R$ ${e.amount.toLocaleString('pt-BR', {minimumFractionDigits: 0})}</div>
+            <div class="exp-val">R$ ${Number(e.amount).toLocaleString('pt-BR', {minimumFractionDigits: 0})}</div>
           </div>`).join('')
       } else {
-        expBreakdown.innerHTML = '<div style="padding:10px 0;color:var(--text-secondary);font-size:13px;">Nenhuma despesa registrada</div>'
+        expBreakdown.innerHTML = '<div style="padding:10px 0;color:var(--text-secondary);font-size:13px;">Nenhuma saída registrada</div>'
       }
     }
 
     // Meta progress
-    const metaPanel = finPage.querySelector('.finance-right .panel:last-child')
+    const metaPanel = document.getElementById('panel-meta-mes') || finPage.querySelector('.finance-right .panel:last-child')
     if (metaPanel) {
-      const pctInt = Math.round(s.meta_pct)
+      const pctInt = Math.round(s.meta_pct || 0)
       const badge = metaPanel.querySelector('.panel-badge')
-      if (badge) badge.textContent = pctInt + '%'
+      if (badge) {
+        if (pctInt >= 100) {
+          badge.className = 'panel-badge green'
+          badge.textContent = 'Meta atingida! 🎉'
+        } else {
+          const falta = Math.max(0, s.meta_mensal - s.month_revenue)
+          badge.className = 'panel-badge'
+          badge.textContent = 'Faltam R$ ' + falta.toLocaleString('pt-BR', {minimumFractionDigits: 0})
+        }
+      }
+      const bigPct = metaPanel.querySelector('.meta-pct-big')
+      if (bigPct) bigPct.textContent = pctInt + '%'
       const labelEl = metaPanel.querySelector('.meta-progress-label')
       const targetEl = metaPanel.querySelector('.meta-progress-target')
       if (labelEl) labelEl.textContent = 'R$ ' + s.month_revenue.toLocaleString('pt-BR', {minimumFractionDigits: 0}) + ' arrecadado'
-      if (targetEl) targetEl.textContent = 'Meta: R$ ' + s.meta_mensal.toLocaleString('pt-BR', {minimumFractionDigits: 0})
+      if (targetEl) targetEl.innerHTML = 'Meta: R$ ' + s.meta_mensal.toLocaleString('pt-BR', {minimumFractionDigits: 0}) + ' <span style="font-size:11px;opacity:0.7;">✎</span>'
       const fill = metaPanel.querySelector('.meta-progress-fill')
       if (fill) fill.style.width = Math.min(pctInt, 100) + '%'
-      const note = metaPanel.querySelector('.meta-progress-note')
-      if (note) {
-        const msgs = {
-          100: ['Meta atingida! Parabens!', 'Voce conseguiu! Incrivel!', 'Meta batida! Show!', 'Perfeito! Meta alcancada!', 'Parabens! Voce e demais!'],
-          90:  ['Falta pouco! Quase la!', 'Ja esta quase no topo!', 'Mais um esforco e chega!', 'Foco total! Voce esta chegando!', 'A reta final e sua!'],
-          75:  ['Passou dos 75%! Continue!', 'Rumo aos 100%! Vamos!', 'Mais 25% e voce chega!', 'A meta esta ao alcance!', 'Nao pare agora! Continue!'],
-          50:  ['Metade do caminho! Vai!', 'Voce ja percorreu 50%!', 'Continue assim! Esta no meio!', 'Metade vencida! A meta vem!', 'Ja passou da metade! Rumo ao topo!'],
-          25:  ['Primeiros 25%! Bora!', 'Bom comeco! Continue firme!', '25% concluidos! Vai!', 'Ja comecou! Nao pare!', 'O primeiro quarto foi! Continue!'],
-          5:   ['Ja comecou! Cada passo conta!', 'Primeiro passo dado! Vamos!', 'Toda jornada comeca assim!', 'O comeco e o mais importante!', 'Foco! Voce ja esta no jogo!'],
-          0:   ['Vamos comecar! Tudo e possivel!', 'Primeiro passo rumo a meta!', 'A jornada comeca agora!', 'Pronto para alcancar seus objetivos!', 'Toda grande conquista comeca aqui!'],
-        }
-        const keys = Object.keys(msgs).map(Number).sort((a, b) => b - a)
-        for (const k of keys) {
-          if (pctInt >= k) {
-            note.textContent = msgs[k][Math.floor(Math.random() * msgs[k].length)]
-            break
-          }
-        }
-      }
+      setMotivationalNote(pctInt, true)
     }
 
     const txPanel = finPage.querySelector('.transactions-table')?.closest('.panel')
@@ -1552,12 +1849,14 @@ async function loadFinanceiro() {
 
 async function loadDespesas() {
   try {
-    const now = new Date()
-    const monthStart = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-01'
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
-    const monthEnd = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(lastDay).padStart(2, '0')
+    syncGlobalDateControls()
+    const y = globalSelectedYear
+    const m = globalSelectedMonth
+    const monthStart = `${y}-${String(m).padStart(2, '0')}-01`
+    const lastDay = new Date(y, m, 0).getDate()
+    const monthEnd = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
     const pageSub = document.getElementById('page-sub')
-    if (pageSub) pageSub.textContent = _monthNames[now.getMonth()] + ' ' + now.getFullYear()
+    if (pageSub) pageSub.textContent = (_monthNames[m - 1] || '') + ' ' + y
     const res = await fetch(API + '/transactions/?type=expense&date_from=' + monthStart + '&date_to=' + monthEnd)
     const expenses = await res.json()
 
@@ -1568,7 +1867,7 @@ async function loadDespesas() {
     const maiorTx = count > 0 ? expenses.find(t => Number(t.amount) === maior) : null
 
     document.getElementById('desp-total').textContent = 'R$ ' + total.toLocaleString('pt-BR', {minimumFractionDigits: 2})
-    document.getElementById('desp-count').textContent = count + ' despesa' + (count !== 1 ? 's' : '')
+    document.getElementById('desp-count').textContent = count + ' saída' + (count !== 1 ? 's' : '')
     document.getElementById('desp-maior').textContent = 'R$ ' + maior.toLocaleString('pt-BR', {minimumFractionDigits: 2})
     document.getElementById('desp-maior-label').textContent = maiorTx?.description || '—'
     document.getElementById('desp-media').textContent = 'R$ ' + media.toLocaleString('pt-BR', {minimumFractionDigits: 2})
@@ -1605,7 +1904,7 @@ async function loadDespesas() {
           </div>`
       }).join('')
     } else {
-      catList.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);font-size:13px;">Nenhuma despesa neste mês</div>'
+      catList.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);font-size:13px;">Nenhuma saída neste mês</div>'
     }
 
     // Load categories into the transaction modal dropdown
@@ -1634,7 +1933,7 @@ async function loadDespesas() {
           </div>`
       }).join('')
     } else {
-      list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);font-size:13px;">Nenhuma despesa neste mês</div>'
+      list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);font-size:13px;">Nenhuma saída neste mês</div>'
     }
   } catch (e) {
     console.error('Erro ao carregar despesas:', e)
@@ -1691,12 +1990,17 @@ async function saveCategory() {
 
 let _relPeriod = 30
 async function loadRelatorios(period) {
-  if (period) _relPeriod = period
+  if (period !== undefined) _relPeriod = period
   try {
-    const res = await fetch(API + '/stats?period=' + _relPeriod)
+    syncGlobalDateControls()
+    const statsUrl = _relPeriod === 30
+      ? `${API}/stats?month=${globalSelectedMonth}&year=${globalSelectedYear}`
+      : `${API}/stats?period=${_relPeriod}`
+    const res = await fetch(statsUrl)
     const s = await res.json()
 
-    const periodLabel = _relPeriod === 7 ? 'Semana' : _relPeriod === 30 ? 'Mês' : _relPeriod === 90 ? 'Últimos 3 Meses' : 'Esse ano'
+    const monthLabel = (_monthNames[globalSelectedMonth - 1] || '') + ' de ' + globalSelectedYear
+    const periodLabel = _relPeriod === 7 ? 'Semana' : _relPeriod === 30 ? monthLabel : _relPeriod === 90 ? 'Últimos 3 Meses' : 'Esse ano'
     const pageSub = document.getElementById('page-sub')
     if (pageSub) pageSub.textContent = 'Análise - ' + periodLabel
     const sub = document.querySelector('.rpt-trend-sub')
@@ -1984,8 +2288,11 @@ async function exportRelatorioPDF() {
   // ── Fetch data ──────────────────────────────────
   let stats, settings, clients
   try {
+    const statsUrl = _relPeriod === 30
+      ? `${API}/stats?month=${globalSelectedMonth}&year=${globalSelectedYear}`
+      : `${API}/stats?period=${_relPeriod}`
     ;[stats, settings] = await Promise.all([
-      fetch(API + '/stats?period=' + _relPeriod).then(r => r.json()),
+      fetch(statsUrl).then(r => r.json()),
       fetch(API + '/settings/').then(r => r.json())
     ])
     const clRes = await fetch(API + '/clients/')
@@ -2069,10 +2376,10 @@ async function exportRelatorioPDF() {
 <style>
   @page { margin: 20mm 15mm 25mm; }
   @media print {
-    body { font-family: 'Helvetica', 'Arial', sans-serif; font-size: 10pt; color: #1a1a2e; line-height: 1.5; }
+    body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 10pt; color: #1a1a2e; line-height: 1.5; }
     .no-break { page-break-inside: avoid; }
   }
-  body { font-family: 'Helvetica', 'Arial', sans-serif; padding: 0; margin: 0; color: #1a1a2e; font-size: 10pt; line-height: 1.5; }
+  body { font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 0; margin: 0; color: #1a1a2e; font-size: 10pt; line-height: 1.5; }
   .page { padding: 20px 30px; }
   .header-separator { border: none; border-top: 3px solid #1a3a6b; margin: 10px 0 18px; }
 
@@ -2260,63 +2567,102 @@ async function loadServicos() {
   }
 }
 
-async function loadMetas() {
+// ── MODAL ALTERAR META ─────────────────────────────
+let _currentMonthRevenue = 0
+let _currentMetaVal = 7000
+
+async function openMetaModal() {
+  const overlay = document.getElementById('meta-modal-overlay')
+  if (!overlay) return
+  const input = document.getElementById('meta-modal-input')
+  const msg = document.getElementById('meta-modal-msg')
+  if (msg) { msg.textContent = ''; msg.className = 'auth-msg' }
+
   try {
     const res = await fetch(API + '/settings/')
     const settings = await res.json()
-    const meta = settings.meta_mensal || 7000
-    const input = document.getElementById('meta-input')
-    if (input) input.value = meta
-    pageConfig.metas.sub = 'Meta: R$ ' + Number(meta).toLocaleString('pt-BR', {minimumFractionDigits: 0})
-    document.getElementById('page-sub').textContent = pageConfig.metas.sub
-    updateMetaPreview(meta)
-  } catch (e) {
-    console.error('Erro ao carregar metas:', e)
+    if (settings && settings.meta_mensal) {
+      _currentMetaVal = Number(settings.meta_mensal)
+    }
+  } catch (_) {}
+
+  if (!_currentMonthRevenue) {
+    try {
+      const sRes = await fetch(API + '/stats')
+      const s = await sRes.json()
+      if (s && s.month_revenue !== undefined) {
+        _currentMonthRevenue = Number(s.month_revenue)
+      }
+    } catch (_) {}
   }
+
+  if (input) input.value = _currentMetaVal || 7000
+  previewMetaModal()
+  overlay.classList.add('open')
+  setTimeout(() => input && input.select(), 100)
 }
 
-async function saveMeta() {
-  const val = document.getElementById('meta-input').value
-  if (!val || Number(val) < 1) { showToast('Informe um valor de meta válido.'); return }
-  const meta = Number(val)
+function closeMetaModal() {
+  const overlay = document.getElementById('meta-modal-overlay')
+  if (overlay) overlay.classList.remove('open')
+}
+
+function previewMetaModal() {
+  const input = document.getElementById('meta-modal-input')
+  const revLabel = document.getElementById('meta-modal-rev')
+  const pctLabel = document.getElementById('meta-modal-pct')
+  const fill = document.getElementById('meta-modal-fill')
+  const val = Number(input?.value || 0)
+
+  if (revLabel) revLabel.textContent = 'Entrada atual: R$ ' + _currentMonthRevenue.toLocaleString('pt-BR', {minimumFractionDigits: 0})
+  const pct = val > 0 ? Math.round((_currentMonthRevenue / val) * 100) : 0
+  if (pctLabel) pctLabel.textContent = pct + '%'
+  if (fill) fill.style.width = Math.min(pct, 100) + '%'
+}
+
+async function saveMetaModal() {
+  const input = document.getElementById('meta-modal-input')
+  const msg = document.getElementById('meta-modal-msg')
+  const val = Number(input?.value || 0)
+  if (!val || val <= 0) {
+    if (msg) { msg.textContent = 'Informe um valor válido para a meta.'; msg.className = 'auth-msg error' }
+    return
+  }
+  const saveBtn = document.getElementById('meta-modal-save-btn')
+  if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Salvando...' }
   try {
     const res = await fetch(API + '/settings/', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ meta_mensal: meta })
+      body: JSON.stringify({ meta_mensal: val })
     })
-    if (!res.ok) { showToast('Erro ao salvar meta.'); return }
-    showToast('Meta salva com sucesso!', 'success')
-    pageConfig.metas.sub = 'Meta: R$ ' + meta.toLocaleString('pt-BR', {minimumFractionDigits: 0})
-    document.getElementById('page-sub').textContent = pageConfig.metas.sub
-    updateMetaPreview(meta)
+    if (!res.ok) {
+      if (msg) { msg.textContent = 'Erro ao salvar meta.'; msg.className = 'auth-msg error' }
+      if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Salvar Meta' }
+      return
+    }
+    _currentMetaVal = val
+    closeMetaModal()
+    showToast('Meta mensal atualizada com sucesso!', 'success')
+    loadFinanceiro()
     loadDashboard()
   } catch (e) {
-    showToast('Erro ao salvar meta.')
+    if (msg) { msg.textContent = 'Erro de conexão ao salvar meta.'; msg.className = 'auth-msg error' }
+  } finally {
+    if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Salvar Meta' }
   }
 }
-
-async function updateMetaPreview(meta) {
-  try {
-    const res = await fetch(API + '/stats')
-    const s = await res.json()
-    const fill = document.getElementById('meta-preview-fill')
-    const label = document.getElementById('meta-preview-label')
-    const statsEl = document.getElementById('meta-stats')
-    if (fill) fill.style.width = Math.min(s.month_revenue / meta * 100, 100) + '%'
-    if (label) label.textContent = Math.round(s.month_revenue / meta * 100) + '%'
-    if (statsEl) {
-      const falta = Math.max(0, meta - s.month_revenue)
-      statsEl.innerHTML = '<span>Receita atual: <b>R$ ' + s.month_revenue.toLocaleString('pt-BR', {minimumFractionDigits: 0}) + '</b></span>' +
-        '<span>Faltam: <b>R$ ' + falta.toLocaleString('pt-BR', {minimumFractionDigits: 0}) + '</b></span>'
-    }
-  } catch (e) {}
-}
+const saveMeta = saveMetaModal
 
 async function loadAgenda(reset = false) {
+  syncGlobalDateControls()
+  const now = new Date()
+  const isCurrent = (globalSelectedMonth === (now.getMonth() + 1) && globalSelectedYear === now.getFullYear())
   if (reset || !agendaDate) {
-    agendaDate = new Date()
+    agendaDate = isCurrent ? new Date() : new Date(globalSelectedYear, globalSelectedMonth - 1, 1, 12, 0, 0)
     agendaView = 'week'
+  } else if (!isCurrent && (agendaDate.getFullYear() !== globalSelectedYear || (agendaDate.getMonth() + 1) !== globalSelectedMonth)) {
+    agendaDate = new Date(globalSelectedYear, globalSelectedMonth - 1, 1, 12, 0, 0)
   }
   syncAgendaViewTabs()
   showAgendaView()
@@ -2769,8 +3115,8 @@ function openTransactionModal(type) {
   const saveBtn = document.getElementById('tx-save-btn')
   const idField = document.getElementById('tx-id')
   idField.value = ''
-  title.textContent = type === 'expense' ? 'Nova Despesa' : 'Novo Lançamento'
-  saveBtn.textContent = type === 'expense' ? 'Salvar Despesa' : 'Salvar Lançamento'
+  title.textContent = type === 'expense' ? 'Nova Saída' : 'Novo Lançamento'
+  saveBtn.textContent = type === 'expense' ? 'Salvar Saída' : 'Salvar Lançamento'
   document.getElementById('tx-type').value = type || 'income'
   document.getElementById('tx-amount').value = ''
   document.getElementById('tx-description').value = ''
@@ -2820,7 +3166,7 @@ async function saveTransaction() {
     }
     closeTransactionModal()
     const savedType = body.type
-    showToast(savedType === 'expense' ? 'Despesa salva!' : 'Lançamento salvo!', 'success')
+    showToast(savedType === 'expense' ? 'Saída salva!' : 'Lançamento salvo!', 'success')
     loadFinanceiro()
     loadDashboard()
     if (savedType === 'expense') loadDespesas()
@@ -2828,6 +3174,127 @@ async function saveTransaction() {
     msg.textContent = 'Erro de conexão.'
     msg.className = 'auth-msg error'
   }
+}
+
+// ── MODAL TODOS OS LANÇAMENTOS DO MÊS ────────────────
+let _allMonthTransactions = []
+let _allTxFilter = 'all'
+
+async function openAllTransactionsModal() {
+  const overlay = document.getElementById('all-transactions-modal-overlay')
+  if (!overlay) return
+  overlay.classList.add('open')
+
+  const titleEl = document.getElementById('all-tx-modal-title')
+  const subEl = document.getElementById('all-tx-modal-sub')
+  const bodyEl = document.getElementById('all-tx-modal-body')
+  const summaryEl = document.getElementById('all-tx-totals-summary')
+
+  if (titleEl) titleEl.textContent = 'Lançamentos do Mês'
+  if (subEl) subEl.textContent = 'Carregando lançamentos...'
+  if (bodyEl) bodyEl.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);">Carregando lançamentos do mês...</div>'
+  if (summaryEl) summaryEl.textContent = ''
+
+  _allTxFilter = 'all'
+  updateAllTxPills()
+
+  try {
+    const y = _financeSelectedYear || new Date().getFullYear()
+    const m = _financeSelectedMonth || (new Date().getMonth() + 1)
+    const mStr = String(m).padStart(2, '0')
+    const lastDay = new Date(y, m, 0).getDate()
+    const dateFrom = `${y}-${mStr}-01`
+    const dateTo = `${y}-${mStr}-${String(lastDay).padStart(2, '0')}`
+
+    const res = await fetch(`${API}/transactions/?date_from=${dateFrom}&date_to=${dateTo}&limit=1000`)
+    const data = await res.json()
+    _allMonthTransactions = Array.isArray(data) ? data : []
+
+    const mLabel = _financeMonthLabel ? `${_financeMonthLabel} de ${_financeMonthYear || y}` : `${mStr}/${y}`
+    if (subEl) subEl.textContent = `${_allMonthTransactions.length} lançamento(s) em ${mLabel}`
+
+    renderAllTransactionsList()
+  } catch (err) {
+    console.error('Erro ao buscar lançamentos do mês:', err)
+    if (bodyEl) bodyEl.innerHTML = '<div style="padding:30px;text-align:center;color:var(--color-danger, #c05050);">Erro ao carregar lançamentos do mês.</div>'
+  }
+}
+
+function closeAllTransactionsModal() {
+  const overlay = document.getElementById('all-transactions-modal-overlay')
+  if (overlay) overlay.classList.remove('open')
+}
+
+function filterAllTransactions(type) {
+  _allTxFilter = type
+  updateAllTxPills()
+  renderAllTransactionsList()
+}
+
+function updateAllTxPills() {
+  const pAll = document.getElementById('pill-all')
+  const pIn = document.getElementById('pill-income')
+  const pOut = document.getElementById('pill-expense')
+  if (pAll) pAll.classList.toggle('active', _allTxFilter === 'all')
+  if (pIn) pIn.classList.toggle('active', _allTxFilter === 'income')
+  if (pOut) pOut.classList.toggle('active', _allTxFilter === 'expense')
+}
+
+function renderAllTransactionsList() {
+  const bodyEl = document.getElementById('all-tx-modal-body')
+  const summaryEl = document.getElementById('all-tx-totals-summary')
+  const pAll = document.getElementById('pill-all')
+  const pIn = document.getElementById('pill-income')
+  const pOut = document.getElementById('pill-expense')
+
+  const totalIn = _allMonthTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount || 0), 0)
+  const totalOut = _allMonthTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount || 0), 0)
+  const countIn = _allMonthTransactions.filter(t => t.type === 'income').length
+  const countOut = _allMonthTransactions.filter(t => t.type === 'expense').length
+
+  if (pAll) pAll.textContent = `Todos (${_allMonthTransactions.length})`
+  if (pIn) pIn.textContent = `Entradas (${countIn})`
+  if (pOut) pOut.textContent = `Saídas (${countOut})`
+
+  if (summaryEl) {
+    summaryEl.innerHTML = `<span style="color:#4e8f6a;font-weight:600;">+R$ ${totalIn.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span> &nbsp;·&nbsp; <span style="color:#c05050;font-weight:600;">−R$ ${totalOut.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>`
+  }
+
+  const filtered = _allMonthTransactions.filter(t => {
+    if (_allTxFilter === 'income') return t.type === 'income'
+    if (_allTxFilter === 'expense') return t.type === 'expense'
+    return true
+  })
+
+  if (!filtered.length) {
+    bodyEl.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text-secondary);">Nenhum lançamento encontrado nesta categoria.</div>'
+    return
+  }
+
+  bodyEl.innerHTML = filtered.map(t => {
+    const isIncome = t.type === 'income'
+    const desc = t.description || (t.client_name ? t.client_name : (isIncome ? 'Entrada' : 'Saída'))
+    const dateStr = t.date ? t.date.split('-').reverse().join('/') : ''
+    const method = t.payment_method || ''
+    const cat = t.category || ''
+    const details = [dateStr, cat, method].filter(Boolean).join(' · ')
+    return `
+      <div class="tx-row" style="padding:12px 20px;border-bottom:1px solid var(--border-lighter);display:flex;align-items:center;gap:14px;">
+        <div class="tx-icon ${isIncome ? 'in' : 'out'}" style="flex-shrink:0;">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M8 ${isIncome ? '12V4M4 8l4-4 4 4' : '4v8M4 8l4 4 4-4'}" stroke="${isIncome ? '#4e8f6a' : '#c05050'}" stroke-width="1.3" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="tx-desc" style="flex:1;min-width:0;">
+          <div class="tx-name" style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${desc}">${desc}</div>
+          <div class="tx-date" style="font-size:11px;color:var(--text-secondary);margin-top:2px;">${details}</div>
+        </div>
+        <div class="tx-amount ${isIncome ? 'in' : 'out'}" style="font-weight:700;font-size:14px;white-space:nowrap;">
+          ${isIncome ? '+' : '−'}R$ ${Number(t.amount || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+        </div>
+      </div>
+    `
+  }).join('')
 }
 
 // ── TOAST ──────────────────────────────────────────
@@ -4102,6 +4569,7 @@ function setColorScheme(scheme, el) {
   const ls = document.getElementById('loadingScreen')
   if (ls) setTimeout(() => ls.classList.add('hide'), 300)
 
+  syncGlobalDateControls()
   loadServices()
   checkAuth()
   startNotifPoll()

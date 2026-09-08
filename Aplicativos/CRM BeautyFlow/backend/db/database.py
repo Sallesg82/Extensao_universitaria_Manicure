@@ -641,10 +641,17 @@ def _transaction_service_name(tx):
     if service:
         return service
     desc = (tx.get('description') or '').strip()
+    if '(' in desc and desc.endswith(')'):
+        cand = desc[desc.rfind('(') + 1 : -1].strip()
+        if cand:
+            return cand
     if ' — ' in desc:
         return desc.split(' — ', 1)[0].strip()
     if ' - ' in desc:
         return desc.split(' - ', 1)[0].strip()
+    category = (tx.get('category') or '').strip()
+    if category and category != 'Serviços':
+        return category
     return desc or 'Outros'
 
 
@@ -1011,7 +1018,7 @@ def get_stats(period=None, month=None, year=None):
     service_revenue_breakdown = sorted([
         {'name': k, 'revenue': v, 'pct': round(v / total_svc_rev * 100, 1)}
         for k, v in svc_revenue.items()
-    ], key=lambda x: -x['revenue'])[:5]
+    ], key=lambda x: -x['revenue'])
 
     # Receita semanal / diária — financeiro
     weekly_rev = {}
@@ -1024,7 +1031,7 @@ def get_stats(period=None, month=None, year=None):
             pass
     weekly_revenue = [weekly_rev.get(i, 0) for i in range(max(weekly_rev.keys()) + 1)] if weekly_rev else []
 
-    day_names_pt = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab']
+    day_names_pt = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
     daily_rev = {}
     daily_exp = {}
     for t in month_income:

@@ -4,13 +4,18 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>BeautyFlow CRM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/style.css">
 <script>
 (function(){
   var theme = localStorage.getItem('beautyflow-theme') || 'default';
   var scheme = localStorage.getItem('beautyflow-scheme') || 'light';
+  var fontSize = localStorage.getItem('beautyflow-fontsize') || 'small';
   document.documentElement.setAttribute('data-theme', theme);
   document.documentElement.setAttribute('data-color-scheme', scheme);
+  document.documentElement.setAttribute('data-font-size', fontSize);
   var map = {
     default:  { bg:'#0a1628', text:'#b8d4f0', sub:'#8aaccb', spin:'#7ab0e8' },
     emerald:  { bg:'#0a2818', text:'#b8f0d0', sub:'#8acc9a', spin:'#7ae8aa' },
@@ -107,13 +112,6 @@
         Serviços
       </div>
 
-      <div class="nav-item" onclick="showPage('metas', this)" data-tooltip="Metas">
-        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
-          <path d="M8 1l1.8 4H14l-3.5 2.5 1.3 4.2L8 9.2l-3.8 2.5L5.5 7.5 2 5h4.2z" stroke="currentColor" stroke-width="1.2" fill="none"/>
-        </svg>
-        Metas
-      </div>
-
       <div class="nav-section">Financeiro</div>
 
       <div class="nav-item" onclick="showPage('financeiro', this)" data-tooltip="Financeiro">
@@ -131,13 +129,13 @@
         Relatórios
       </div>
 
-      <div class="nav-item" onclick="showPage('despesas', this)" data-tooltip="Despesas do Mês">
+      <div class="nav-item" onclick="showPage('despesas', this)" data-tooltip="Saídas do Mês">
         <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
           <path d="M2 4h12v10H2z" stroke="currentColor" stroke-width="1.2" fill="none"/>
           <path d="M5 2v2M11 2v2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
           <path d="M4 8l2.5 2.5 3-3L12.5 11" stroke="#c05050" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
-        Despesas do Mês
+        Saídas do Mês
       </div>
 
       <div class="nav-section">Sistema</div>
@@ -170,11 +168,19 @@
           <div class="user-role">...</div>
         </div>
       </div>
-      <button class="logout-btn" onclick="logout()" title="Sair do sistema" aria-label="Sair">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-          <path d="M6 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3M11 11l3-3-3-3M14 8H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-      </button>
+      <div class="sidebar-footer-actions">
+        <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" onclick="toggleSidebarMode()" title="Alternar barra lateral" aria-label="Alternar barra lateral">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+            <rect x="1" y="1" width="4" height="14" rx="1" stroke="currentColor" stroke-width="1.2"/>
+            <rect x="7" y="1" width="8" height="14" rx="1" stroke="currentColor" stroke-width="1.2"/>
+          </svg>
+        </button>
+        <button class="logout-btn" onclick="logout()" title="Sair do sistema" aria-label="Sair">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+            <path d="M6 2H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3M11 11l3-3-3-3M14 8H6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
     </div>
   </aside>
 
@@ -195,12 +201,7 @@
         </div>
       </div>
       <div class="topbar-right">
-        <button class="sidebar-collapse-btn" id="sidebarCollapseBtn" onclick="toggleSidebarMode()" title="Alternar barra lateral" aria-label="Alternar barra lateral">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <rect x="1" y="1" width="4" height="14" rx="1" stroke="currentColor" stroke-width="1.2"/>
-            <rect x="7" y="1" width="8" height="14" rx="1" stroke="currentColor" stroke-width="1.2"/>
-          </svg>
-        </button>
+        <!-- 1. Notificação -->
         <div class="badge-notif" onclick="toggleNotifPanel()">
           <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
             <path d="M8 1a5 5 0 0 1 5 5c0 3 1 4 1 4H2s1-1 1-4a5 5 0 0 1 5-5zM6.5 13.5a1.5 1.5 0 0 0 3 0" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
@@ -216,6 +217,53 @@
             </div>
           </div>
         </div>
+
+        <!-- 2. Filtro de Data -->
+        <div class="topbar-period-filter" id="topbar-period-filter">
+          <button type="button" class="topbar-period-nav-btn" id="topbar-prev-month" onclick="changeGlobalMonth(-1)" title="Mês anterior" aria-label="Mês anterior">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+              <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+
+          <div class="topbar-period-selects">
+            <select class="topbar-period-select" id="global-select-month" onchange="onGlobalDateSelectChange()" aria-label="Selecionar mês">
+              <option value="1">Janeiro</option>
+              <option value="2">Fevereiro</option>
+              <option value="3">Março</option>
+              <option value="4">Abril</option>
+              <option value="5">Maio</option>
+              <option value="6">Junho</option>
+              <option value="7">Julho</option>
+              <option value="8">Agosto</option>
+              <option value="9">Setembro</option>
+              <option value="10">Outubro</option>
+              <option value="11">Novembro</option>
+              <option value="12">Dezembro</option>
+            </select>
+
+            <select class="topbar-period-select" id="global-select-year" onchange="onGlobalDateSelectChange()" aria-label="Selecionar ano">
+              <option value="2023">2023</option>
+              <option value="2024">2024</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+              <option value="2027">2027</option>
+              <option value="2028">2028</option>
+            </select>
+          </div>
+
+          <button type="button" class="topbar-period-nav-btn" id="topbar-next-month" onclick="changeGlobalMonth(1)" title="Próximo mês" aria-label="Próximo mês">
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+              <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+
+          <button type="button" class="topbar-period-today" id="topbar-period-today" onclick="resetGlobalMonth()" title="Ir para o mês atual">
+            Hoje
+          </button>
+        </div>
+
+        <!-- 3. Novo Agendamento -->
         <button class="btn-primary" id="topbar-btn" onclick="handleTopbarBtn()">+ Novo Agendamento</button>
       </div>
     </header>
@@ -228,64 +276,9 @@
       ══════════════════════════════════ -->
       <section class="page active" id="page-dashboard">
 
-        <!-- DASHBOARD TOOLBAR: Seletor de Mês e Ano -->
-        <div class="dashboard-toolbar">
-          <div class="dashboard-toolbar-left">
-            <div class="dashboard-nav">
-              <button type="button" class="dash-nav-btn" id="dash-prev-btn" onclick="changeDashboardMonth(-1)" title="Mês anterior" aria-label="Mês anterior">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
-
-              <div class="dashboard-selectors">
-                <select class="dash-select" id="dash-select-month" onchange="onDashboardDateSelectChange()" aria-label="Selecionar mês">
-                  <option value="1">Janeiro</option>
-                  <option value="2">Fevereiro</option>
-                  <option value="3">Março</option>
-                  <option value="4">Abril</option>
-                  <option value="5">Maio</option>
-                  <option value="6">Junho</option>
-                  <option value="7">Julho</option>
-                  <option value="8">Agosto</option>
-                  <option value="9">Setembro</option>
-                  <option value="10">Outubro</option>
-                  <option value="11">Novembro</option>
-                  <option value="12">Dezembro</option>
-                </select>
-
-                <select class="dash-select" id="dash-select-year" onchange="onDashboardDateSelectChange()" aria-label="Selecionar ano">
-                  <option value="2024">2024</option>
-                  <option value="2025">2025</option>
-                  <option value="2026" selected>2026</option>
-                  <option value="2027">2027</option>
-                  <option value="2028">2028</option>
-                </select>
-              </div>
-
-              <button type="button" class="dash-nav-btn" id="dash-next-btn" onclick="changeDashboardMonth(1)" title="Próximo mês" aria-label="Próximo mês">
-                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                  <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-              </button>
-
-              <button type="button" class="dash-today-btn" id="dash-today-btn" onclick="resetDashboardMonth()" title="Ir para o mês atual">
-                Mês Atual
-              </button>
-            </div>
-          </div>
-
-          <div class="dashboard-toolbar-right">
-            <div class="dash-period-chip" id="dash-period-chip">
-              <span class="dash-chip-dot"></span>
-              <span id="dash-period-text">Carregando...</span>
-            </div>
-          </div>
-        </div>
-
         <div class="metrics">
           <div class="metric-card c1">
-            <div class="metric-label" id="metric-receita-label">Receita Hoje</div>
+            <div class="metric-label" id="metric-receita-label">Entrada Hoje</div>
             <div class="metric-value" id="metric-receita">—</div>
             <div class="metric-change" id="metric-receita-change"></div>
           </div>
@@ -324,12 +317,12 @@
                 <span class="panel-subtitle" id="fluxo-subtitle">—</span>
               </div>
               <div class="finance-total">
-                <div class="finance-label">Lucro do Mês</div>
+                <div class="finance-label">Diferença do Mês</div>
                 <div class="finance-number" id="fluxo-lucro">—</div>
                 <div class="finance-sub" id="fluxo-meta">—</div>
               </div>
               <div class="bar-chart">
-                <div class="bar-chart-title">Receita Semanal</div>
+                <div class="bar-chart-title">Entrada Semanal</div>
                 <div class="bars" id="fluxo-bars">
                   <div class="bar-wrap"><div class="bar-fill" style="height:0"></div><div class="bar-day">S1</div></div>
                   <div class="bar-wrap"><div class="bar-fill" style="height:0"></div><div class="bar-day">S2</div></div>
@@ -529,56 +522,66 @@
       <section class="page" id="page-financeiro">
         <div class="metrics">
           <div class="metric-card c1">
-            <div class="metric-label">Receita do Mês</div>
+            <div class="metric-label">Entrada do Mês</div>
             <div class="metric-value">R$ 0</div>
             <div class="metric-change"></div>
           </div>
           <div class="metric-card cr">
-            <div class="metric-label">Despesas do Mês</div>
+            <div class="metric-label">Saídas do Mês</div>
             <div class="metric-value">R$ 0</div>
             <div class="metric-change"></div>
           </div>
           <div class="metric-card cg">
-            <div class="metric-label">Lucro Líquido</div>
+            <div class="metric-label">Diferença</div>
             <div class="metric-value">R$ 0</div>
             <div class="metric-change"></div>
           </div>
-          <div class="metric-card c4">
+          <div class="metric-card c4" style="cursor:pointer;" onclick="openMetaModal()" title="Clique para alterar a meta mensal">
             <div class="metric-label">Meta Mensal</div>
-            <div class="metric-value">R$ 0</div>
-            <div class="metric-change neutral"></div>
+            <div class="metric-value" id="fin-card-meta-val">0%</div>
+            <div class="metric-change neutral" id="fin-card-meta-sub">Meta: R$ 0</div>
           </div>
         </div>
 
         <div class="finance-grid">
           <div class="finance-left">
-            <div class="panel big-chart">
-              <div class="panel-header">
-                <div class="panel-title">Receita vs Despesas</div>
+            <div class="panel big-chart" id="panel-finance-chart">
+              <div class="panel-header" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                  <div class="panel-title" id="finance-chart-title">Entradas vs Saídas</div>
+                  <button type="button" id="finance-chart-back-btn" class="btn-outline" style="display:none;padding:4px 10px;font-size:12px;font-weight:600;border-radius:6px;align-items:center;gap:5px;cursor:pointer;" onclick="renderFinanceWeeklyChart()" title="Voltar para a visão semanal">
+                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                      <path d="M10 3L5 8l5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>Ver todas as semanas
+                  </button>
+                  <span class="panel-badge" id="finance-chart-view-badge" style="font-size:11px;font-weight:600;">Visão Semanal</span>
+                </div>
                 <div class="chart-legend">
-                  <div class="legend-item"><div class="legend-dot" style="background:var(--primary-500);"></div>Receita</div>
-                  <div class="legend-item"><div class="legend-dot" style="background:var(--primary-300);"></div>Despesa</div>
+                  <div class="legend-item"><div class="legend-dot" style="background:var(--primary-500);"></div>Entrada</div>
+                  <div class="legend-item"><div class="legend-dot" style="background:var(--primary-300);"></div>Saída</div>
                 </div>
               </div>
+              <div id="finance-week-pills" class="finance-week-pills" style="display:none;"></div>
               <div class="chart-area">
-                <div class="month-bars">
-                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:1px;"></div><div class="month-bar exp" style="height:1px;"></div></div><div class="month-label">Seg</div></div>
-                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:1px;"></div><div class="month-bar exp" style="height:1px;"></div></div><div class="month-label">Ter</div></div>
-                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:1px;"></div><div class="month-bar exp" style="height:1px;"></div></div><div class="month-label">Qua</div></div>
-                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:1px;"></div><div class="month-bar exp" style="height:1px;"></div></div><div class="month-label">Qui</div></div>
-                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:1px;"></div><div class="month-bar exp" style="height:1px;"></div></div><div class="month-label">Sex</div></div>
-                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:1px;"></div><div class="month-bar exp" style="height:1px;"></div></div><div class="month-label">Sáb</div></div>
-                  <div class="month-bar-group"><div class="month-bar-pair"><div class="month-bar rev" style="height:0;"></div><div class="month-bar exp" style="height:0;"></div></div><div class="month-label">Dom</div></div>
+                <div class="month-bars" id="finance-month-bars">
+                  <div style="padding:40px;text-align:center;color:var(--text-secondary);width:100%;">Carregando gráfico...</div>
                 </div>
               </div>
             </div>
 
             <div class="panel">
-              <div class="panel-header">
-                <div class="panel-title">Lançamentos Recentes</div>
-                <span class="panel-badge"></span>
+              <div class="panel-header" style="display:flex;justify-content:space-between;align-items:center;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <div class="panel-title">Lançamentos Recentes</div>
+                  <span class="panel-badge" id="fin-tx-badge"></span>
+                </div>
+                <button type="button" class="btn-outline" style="padding:4px 10px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:5px;cursor:pointer;border-radius:6px;" onclick="openAllTransactionsModal()" title="Ver todos os lançamentos do mês">
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none">
+                    <path d="M2 4h12M2 8h12M2 12h8" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+                  </svg>Ver todos do mês
+                </button>
               </div>
-              <div class="transactions-table">
+              <div class="transactions-table" id="fin-recent-tx-table">
                 <div style="padding:20px;text-align:center;color:var(--text-secondary);">Nenhum lançamento no mês</div>
               </div>
             </div>
@@ -586,36 +589,44 @@
 
           <div class="finance-right">
             <div class="panel">
-              <div class="panel-header"><div class="panel-title">Receita por Serviço</div></div>
-              <div class="donut-wrap">
-                <svg width="130" height="130" viewBox="0 0 90 90">
-                  <circle class="donut-bg-circle" cx="45" cy="45" r="32" fill="none" stroke="#e8f2fc" stroke-width="14"/>
-                  <text x="45" y="45" text-anchor="middle" dominant-baseline="central" class="donut-center-text" font-family="'DM Serif Display',serif" font-size="15" font-weight="700">0%</text>
-                </svg>
-                <div class="donut-legend">
-                  <div style="color:var(--text-secondary);font-size:12px;">Nenhum serviço no período</div>
-                </div>
+              <div class="panel-header"><div class="panel-title">Entradas por Serviço</div></div>
+              <div class="expense-breakdown" id="service-revenue-breakdown">
+                <div style="padding:10px 0;color:var(--text-secondary);font-size:13px;">Nenhum serviço no período</div>
               </div>
             </div>
 
             <div class="panel">
-              <div class="panel-header"><div class="panel-title">Despesas por Categoria</div></div>
-              <div class="expense-breakdown">
-                <div style="padding:10px 0;color:var(--text-secondary);font-size:13px;">Nenhuma despesa registrada</div>
+              <div class="panel-header"><div class="panel-title">Saídas por Categoria</div></div>
+              <div class="expense-breakdown" id="expense-breakdown">
+                <div style="padding:10px 0;color:var(--text-secondary);font-size:13px;">Nenhuma saída registrada</div>
               </div>
             </div>
 
-            <div class="panel">
-              <div class="panel-header"><div class="panel-title">Meta do Mês</div><span class="panel-badge green">—</span></div>
+            <div class="panel" id="panel-meta-mes">
+              <div class="panel-header">
+                <div class="panel-title">Meta do Mês</div>
+                <button type="button" class="btn-outline" style="padding:4px 10px;font-size:12px;font-weight:600;display:inline-flex;align-items:center;gap:5px;cursor:pointer;border-radius:6px;" onclick="openMetaModal()" title="Alterar meta mensal">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
+                    <path d="M11.5 2.5l2 2L5 13H3v-2l8.5-8.5z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+                  </svg>Alterar meta
+                </button>
+              </div>
               <div class="meta-progress">
-                <div class="meta-progress-labels">
-                  <span class="meta-progress-label">R$ 0 arrecadado</span>
-                  <span class="meta-progress-target">Meta: R$ 0</span>
+                <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px;">
+                  <div style="display:flex;align-items:baseline;gap:6px;">
+                    <span class="meta-pct-big" id="fin-meta-pct" style="font-size:32px;font-weight:700;color:var(--primary-500);font-family:var(--font-sans);line-height:1;">0%</span>
+                    <span style="font-size:13px;color:var(--text-secondary);font-weight:500;">atingido</span>
+                  </div>
+                  <span class="panel-badge" id="fin-meta-badge">—</span>
                 </div>
                 <div class="meta-progress-bar">
-                  <div class="meta-progress-fill" style="width:0%"></div>
+                  <div class="meta-progress-fill" id="fin-meta-fill" style="width:0%"></div>
                 </div>
-                <div class="meta-progress-note"></div>
+                <div class="meta-progress-labels" style="margin-top:8px;margin-bottom:0;">
+                  <span class="meta-progress-label" id="fin-meta-label">R$ 0 arrecadado</span>
+                  <span class="meta-progress-target" id="fin-meta-target" style="cursor:pointer;" onclick="openMetaModal()" title="Clique para alterar a meta">Meta: R$ 0 ✎</span>
+                </div>
+                <div class="meta-progress-note" id="fin-meta-note" onclick="cycleMetaMotivationalNote()" title="Clique para trocar de mensagem motivacional"></div>
               </div>
             </div>
           </div>
@@ -623,17 +634,17 @@
       </section>
 
       <!-- ══════════════════════════════════
-           PAGE: DESPESAS DO MÊS
+           PAGE: SAÍDAS DO MÊS
       ══════════════════════════════════ -->
       <section class="page" id="page-despesas">
         <div class="metrics" style="grid-template-columns:repeat(4,1fr);">
           <div class="metric-card c1">
-            <div class="metric-label">Total de Despesas</div>
+            <div class="metric-label">Total de Saídas</div>
             <div class="metric-value" id="desp-total">R$ 0</div>
-            <div class="metric-change" id="desp-count">0 despesas</div>
+            <div class="metric-change" id="desp-count">0 saídas</div>
           </div>
           <div class="metric-card c2">
-            <div class="metric-label">Maior Despesa</div>
+            <div class="metric-label">Maior Saída</div>
             <div class="metric-value" id="desp-maior">R$ 0</div>
             <div class="metric-change" id="desp-maior-label">—</div>
           </div>
@@ -643,7 +654,7 @@
             <div class="metric-change" id="desp-top-cat-val">R$ 0</div>
           </div>
           <div class="metric-card c4">
-            <div class="metric-label">Média por Despesa</div>
+            <div class="metric-label">Média por Saída</div>
             <div class="metric-value" id="desp-media">R$ 0</div>
             <div class="metric-change" id="desp-media-label">—</div>
           </div>
@@ -661,7 +672,7 @@
           </div>
           <div style="display:flex;flex-direction:column;flex:1;">
             <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;flex:1;">
-              <div class="panel-header"><div class="panel-title">Todas as Despesas</div><span class="panel-badge" id="desp-list-badge"></span></div>
+              <div class="panel-header"><div class="panel-title">Todas as Saídas</div><span class="panel-badge" id="desp-list-badge"></span></div>
               <div style="flex:1;overflow-y:auto;padding:0 18px 14px;" id="desp-list">
                 <div style="padding:20px;text-align:center;color:var(--text-secondary);">Carregando...</div>
               </div>
@@ -1064,52 +1075,6 @@
         </div>
       </section>
 
-      <!-- ══════════════════════════════════
-           PAGE: METAS
-      ══════════════════════════════════ -->
-      <section class="page" id="page-metas">
-        <div class="panel">
-          <div class="panel-header">
-            <div>
-              <div class="panel-title">Meta Mensal</div>
-              <div class="panel-subtitle">Defina sua meta de faturamento mensal</div>
-            </div>
-          </div>
-          <div class="settings-body">
-            <div class="meta-card">
-              <div class="meta-card-icon">
-                <svg width="28" height="28" viewBox="0 0 16 16" fill="none">
-                  <path d="M8 1l1.8 4H14l-3.5 2.5 1.3 4.2L8 9.2l-3.8 2.5L5.5 7.5 2 5h4.2z" stroke="currentColor" stroke-width="1.2" fill="none"/>
-                </svg>
-              </div>
-              <div class="meta-card-content">
-                <div class="meta-card-label">Faturamento mensal desejado</div>
-                <div class="meta-card-value">
-                  <span class="meta-currency">R$</span>
-                  <input class="meta-input" type="number" id="meta-input" placeholder="7000" min="0" step="100">
-                </div>
-              </div>
-            </div>
-            <div class="meta-preview">
-              <div class="meta-preview-title">Prévia do progresso</div>
-              <div class="meta-progress-preview">
-                <div class="meta-progress-bar">
-                  <div class="meta-progress-fill" id="meta-preview-fill" style="width:0%"></div>
-                </div>
-                <div class="meta-progress-label" id="meta-preview-label">0%</div>
-              </div>
-              <div class="meta-stats" id="meta-stats">
-                <span>Receita atual: <b>R$ 0</b></span>
-                <span>Faltam: <b>R$ 0</b></span>
-              </div>
-            </div>
-            <div class="save-bar">
-              <button class="btn-primary" onclick="saveMeta()" id="meta-save-btn">Salvar Meta</button>
-            </div>
-          </div>
-        </div>
-      </section>
-
     </div>
   </main>
 </div>
@@ -1354,6 +1319,64 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="meta-modal-overlay" onclick="closeMetaModal()">
+  <div class="modal-card" style="max-width:380px;" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title">Alterar Meta Mensal</div>
+      <button class="modal-close" onclick="closeMetaModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-field full">
+          <label class="form-label">Nova Meta Mensal (R$) *</label>
+          <input class="form-input" type="number" id="meta-modal-input" placeholder="7000" min="1" step="100" oninput="previewMetaModal()" onkeydown="if(event.key==='Enter') saveMetaModal()">
+        </div>
+      </div>
+      <div class="meta-modal-preview" style="margin-top:12px;padding:12px 14px;background:var(--bg-raised, #f0f7fe);border-radius:8px;border:1px solid var(--border, #dce8f5);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-size:12px;color:var(--text-secondary);" id="meta-modal-rev">Entrada atual: R$ 0</span>
+          <span style="font-size:15px;font-weight:700;color:var(--primary-500);" id="meta-modal-pct">0%</span>
+        </div>
+        <div class="meta-progress-bar" style="height:8px;border-radius:4px;background:rgba(0,0,0,0.08);overflow:hidden;">
+          <div id="meta-modal-fill" style="height:100%;width:0%;background:var(--primary-500);border-radius:4px;transition:width .3s ease;"></div>
+        </div>
+      </div>
+      <div id="meta-modal-msg" class="auth-msg" style="margin-top:8px;"></div>
+      <div class="modal-actions">
+        <button class="btn-outline" onclick="closeMetaModal()">Cancelar</button>
+        <button class="btn-primary" onclick="saveMetaModal()" id="meta-modal-save-btn">Salvar Meta</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="all-transactions-modal-overlay" onclick="closeAllTransactionsModal()">
+  <div class="modal-card" style="max-width:650px;width:94%;max-height:85vh;display:flex;flex-direction:column;" onclick="event.stopPropagation()">
+    <div class="modal-header" style="flex-shrink:0;">
+      <div>
+        <div class="modal-title" id="all-tx-modal-title">Lançamentos do Mês</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;" id="all-tx-modal-sub">Carregando...</div>
+      </div>
+      <button class="modal-close" onclick="closeAllTransactionsModal()">&times;</button>
+    </div>
+    <div style="padding:10px 20px;border-bottom:1px solid var(--border-lighter);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;flex-shrink:0;background:var(--bg-raised, #f9fbfd);">
+      <div class="all-tx-filter-pills" style="display:flex;gap:6px;">
+        <button type="button" class="pill-btn active" id="pill-all" onclick="filterAllTransactions('all')">Todos</button>
+        <button type="button" class="pill-btn" id="pill-income" onclick="filterAllTransactions('income')">Entradas</button>
+        <button type="button" class="pill-btn" id="pill-expense" onclick="filterAllTransactions('expense')">Saídas</button>
+      </div>
+      <div style="font-size:12px;color:var(--text-secondary);font-weight:500;" id="all-tx-totals-summary"></div>
+    </div>
+    <div class="modal-body" style="padding:0;flex:1;overflow-y:auto;" id="all-tx-modal-body">
+      <div style="padding:30px;text-align:center;color:var(--text-secondary);">Carregando lançamentos...</div>
+    </div>
+    <div class="modal-actions" style="margin-top:0;padding:12px 20px;flex-shrink:0;">
+      <button class="btn-outline" onclick="closeAllTransactionsModal()">Fechar</button>
+      <button class="btn-primary" onclick="closeAllTransactionsModal();openTransactionModal('income')">+ Novo Lançamento</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="category-modal-overlay" onclick="closeCategoryModal()">
   <div class="modal-card" style="max-width:360px;" onclick="event.stopPropagation()">
     <div class="modal-header">
@@ -1387,8 +1410,8 @@
         <div class="form-field">
           <label class="form-label">Tipo *</label>
           <select class="form-input" id="tx-type">
-            <option value="income">Receita</option>
-            <option value="expense">Despesa</option>
+            <option value="income">Entrada</option>
+            <option value="expense">Saída</option>
           </select>
         </div>
         <div class="form-field">
@@ -1460,6 +1483,7 @@
 }
 .toast {
   pointer-events: auto;
+  font-family: var(--font-sans);
   background: #d32f2f; color: #fff;
   padding: 14px 22px; border-radius: 10px;
   font-size: 14px; font-weight: 500;
@@ -1488,6 +1512,7 @@
 .modal-overlay.open { opacity: 1; pointer-events: auto; }
 
 .modal-card {
+  font-family: var(--font-sans);
   background: var(--bg-white, #fff);
   border-radius: 14px;
   width: 94%; max-width: 520px;
@@ -1499,8 +1524,9 @@
   display: flex; align-items: center; justify-content: space-between;
   padding: 18px 22px; border-bottom: 1px solid var(--border, #eef2f6);
 }
-.modal-title { font-size: 17px; font-weight: 600; color: var(--text-primary, #0f2340); }
+.modal-title { font-family: var(--font-sans); font-size: 17px; font-weight: 600; color: var(--text-primary, #0f2340); letter-spacing: -0.2px; }
 .modal-close {
+  font-family: var(--font-sans);
   background: none; border: none; font-size: 24px;
   color: var(--text-secondary, #8aaccb); cursor: pointer; padding: 0 4px;
   line-height: 1;
@@ -1511,6 +1537,12 @@
   display: flex; gap: 10px; justify-content: flex-end;
   margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border, #eef2f6);
 }
+.modal-card button,
+.modal-card input,
+.modal-card select,
+.modal-card textarea {
+  font-family: var(--font-sans);
+}
 
 .detail-info { display: flex; flex-direction: column; gap: 12px; }
 .detail-row {
@@ -1519,10 +1551,12 @@
 }
 .detail-label {
   width: 110px; flex-shrink: 0;
+  font-family: var(--font-sans);
   font-size: 12px; font-weight: 500; color: var(--text-secondary, #8aaccb);
   text-transform: uppercase; letter-spacing: .3px;
 }
 .detail-value {
+  font-family: var(--font-sans);
   font-size: 14px; font-weight: 500; color: var(--text-primary, #0f2340);
 }
 
@@ -1567,6 +1601,13 @@
 [data-color-scheme="dark"] .btn-danger:hover {
   background: rgba(239, 68, 68, 0.18) !important;
   border-color: #f87171 !important;
+}
+[data-color-scheme="dark"] .meta-modal-preview {
+  background: rgba(255, 255, 255, 0.04) !important;
+  border-color: var(--dark-border, #1e3550) !important;
+}
+[data-color-scheme="dark"] .meta-modal-preview #meta-modal-rev {
+  color: var(--dark-text-muted, #718ea8) !important;
 }
 </style>
 

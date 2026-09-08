@@ -457,7 +457,7 @@ def stats():
                     create_notification(
                         'meta_atingida',
                         'Meta Mensal Atingida!',
-                        f"Parabéns! A meta de R$ {data['meta_mensal']:,.0f} foi alcançada. Receita atual: R$ {data['month_revenue']:,.2f}"
+                        f"Parabéns! A meta de R$ {data['meta_mensal']:,.0f} foi alcançada. Entrada atual: R$ {data['month_revenue']:,.2f}"
                     )
                     data['notifications_unread'] = unread_notifications_count()
 
