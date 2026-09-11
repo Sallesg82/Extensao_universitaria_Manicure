@@ -11,20 +11,29 @@ function getLocalDateString(d = new Date()) {
 
 // ── Socket.IO ────────────────────────────────────────
 let _socket = null
-let _pageRefreshPending = {}
+let _refreshDebounceTimer = null
+let _needsRefreshOnVisible = false
 
 function connectSocket() {
   if (typeof io === 'undefined') return
   _socket = io(window.location.origin, {
     transports: ['websocket', 'polling'],
     reconnection: true,
-    reconnectionDelay: 2000,
+    reconnectionDelay: 1500,
+    reconnectionAttempts: Infinity,
   })
-  _socket.on('connect', () => console.log('[WS] Conectado'))
+  _socket.on('connect', () => {
+    console.log('[WS] Conectado ao servidor')
+    refreshCurrentActivePage()
+  })
+  _socket.on('reconnect', () => {
+    console.log('[WS] Reconectado ao servidor')
+    refreshCurrentActivePage()
+  })
   _socket.on('disconnect', () => console.log('[WS] Desconectado'))
 
   _socket.on('data:changed', (data) => {
-    _requestPageRefresh(data.type)
+    _requestPageRefresh(data?.type)
   })
   _socket.on('appointment:created', () => _requestPageRefresh('appointment'))
   _socket.on('appointment:updated', () => _requestPageRefresh('appointment'))
@@ -33,9 +42,17 @@ function connectSocket() {
   _socket.on('client:updated', () => _requestPageRefresh('client'))
   _socket.on('client:deleted', () => _requestPageRefresh('client'))
   _socket.on('service:changed', () => _requestPageRefresh('service'))
+  _socket.on('service:created', () => _requestPageRefresh('service'))
+  _socket.on('service:updated', () => _requestPageRefresh('service'))
+  _socket.on('service:deleted', () => _requestPageRefresh('service'))
   _socket.on('transaction:created', () => _requestPageRefresh('transaction'))
   _socket.on('transaction:updated', () => _requestPageRefresh('transaction'))
   _socket.on('transaction:deleted', () => _requestPageRefresh('transaction'))
+  _socket.on('setting:updated', () => _requestPageRefresh('setting'))
+  _socket.on('user:created', () => _requestPageRefresh('user'))
+  _socket.on('user:updated', () => _requestPageRefresh('user'))
+  _socket.on('user:deleted', () => _requestPageRefresh('user'))
+  _socket.on('notification:created', () => loadNotifDot())
   _socket.on('dev:reload', () => {
     console.log('[Dev] Código alterado, atualizando página...')
     window.location.reload()
@@ -43,30 +60,33 @@ function connectSocket() {
 }
 
 function _requestPageRefresh(type) {
-  const pageId = (location.hash.slice(1) || 'dashboard')
-  const key = pageId + ':' + type
-  if (_pageRefreshPending[key]) return
-  _pageRefreshPending[key] = true
-  setTimeout(() => {
-    delete _pageRefreshPending[key]
-    const activePage = document.querySelector('.page.active')
-    if (!activePage) return
-    // Always refresh the notification dot
+  if (document.hidden) {
+    _needsRefreshOnVisible = true
+    return
+  }
+  if (_refreshDebounceTimer) clearTimeout(_refreshDebounceTimer)
+  _refreshDebounceTimer = setTimeout(() => {
+    _refreshDebounceTimer = null
     loadNotifDot()
-    // Only refresh if the user is still on the same page
-    if (document.hidden) return
-    const currentPageId = location.hash.slice(1) || 'dashboard'
-    if (currentPageId !== pageId) return
-
-    if (currentPageId === 'dashboard') loadDashboard()
-    else if (currentPageId === 'agenda') showAgendaView()
-    else if (currentPageId === 'clientes') loadClients()
-    else if (currentPageId === 'relatorios') loadRelatorios()
-    else if (currentPageId === 'financeiro') loadFinanceiro()
-    else if (currentPageId === 'servicos') loadServicos()
-    else if (currentPageId === 'despesas') loadDespesas()
-  }, 300)
+    refreshCurrentActivePage()
+  }, 200)
 }
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden && _needsRefreshOnVisible) {
+    _needsRefreshOnVisible = false
+    loadNotifDot()
+    refreshCurrentActivePage()
+  }
+})
+
+window.addEventListener('focus', () => {
+  if (_needsRefreshOnVisible) {
+    _needsRefreshOnVisible = false
+    loadNotifDot()
+    refreshCurrentActivePage()
+  }
+})
 
 // Connect after login (when user is authenticated)
 document.addEventListener('DOMContentLoaded', () => {
@@ -270,8 +290,8 @@ const pageConfig = {
   agenda:         { title: 'Agenda',          sub: '',      btn: '+ Novo Agendamento' },
   clientes:       { title: 'Clientes',        sub: '',      btn: '+ Nova Cliente' },
   servicos:       { title: 'Serviços',        sub: '',      btn: '+ Novo Serviço' },
+  estoque:        { title: 'Estoque',         sub: 'Catálogo e gestão de produtos do salão', btn: '+ Novo Produto' },
   financeiro:     { title: 'Financeiro',      sub: '',      btn: '+ Novo Lançamento' },
-  despesas:       { title: 'Saídas do Mês',   sub: 'Acompanhe suas saídas do mês', btn: '+ Nova Saída' },
   relatorios:     { title: 'Relatórios',      sub: 'Análise - Mês',      btn: '⬇ Exportar PDF' },
   usuarios:       { title: 'Usuários',        sub: 'Gerenciar contas de acesso',          btn: null },
   configuracoes:  { title: 'Configurações',   sub: 'Gerencie seu sistema BeautyFlow',      btn: null },
@@ -280,7 +300,7 @@ const pageConfig = {
 function showPage(pageId, navEl) {
   stopPageRefresh()
 
-  if (pageId === 'metas') {
+  if (pageId === 'metas' || pageId === 'despesas') {
     pageId = 'financeiro'
     navEl = document.querySelector('.nav-item[onclick*="\'financeiro\'"]')
   }
@@ -327,9 +347,9 @@ function showPage(pageId, navEl) {
   if (pageId === 'dashboard') loadDashboard()
   else if (pageId === 'clientes') loadClients()
   else if (pageId === 'servicos') loadServicos()
+  else if (pageId === 'estoque') loadEstoque()
   else if (pageId === 'agenda') loadAgenda()
   else if (pageId === 'financeiro') { _financeCurrentDrillWeek = null; loadFinanceiro() }
-  else if (pageId === 'despesas') loadDespesas()
   else if (pageId === 'usuarios') loadUsuarios()
   else if (pageId === 'relatorios') loadRelatorios()
   else if (pageId === 'configuracoes') updateProfileTab()
@@ -348,10 +368,10 @@ function handleTopbarBtn() {
     openClientModal()
   } else if (pageId === 'servicos') {
     openServiceModal()
+  } else if (pageId === 'estoque') {
+    openEstoqueModal()
   } else if (pageId === 'financeiro') {
     openTransactionModal('income')
-  } else if (pageId === 'despesas') {
-    openTransactionModal('expense')
   } else if (pageId === 'relatorios') {
     exportRelatorioPDF()
   } else if (pageId === 'usuarios') {
@@ -1250,9 +1270,13 @@ function refreshCurrentActivePage() {
   if (!activePage) return
   const pageId = activePage.id.replace('page-', '')
   if (pageId === 'dashboard') loadDashboard()
-  else if (pageId === 'financeiro') loadFinanceiro()
-  else if (pageId === 'despesas') loadDespesas()
-  else if (pageId === 'relatorios') loadRelatorios()
+  else if (pageId === 'financeiro') {
+    loadFinanceiro()
+    const allTxModal = document.getElementById('all-transactions-modal-overlay')
+    if (allTxModal && allTxModal.classList.contains('open')) {
+      _refreshAllTransactionsModal()
+    }
+  }
   else if (pageId === 'agenda') {
     if (agendaDate) {
       agendaDate.setFullYear(globalSelectedYear)
@@ -1260,6 +1284,12 @@ function refreshCurrentActivePage() {
     }
     showAgendaView()
   }
+  else if (pageId === 'clientes') loadClients()
+  else if (pageId === 'servicos') loadServicos()
+  else if (pageId === 'estoque') loadEstoque()
+  else if (pageId === 'relatorios') loadRelatorios()
+  else if (pageId === 'usuarios') loadUsuarios()
+  else if (pageId === 'configuracoes') updateProfileTab()
 }
 
 async function loadDashboard() {
@@ -1769,6 +1799,11 @@ async function loadFinanceiro() {
                 <div class="tx-date">${details}</div>
               </div>
               <div class="tx-amount ${isIncome ? 'in' : 'out'}">${isIncome ? '+' : '−'}R$ ${Number(t.amount).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}</div>
+              <button type="button" class="tx-delete-btn" data-id="${t.id}" data-desc="${encodeURIComponent(desc)}" data-amount="${t.amount}" onclick="handleDeleteTransaction(this)" title="Excluir lançamento" aria-label="Excluir lançamento">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                  <path d="M3 4h10M6 4V2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V4M5 4v9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              </button>
             </div>`
         }).join('')
       } else {
@@ -2568,38 +2603,65 @@ async function loadServicos() {
 }
 
 // ── MODAL ALTERAR META ─────────────────────────────
+const GLOBAL_MONTH_NAMES = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+]
 let _currentMonthRevenue = 0
 let _currentMetaVal = 7000
+let _metaModalMonth = null
+let _metaModalYear = null
 
-async function openMetaModal() {
+async function openMetaModal(targetMonth, targetYear) {
   const overlay = document.getElementById('meta-modal-overlay')
   if (!overlay) return
   const input = document.getElementById('meta-modal-input')
   const msg = document.getElementById('meta-modal-msg')
+  const monthLabelEl = document.getElementById('meta-modal-month-label')
   if (msg) { msg.textContent = ''; msg.className = 'auth-msg' }
 
-  try {
-    const res = await fetch(API + '/settings/')
-    const settings = await res.json()
-    if (settings && settings.meta_mensal) {
-      _currentMetaVal = Number(settings.meta_mensal)
-    }
-  } catch (_) {}
+  _metaModalMonth = targetMonth || globalSelectedMonth || (new Date().getMonth() + 1)
+  _metaModalYear = targetYear || globalSelectedYear || new Date().getFullYear()
 
-  if (!_currentMonthRevenue) {
-    try {
-      const sRes = await fetch(API + '/stats')
-      const s = await sRes.json()
-      if (s && s.month_revenue !== undefined) {
-        _currentMonthRevenue = Number(s.month_revenue)
-      }
-    } catch (_) {}
+  const mes = `${_metaModalYear}-${String(_metaModalMonth).padStart(2, '0')}`
+  const mName = GLOBAL_MONTH_NAMES[_metaModalMonth - 1] || 'Mês'
+  if (monthLabelEl) {
+    monthLabelEl.textContent = `Mês: ${mName} de ${_metaModalYear}`
   }
 
+  // Preenche imediatamente com valor prévio e abre o modal sem travar
   if (input) input.value = _currentMetaVal || 7000
   previewMetaModal()
   overlay.classList.add('open')
   setTimeout(() => input && input.select(), 100)
+
+  // Busca a meta específica e faturamento deste mês
+  try {
+    const res = await fetch(`${API}/metas/${mes}`)
+    if (res.ok) {
+      const data = await res.json()
+      if (data && data.meta !== undefined) {
+        _currentMetaVal = Number(data.meta)
+        if (input) input.value = _currentMetaVal
+        previewMetaModal()
+      }
+    }
+  } catch (err) {
+    console.warn('[Meta] Aviso ao carregar meta:', err)
+  }
+
+  try {
+    const sRes = await fetch(`${API}/stats?month=${_metaModalMonth}&year=${_metaModalYear}`)
+    const s = await sRes.json()
+    if (s && s.month_revenue !== undefined) {
+      _currentMonthRevenue = Number(s.month_revenue)
+      if (s.meta_mensal !== undefined && !_currentMetaVal) {
+        _currentMetaVal = Number(s.meta_mensal)
+        if (input) input.value = _currentMetaVal
+      }
+      previewMetaModal()
+    }
+  } catch (_) {}
 }
 
 function closeMetaModal() {
@@ -2628,22 +2690,29 @@ async function saveMetaModal() {
     if (msg) { msg.textContent = 'Informe um valor válido para a meta.'; msg.className = 'auth-msg error' }
     return
   }
+
+  const targetM = _metaModalMonth || globalSelectedMonth || (new Date().getMonth() + 1)
+  const targetY = _metaModalYear || globalSelectedYear || new Date().getFullYear()
+  const mes = `${targetY}-${String(targetM).padStart(2, '0')}`
+  const mName = GLOBAL_MONTH_NAMES[targetM - 1] || 'Mês'
+
   const saveBtn = document.getElementById('meta-modal-save-btn')
   if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = 'Salvando...' }
   try {
-    const res = await fetch(API + '/settings/', {
-      method: 'PUT',
+    const res = await fetch(API + '/metas', {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ meta_mensal: val })
+      body: JSON.stringify({ mes: mes, meta: val })
     })
     if (!res.ok) {
-      if (msg) { msg.textContent = 'Erro ao salvar meta.'; msg.className = 'auth-msg error' }
+      const errData = await res.json().catch(() => ({}))
+      if (msg) { msg.textContent = errData.error || 'Erro ao salvar meta.'; msg.className = 'auth-msg error' }
       if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = 'Salvar Meta' }
       return
     }
     _currentMetaVal = val
     closeMetaModal()
-    showToast('Meta mensal atualizada com sucesso!', 'success')
+    showToast(`Meta de ${mName}/${targetY} salva com sucesso!`, 'success')
     loadFinanceiro()
     loadDashboard()
   } catch (e) {
@@ -3169,7 +3238,6 @@ async function saveTransaction() {
     showToast(savedType === 'expense' ? 'Saída salva!' : 'Lançamento salvo!', 'success')
     loadFinanceiro()
     loadDashboard()
-    if (savedType === 'expense') loadDespesas()
   } catch (e) {
     msg.textContent = 'Erro de conexão.'
     msg.className = 'auth-msg error'
@@ -3217,6 +3285,31 @@ async function openAllTransactionsModal() {
   } catch (err) {
     console.error('Erro ao buscar lançamentos do mês:', err)
     if (bodyEl) bodyEl.innerHTML = '<div style="padding:30px;text-align:center;color:var(--color-danger, #c05050);">Erro ao carregar lançamentos do mês.</div>'
+  }
+}
+
+async function _refreshAllTransactionsModal() {
+  const overlay = document.getElementById('all-transactions-modal-overlay')
+  if (!overlay || !overlay.classList.contains('open')) return
+  const subEl = document.getElementById('all-tx-modal-sub')
+  try {
+    const y = _financeSelectedYear || new Date().getFullYear()
+    const m = _financeSelectedMonth || (new Date().getMonth() + 1)
+    const mStr = String(m).padStart(2, '0')
+    const lastDay = new Date(y, m, 0).getDate()
+    const dateFrom = `${y}-${mStr}-01`
+    const dateTo = `${y}-${mStr}-${String(lastDay).padStart(2, '0')}`
+
+    const res = await fetch(`${API}/transactions/?date_from=${dateFrom}&date_to=${dateTo}&limit=1000`)
+    const data = await res.json()
+    _allMonthTransactions = Array.isArray(data) ? data : []
+
+    const mLabel = _financeMonthLabel ? `${_financeMonthLabel} de ${_financeMonthYear || y}` : `${mStr}/${y}`
+    if (subEl) subEl.textContent = `${_allMonthTransactions.length} lançamento(s) em ${mLabel}`
+
+    renderAllTransactionsList()
+  } catch (err) {
+    console.error('Erro ao atualizar lançamentos do modal:', err)
   }
 }
 
@@ -3292,9 +3385,66 @@ function renderAllTransactionsList() {
         <div class="tx-amount ${isIncome ? 'in' : 'out'}" style="font-weight:700;font-size:14px;white-space:nowrap;">
           ${isIncome ? '+' : '−'}R$ ${Number(t.amount || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
         </div>
+        <button type="button" class="tx-delete-btn" data-id="${t.id}" data-desc="${encodeURIComponent(desc)}" data-amount="${t.amount}" onclick="handleDeleteTransaction(this)" title="Excluir lançamento" aria-label="Excluir lançamento">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M3 4h10M6 4V2.5a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 .5.5V4M5 4v9a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
       </div>
     `
   }).join('')
+}
+
+function handleDeleteTransaction(btn) {
+  if (!btn) return
+  const id = btn.getAttribute('data-id')
+  const desc = decodeURIComponent(btn.getAttribute('data-desc') || '')
+  const amount = parseFloat(btn.getAttribute('data-amount') || '0')
+  deleteTransaction(id, desc, amount)
+}
+
+async function deleteTransaction(txId, desc, amount) {
+  if (!txId) return
+  let confirmMsg = 'Tem certeza que deseja excluir este lançamento financeiro? Esta ação não pode ser desfeita.'
+  if (desc) {
+    const valFormatted = Number(amount || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    confirmMsg = `Tem certeza que deseja excluir o lançamento "${desc}" (R$ ${valFormatted})? Esta ação não pode ser desfeita.`
+  }
+  if (!confirm(confirmMsg)) return
+
+  try {
+    const res = await fetch(`${API}/transactions/${txId}`, {
+      method: 'DELETE'
+    })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}))
+      showToast(err.error || 'Erro ao excluir lançamento.', 'error')
+      return
+    }
+
+    showToast('Lançamento excluído com sucesso!', 'success')
+
+    // Atualiza cache de lançamentos do modal se estiver aberto
+    if (Array.isArray(_allMonthTransactions)) {
+      _allMonthTransactions = _allMonthTransactions.filter(t => String(t.id) !== String(txId))
+      renderAllTransactionsList()
+      const subEl = document.getElementById('all-tx-modal-sub')
+      if (subEl) {
+        const y = _financeSelectedYear || new Date().getFullYear()
+        const m = _financeSelectedMonth || (new Date().getMonth() + 1)
+        const mStr = String(m).padStart(2, '0')
+        const mLabel = _financeMonthLabel ? `${_financeMonthLabel} de ${_financeMonthYear || y}` : `${mStr}/${y}`
+        subEl.textContent = `${_allMonthTransactions.length} lançamento(s) em ${mLabel}`
+      }
+    }
+
+    // Atualiza tela financeira e dashboard
+    loadFinanceiro()
+    loadDashboard()
+  } catch (err) {
+    console.error('Erro ao excluir lançamento:', err)
+    showToast('Erro de conexão ao excluir lançamento.', 'error')
+  }
 }
 
 // ── TOAST ──────────────────────────────────────────
@@ -4584,3 +4734,335 @@ document.querySelectorAll('.btn-primary, .btn-outline').forEach(btn => {
     this.style.setProperty('--ripple-y', y + '%')
   })
 })
+// ESTOQUE - LÓGICA E GERENCIAMENTO DE PRODUTOS
+// ════════════════════════════════════════════════════════════════════════════
+let estoqueProducts = [];
+let estoqueFilter = 'todos';
+
+const _dotColors = {
+  pink: '#ef7fa8',
+  amber: '#c58a12',
+  blue: '#2f5fdc',
+  purple: '#8b6fe0'
+};
+
+const DEFAULT_INITIAL_PRODUCTS = [
+  {id: 1, name: "Esmalte OPI", category: "pink", qty: 12, price: 8, missing: false, min_qty: 5},
+  {id: 2, name: "Óleo de Cutícula", category: "amber", qty: 2, price: 15, missing: false, min_qty: 5},
+  {id: 3, name: "Luvas Descartáveis (cx)", category: "blue", qty: 3, price: 25, missing: false, min_qty: 2},
+  {id: 4, name: "Algodão", category: "pink", qty: 0, price: 4, missing: true, min_qty: 8},
+  {id: 5, name: "Removedor de Esmalte", category: "purple", qty: 5, price: 12, missing: false, min_qty: 3},
+  {id: 6, name: "Cera Depilatória", category: "amber", qty: 0, price: 45, missing: true, min_qty: 2},
+  {id: 7, name: "Henna para Sobrancelha", category: "amber", qty: 2, price: 20, missing: false, min_qty: 4},
+  {id: 8, name: "Toalhas Descartáveis", category: "blue", qty: 8, price: 18, missing: false, min_qty: 4},
+  {id: 9, name: "Álcool 70%", category: "purple", qty: 6, price: 10, missing: false, min_qty: 3},
+  {id: 10, name: "Palito de Laranjeira", category: "pink", qty: 15, price: 3, missing: false, min_qty: 6}
+];
+
+async function loadEstoque() {
+  try {
+    const res = await apiFetch('/api/products/');
+    if (Array.isArray(res) && res.length > 0) {
+      estoqueProducts = res;
+    } else if (estoqueProducts.length === 0) {
+      estoqueProducts = JSON.parse(JSON.stringify(DEFAULT_INITIAL_PRODUCTS));
+    }
+  } catch (err) {
+    console.warn("API /api/products error, fallbacking to local array", err);
+    if (estoqueProducts.length === 0) {
+      estoqueProducts = JSON.parse(JSON.stringify(DEFAULT_INITIAL_PRODUCTS));
+    }
+  }
+  renderEstoque();
+}
+
+function getEstoqueProductStatus(p) {
+  const min = p.min_qty !== undefined ? p.min_qty : (p.min || 5);
+  if (p.missing) return { cls: 'pill-out', txt: 'Em falta' };
+  if (p.qty <= min) return { cls: 'pill-low', txt: 'Estoque baixo' };
+  return { cls: 'pill-ok', txt: 'Em estoque' };
+}
+
+function setEstoqueFilter(f, el) {
+  estoqueFilter = f;
+  const parent = document.getElementById('estoque-filter-chips');
+  if (parent) {
+    parent.querySelectorAll('.filter-tab').forEach(c => c.classList.remove('active'));
+  }
+  if (el) el.classList.add('active');
+  renderEstoque();
+}
+
+function renderEstoque() {
+  const tbody = document.getElementById('estoque-tbody');
+  if (!tbody) return;
+
+  const searchInput = document.getElementById('estoque-search');
+  const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
+
+  let filtered = estoqueProducts.filter(p => {
+    const min = p.min_qty !== undefined ? p.min_qty : (p.min || 5);
+    if (estoqueFilter === 'falta' && !p.missing) return false;
+    if (estoqueFilter === 'baixo' && (p.missing || p.qty > min)) return false;
+    if (query && !p.name.toLowerCase().includes(query)) return false;
+    return true;
+  });
+
+  tbody.innerHTML = '';
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-secondary);">Nenhum produto encontrado</td></tr>`;
+  } else {
+    filtered.forEach(p => {
+      const min = p.min_qty !== undefined ? p.min_qty : (p.min || 5);
+      const st = getEstoqueProductStatus(p);
+      const total = p.qty * p.price;
+      const dotColor = _dotColors[p.category] || '#ef7fa8';
+
+      const tr = document.createElement('tr');
+      if (p.missing) tr.classList.add('is-missing');
+
+      tr.innerHTML = `
+        <td>
+          <div class="prod-name" style="display:flex;align-items:center;gap:10px;font-weight:600;">
+            <span class="dot" style="width:9px;height:9px;border-radius:50%;flex-shrink:0;background:${dotColor}"></span>
+            <div>
+              <div style="color:var(--text-primary);">${_escapeHtml(p.name)}</div>
+              <div class="prod-sub" style="color:var(--text-secondary);font-weight:400;font-size:11.5px;">R$ ${_fmtMoney(p.price)} / un.</div>
+            </div>
+          </div>
+        </td>
+        <td style="font-weight:600;">${p.qty} un.</td>
+        <td style="color:var(--text-secondary);">R$ ${_fmtMoney(p.price)}</td>
+        <td class="price-total" style="font-weight:700;">R$ ${_fmtMoney(total)}</td>
+        <td><span class="pill ${st.cls}">${st.txt}</span></td>
+        <td>
+          <div class="missing-toggle ${p.missing ? 'checked' : ''}" onclick="toggleEstoqueMissing(${p.id})">
+            <div class="sq">
+              <svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 6L9 17l-5-5"/>
+              </svg>
+            </div>
+            <span class="lbl">${p.missing ? 'Em falta' : 'Produto em falta'}</span>
+          </div>
+        </td>
+        <td style="text-align:right;">
+          <button class="btn-outline btn-sm" onclick="openEstoqueModalById(${p.id})" title="Editar produto" style="padding:4px 8px;margin-right:4px;">✏️</button>
+          <button class="btn-outline btn-sm btn-danger" onclick="deleteEstoqueProduct(${p.id})" title="Remover produto" style="padding:4px 8px;">🗑️</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Calculate totals and statistics
+  const geral = estoqueProducts.reduce((acc, p) => acc + (p.qty * p.price), 0);
+  const totalElem = document.getElementById('totalGeralEstoque');
+  if (totalElem) totalElem.textContent = 'R$ ' + _fmtMoney(geral);
+
+  const subCount = document.getElementById('estoque-sub-count');
+  if (subCount) subCount.textContent = estoqueProducts.length + ' produtos cadastrados';
+
+  const missingList = estoqueProducts.filter(p => p.missing);
+  const lowList = estoqueProducts.filter(p => {
+    const min = p.min_qty !== undefined ? p.min_qty : (p.min || 5);
+    return !p.missing && p.qty <= min;
+  });
+
+  // Update counts
+  const cntTodos = document.getElementById('cnt-todos');
+  const cntFalta = document.getElementById('cnt-falta');
+  const cntBaixo = document.getElementById('cnt-baixo');
+  const badgeFalta = document.getElementById('badgeFalta');
+  const badgeBaixo = document.getElementById('badgeBaixo');
+
+  if (cntTodos) cntTodos.textContent = estoqueProducts.length;
+  if (cntFalta) cntFalta.textContent = missingList.length;
+  if (cntBaixo) cntBaixo.textContent = lowList.length;
+  if (badgeFalta) badgeFalta.textContent = missingList.length;
+  if (badgeBaixo) badgeBaixo.textContent = lowList.length;
+
+  // Side List: Em Falta
+  const listFalta = document.getElementById('listFalta');
+  if (listFalta) {
+    if (missingList.length > 0) {
+      listFalta.innerHTML = missingList.map(p => `
+        <div class="side-item-row" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border-lighter,#f0f2f8);">
+          <div>
+            <b style="font-size:13px;display:block;color:var(--text-primary);">${_escapeHtml(p.name)}</b>
+            <small style="color:var(--text-secondary);font-size:11px;">R$ ${_fmtMoney(p.price)} / un.</small>
+          </div>
+          <span class="pill pill-out">0 un.</span>
+        </div>
+      `).join('');
+    } else {
+      listFalta.innerHTML = `<div class="side-empty" style="padding:20px;text-align:center;color:var(--text-secondary);font-size:12.5px;">Nenhum produto em falta 🎉</div>`;
+    }
+  }
+
+  // Side List: Estoque Baixo
+  const listBaixo = document.getElementById('listBaixo');
+  if (listBaixo) {
+    if (lowList.length > 0) {
+      listBaixo.innerHTML = lowList.map(p => {
+        const min = p.min_qty !== undefined ? p.min_qty : (p.min || 5);
+        return `
+          <div class="side-item-row" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border-lighter,#f0f2f8);">
+            <div>
+              <b style="font-size:13px;display:block;color:var(--text-primary);">${_escapeHtml(p.name)}</b>
+              <small style="color:var(--text-secondary);font-size:11px;">Mínimo recomendado: ${min} un.</small>
+            </div>
+            <span class="pill pill-low">${p.qty} un.</span>
+          </div>
+        `;
+      }).join('');
+    } else {
+      listBaixo.innerHTML = `<div class="side-empty" style="padding:20px;text-align:center;color:var(--text-secondary);font-size:12.5px;">Nenhum produto com estoque baixo</div>`;
+    }
+  }
+}
+
+async function toggleEstoqueMissing(id) {
+  const p = estoqueProducts.find(x => x.id === id);
+  if (!p) return;
+  const newMissing = !p.missing;
+  const newQty = newMissing ? 0 : p.qty;
+
+  p.missing = newMissing;
+  p.qty = newQty;
+  renderEstoque();
+
+  try {
+    await apiFetch(`/api/products/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({ missing: newMissing, qty: newQty })
+    });
+    showToast(newMissing ? `Produto "${p.name}" marcado como em falta` : `Produto "${p.name}" atualizado`);
+  } catch (err) {
+    console.warn("Toggle missing error:", err);
+  }
+}
+
+function openEstoqueModal(product = null) {
+  const modal = document.getElementById('estoque-modal-overlay');
+  const title = document.getElementById('estoque-modal-title');
+  const form = document.getElementById('estoque-form');
+
+  if (!modal || !form) return;
+
+  form.reset();
+
+  if (product) {
+    title.textContent = 'Editar Produto';
+    document.getElementById('estoque-id').value = product.id;
+    document.getElementById('estoque-name').value = product.name;
+    document.getElementById('estoque-cat').value = product.category || 'pink';
+    document.getElementById('estoque-price').value = product.price;
+    document.getElementById('estoque-qty').value = product.qty;
+    document.getElementById('estoque-min').value = product.min_qty !== undefined ? product.min_qty : (product.min || 5);
+    document.getElementById('estoque-missing').checked = !!product.missing;
+  } else {
+    title.textContent = 'Novo Produto';
+    document.getElementById('estoque-id').value = '';
+    document.getElementById('estoque-cat').value = 'pink';
+    document.getElementById('estoque-price').value = '';
+    document.getElementById('estoque-qty').value = '';
+    document.getElementById('estoque-min').value = '5';
+    document.getElementById('estoque-missing').checked = false;
+  }
+
+  modal.classList.add('open');
+}
+
+function openEstoqueModalById(id) {
+  const p = estoqueProducts.find(x => x.id === id);
+  openEstoqueModal(p || null);
+}
+
+function closeEstoqueModal() {
+  const modal = document.getElementById('estoque-modal-overlay');
+  if (modal) modal.classList.remove('open');
+}
+
+function onEstoqueMissingCheckboxChange() {
+  const missing = document.getElementById('estoque-missing').checked;
+  const qtyInput = document.getElementById('estoque-qty');
+  if (missing && qtyInput) {
+    qtyInput.value = 0;
+  }
+}
+
+async function saveEstoqueProduct(e) {
+  e.preventDefault();
+  const id = document.getElementById('estoque-id').value;
+  const name = document.getElementById('estoque-name').value.trim();
+  const category = document.getElementById('estoque-cat').value;
+  const price = parseFloat(document.getElementById('estoque-price').value) || 0;
+  const qty = parseInt(document.getElementById('estoque-qty').value) || 0;
+  const min_qty = parseInt(document.getElementById('estoque-min').value) || 5;
+  const missing = document.getElementById('estoque-missing').checked;
+
+  if (!name) {
+    showToast("Informe o nome do produto");
+    return;
+  }
+
+  const payload = {
+    name,
+    category,
+    price,
+    qty: missing ? 0 : qty,
+    min_qty,
+    missing
+  };
+
+  try {
+    if (id) {
+      const updated = await apiFetch(`/api/products/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(payload)
+      });
+      const idx = estoqueProducts.findIndex(x => x.id == id);
+      if (idx !== -1) estoqueProducts[idx] = updated;
+      showToast(`Produto "${name}" atualizado com sucesso!`);
+    } else {
+      const created = await apiFetch('/api/products/', {
+        method: 'POST',
+        body: JSON.stringify(payload)
+      });
+      estoqueProducts.push(created);
+      showToast(`Produto "${name}" adicionado ao estoque!`);
+    }
+  } catch (err) {
+    console.warn("Save product error, updating local state", err);
+    if (id) {
+      const idx = estoqueProducts.findIndex(x => x.id == id);
+      if (idx !== -1) {
+        estoqueProducts[idx] = { ...estoqueProducts[idx], ...payload };
+      }
+    } else {
+      const newId = Date.now();
+      estoqueProducts.push({ id: newId, ...payload });
+    }
+    showToast(`Produto "${name}" salvo!`);
+  }
+
+  closeEstoqueModal();
+  renderEstoque();
+}
+
+async function deleteEstoqueProduct(id) {
+  const p = estoqueProducts.find(x => x.id === id);
+  if (!p) return;
+  if (!confirm(`Tem certeza que deseja remover o produto "${p.name}"?`)) return;
+
+  try {
+    await apiFetch(`/api/products/${id}`, { method: 'DELETE' });
+    showToast(`Produto "${p.name}" removido`);
+  } catch (err) {
+    console.warn("Delete product error:", err);
+  }
+
+  estoqueProducts = estoqueProducts.filter(x => x.id !== id);
+  renderEstoque();
+}
+

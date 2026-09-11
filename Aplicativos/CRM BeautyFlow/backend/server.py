@@ -6,7 +6,7 @@ from flask import Flask, jsonify, send_from_directory, request
 from flask_cors import CORS
 import json
 from ws import socketio
-from db.database import get_db, get_settings, update_setting, get_stats, unread_notifications_count, create_notification, load_business_hours, save_business_hours, _migrate_business_hours, DAYS_PT, backfill_appointment_income_transactions
+from db.database import get_db, get_settings, update_setting, set_meta, get_stats, unread_notifications_count, create_notification, load_business_hours, save_business_hours, _migrate_business_hours, DAYS_PT, backfill_appointment_income_transactions
 from routes.clients import clients_bp
 from routes.appointments import appointments_bp
 from routes.services import services_bp
@@ -15,12 +15,15 @@ from routes.google_calendar import google_bp
 from routes.notifications import notifications_bp
 from routes.integrations import integrations_bp
 from routes.transactions import transactions_bp
+from routes.products import products_bp
+from routes.metas import metas_bp
 
 load_dotenv()
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src')
 
 app = Flask(__name__, static_folder=None)
+app.url_map.strict_slashes = False
 CORS(app)
 socketio.init_app(app, cors_allowed_origins="*", async_mode='threading')
 
@@ -32,6 +35,8 @@ app.register_blueprint(google_bp, url_prefix='/api/google')
 app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
 app.register_blueprint(integrations_bp, url_prefix='/api/integrations')
 app.register_blueprint(transactions_bp, url_prefix='/api/transactions')
+app.register_blueprint(products_bp, url_prefix='/api/products')
+app.register_blueprint(metas_bp, url_prefix='/api/metas')
 
 
 @app.after_request
@@ -77,6 +82,65 @@ def start_dev_file_watcher():
                     socketio.emit('dev:reload')
     t = threading.Thread(target=_watcher, daemon=True)
     t.start()
+
+
+def start_postgres_listener():
+    """Inicia thread em background que escuta notificações do PostgreSQL via LISTEN pgevents."""
+    if os.environ.get('FLASK_RELOAD') == '1' and os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+        return
+
+    import threading
+    import time
+    import json
+    import psycopg
+    from db.database import DATABASE_URL
+
+    TABLE_EVENT_MAP = {
+        'appointments': 'appointment',
+        'transactions': 'transaction',
+        'clients': 'client',
+        'services': 'service',
+        'settings': 'setting',
+        'business_hours': 'business_hours',
+        'notifications': 'notification',
+        'users': 'user',
+    }
+
+    def _pg_listener():
+        time.sleep(1)
+        while True:
+            try:
+                with psycopg.connect(DATABASE_URL, autocommit=True) as conn:
+                    conn.execute("LISTEN pgevents")
+                    print("[Realtime PG] Escutando notificações no canal 'pgevents'...")
+                    gen = conn.notifies()
+                    for n in gen:
+                        try:
+                            payload = json.loads(n.payload)
+                            table = payload.get('table')
+                            action = (payload.get('action') or '').lower()
+                            rec_id = payload.get('id')
+                            ev_type = TABLE_EVENT_MAP.get(table, table)
+
+                            with app.app_context():
+                                socketio.emit('data:changed', {
+                                    'type': ev_type,
+                                    'action': action,
+                                    'id': rec_id
+                                })
+                                if ev_type and action:
+                                    socketio.emit(f'{ev_type}:{action}', {'id': rec_id})
+                        except Exception as parse_err:
+                            print(f"[Realtime PG] Erro ao processar notificação: {parse_err}")
+            except Exception as conn_err:
+                print(f"[Realtime PG] Conexão listener interrompida (reconectando em 3s): {conn_err}")
+                time.sleep(3)
+
+    t = threading.Thread(target=_pg_listener, daemon=True, name="PGRealtimeListener")
+    t.start()
+
+
+start_postgres_listener()
 
 
 # ─── Helpers de configuração n8n ────────────────────────────────────────────
@@ -275,7 +339,15 @@ def handle_settings():
             data = request.get_json(silent=True)
             if isinstance(data, dict):
                 for key, value in data.items():
+                    if key == 'meta_mensal':
+                        now = datetime.datetime.now()
+                        mes = data.get('mes') or f"{now.year:04d}-{now.month:02d}"
+                        try:
+                            set_meta(mes, float(value))
+                        except Exception:
+                            pass
                     update_setting(key, value)
+                socketio.emit('data:changed', {'type': 'setting', 'action': 'updated'})
         result = get_settings()
         if 'meta_mensal' in result:
             try:

@@ -9,6 +9,9 @@ import server
 if hasattr(server, 'start_dev_file_watcher'):
     server.start_dev_file_watcher()
 
+if hasattr(server, 'start_postgres_listener'):
+    server.start_postgres_listener()
+
 debug = os.environ.get('FLASK_DEBUG', '1') == '1'
 use_reloader = os.environ.get('FLASK_RELOAD', '1') == '1'
 

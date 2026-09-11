@@ -70,6 +70,7 @@ TABLE_USERS = 'users'
 TABLE_NOTIFICATIONS = 'notifications'
 TABLE_INTEGRATIONS = 'integrations'
 TABLE_BUSINESS_HOURS = 'business_hours'
+TABLE_METAS = 'metas'
 
 # Receita financeira só conta após o atendimento ser concluído
 REVENUE_APPOINTMENT_STATUS = 'done'
@@ -568,6 +569,80 @@ def ensure_admin_user():
     return True
 
 
+def ensure_metas_table():
+    """Garante que a tabela de metas mensais e seus triggers existam."""
+    sql = """
+    CREATE TABLE IF NOT EXISTS public.metas (
+        id SERIAL PRIMARY KEY,
+        mes VARCHAR(7) NOT NULL,
+        meta NUMERIC(12, 2) NOT NULL DEFAULT 7000.00,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+        CONSTRAINT metas_mes_unique UNIQUE (mes)
+    );
+
+    DO $$
+    BEGIN
+      IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'metas') THEN
+        DROP TRIGGER IF EXISTS trg_realtime_metas ON metas;
+        CREATE TRIGGER trg_realtime_metas
+          AFTER INSERT OR UPDATE OR DELETE ON metas
+          FOR EACH ROW EXECUTE FUNCTION notify_pgevents();
+      END IF;
+    END $$;
+    """
+    try:
+        _run(sql)
+    except Exception as e:
+        print(f'[DB] Aviso ao verificar tabela metas: {e}')
+
+
+def get_meta(mes: str) -> float:
+    """Retorna a meta cadastrada para o mês especificado ('YYYY-MM').
+    Se não houver meta cadastrada para o mês, procura o mês mais próximo anterior
+    ou recorre à configuração geral (meta_mensal em settings) ou ao padrão 7000.0.
+    """
+    ensure_metas_table()
+    try:
+        rows = _run("SELECT meta FROM public.metas WHERE mes = %s LIMIT 1", (mes,))
+        if rows and rows[0].get('meta') is not None:
+            return float(rows[0]['meta'])
+        # Fallback 1: mês anterior mais próximo registrado
+        prev_rows = _run("SELECT meta FROM public.metas WHERE mes < %s ORDER BY mes DESC LIMIT 1", (mes,))
+        if prev_rows and prev_rows[0].get('meta') is not None:
+            return float(prev_rows[0]['meta'])
+        # Fallback 2: settings
+        sett_row = _run("SELECT value FROM public.settings WHERE key = 'meta_mensal' LIMIT 1")
+        if sett_row and sett_row[0].get('value'):
+            return float(sett_row[0]['value'])
+    except Exception as e:
+        print(f'[DB] Erro ao obter meta para {mes}: {e}')
+    return 7000.0
+
+
+def set_meta(mes: str, meta: float) -> dict:
+    """Salva ou atualiza a meta exclusivamente para o mês especificado ('YYYY-MM').
+    Garante que a alteração afete apenas o mês informado, sem alterar outros meses.
+    """
+    ensure_metas_table()
+    sql = """
+        INSERT INTO public.metas (mes, meta, updated_at)
+        VALUES (%s, %s, now())
+        ON CONFLICT (mes) DO UPDATE
+        SET meta = EXCLUDED.meta, updated_at = now()
+        RETURNING id, mes, meta, updated_at;
+    """
+    rows = _run(sql, (mes, float(meta)))
+    return _rows(rows)[0] if rows else {'mes': mes, 'meta': float(meta)}
+
+
+def get_all_metas():
+    """Retorna a lista de todas as metas mensais cadastradas."""
+    ensure_metas_table()
+    rows = _run("SELECT id, mes, meta, created_at, updated_at FROM public.metas ORDER BY mes DESC")
+    return _rows(rows) if rows else []
+
+
 def ensure_default_data():
     """Garante que dados essenciais (horários, serviços e configurações) existam em instalações novas."""
     try:
@@ -597,12 +672,104 @@ def ensure_default_data():
                 ('meta_mensal', '7000')
             ON CONFLICT (key) DO NOTHING;
         """)
+        ensure_metas_table()
     except Exception as e:
         print(f'[DB] Aviso ao garantir dados padrão: {e}')
 
 
+def init_realtime_triggers():
+    """Instala a função notify_pgevents e os triggers nas tabelas para tempo real via PostgreSQL pg_notify."""
+    sql = """
+    CREATE OR REPLACE FUNCTION notify_pgevents() RETURNS trigger AS $$
+    DECLARE
+      rec_id text;
+      payload text;
+    BEGIN
+      IF (TG_OP = 'DELETE') THEN
+        BEGIN
+          rec_id := OLD.id::text;
+        EXCEPTION WHEN OTHERS THEN
+          rec_id := NULL;
+        END;
+      ELSE
+        BEGIN
+          rec_id := NEW.id::text;
+        EXCEPTION WHEN OTHERS THEN
+          rec_id := NULL;
+        END;
+      END IF;
+
+      payload := json_build_object(
+        'table', TG_TABLE_NAME,
+        'action', TG_OP,
+        'id', rec_id
+      )::text;
+
+      PERFORM pg_notify('pgevents', payload);
+      RETURN COALESCE(NEW, OLD);
+    END;
+    $$ LANGUAGE plpgsql;
+
+    DROP TRIGGER IF EXISTS trg_realtime_appointments ON appointments;
+    CREATE TRIGGER trg_realtime_appointments
+      AFTER INSERT OR UPDATE OR DELETE ON appointments
+      FOR EACH ROW EXECUTE FUNCTION notify_pgevents();
+
+    DROP TRIGGER IF EXISTS trg_realtime_transactions ON transactions;
+    CREATE TRIGGER trg_realtime_transactions
+      AFTER INSERT OR UPDATE OR DELETE ON transactions
+      FOR EACH ROW EXECUTE FUNCTION notify_pgevents();
+
+    DROP TRIGGER IF EXISTS trg_realtime_clients ON clients;
+    CREATE TRIGGER trg_realtime_clients
+      AFTER INSERT OR UPDATE OR DELETE ON clients
+      FOR EACH ROW EXECUTE FUNCTION notify_pgevents();
+
+    DROP TRIGGER IF EXISTS trg_realtime_services ON services;
+    CREATE TRIGGER trg_realtime_services
+      AFTER INSERT OR UPDATE OR DELETE ON services
+      FOR EACH ROW EXECUTE FUNCTION notify_pgevents();
+
+    DROP TRIGGER IF EXISTS trg_realtime_settings ON settings;
+    CREATE TRIGGER trg_realtime_settings
+      AFTER INSERT OR UPDATE OR DELETE ON settings
+      FOR EACH ROW EXECUTE FUNCTION notify_pgevents();
+
+    DROP TRIGGER IF EXISTS trg_realtime_business_hours ON business_hours;
+    CREATE TRIGGER trg_realtime_business_hours
+      AFTER INSERT OR UPDATE OR DELETE ON business_hours
+      FOR EACH ROW EXECUTE FUNCTION notify_pgevents();
+
+    DROP TRIGGER IF EXISTS trg_realtime_notifications ON notifications;
+    CREATE TRIGGER trg_realtime_notifications
+      AFTER INSERT OR UPDATE OR DELETE ON notifications
+      FOR EACH ROW EXECUTE FUNCTION notify_pgevents();
+
+    DROP TRIGGER IF EXISTS trg_realtime_users ON users;
+    CREATE TRIGGER trg_realtime_users
+      AFTER INSERT OR UPDATE OR DELETE ON users
+      FOR EACH ROW EXECUTE FUNCTION notify_pgevents();
+
+    DO $$
+    BEGIN
+      IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'metas') THEN
+        DROP TRIGGER IF EXISTS trg_realtime_metas ON metas;
+        CREATE TRIGGER trg_realtime_metas
+          AFTER INSERT OR UPDATE OR DELETE ON metas
+          FOR EACH ROW EXECUTE FUNCTION notify_pgevents();
+      END IF;
+    END $$;
+    """
+    try:
+        _run(sql)
+        print('[DB] Triggers de realtime instalados com sucesso no PostgreSQL.')
+    except Exception as e:
+        print(f'[DB] Aviso ao instalar triggers de realtime: {e}')
+
+
 try:
     init_schema()
+    init_realtime_triggers()
     _USERS_TABLE_OK = True
     ensure_admin_user()
     ensure_default_data()
@@ -933,13 +1100,10 @@ def get_stats(period=None, month=None, year=None):
     active = get_db().table(TABLE_CLIENTS).select('id', count='exact').execute()
     active_clients = active.count or 0
 
-    # Meta
-    meta_result = get_db().table(TABLE_SETTINGS).select('value').eq('key', 'meta_mensal').limit(1).execute()
-    meta_mensal = 7000
-    meta_pct = 0
-    if meta_result.data:
-        meta_mensal = float(meta_result.data[0]['value'])
-        meta_pct = round((month_revenue / meta_mensal) * 100, 1) if meta_mensal > 0 else 0
+    # Meta individual do mês selecionado
+    target_mes = f'{target_year:04d}-{target_month:02d}'
+    meta_mensal = get_meta(target_mes)
+    meta_pct = round((month_revenue / meta_mensal) * 100, 1) if meta_mensal > 0 else 0
 
     # Top clientes — métrica agregada por cliente
     top_clients_rows = _rows(_run(

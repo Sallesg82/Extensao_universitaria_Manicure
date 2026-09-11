@@ -3871,6 +3871,44 @@ optgroup {
 .tx-amount.in { color: var(--success); }
 .tx-amount.out { color: var(--danger); }
 
+.tx-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm, 6px);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-faint, #94a3b8);
+  cursor: pointer;
+  transition: all var(--transition-fast, 0.15s ease);
+  flex-shrink: 0;
+  margin-left: 6px;
+  padding: 0;
+}
+
+.tx-delete-btn:hover {
+  background: rgba(192, 80, 80, 0.12);
+  color: #c05050;
+  border-color: rgba(192, 80, 80, 0.25);
+  transform: scale(1.08);
+}
+
+.tx-delete-btn:active {
+  transform: scale(0.95);
+}
+
+[data-color-scheme="dark"] .tx-delete-btn {
+  color: #64748b;
+}
+
+[data-color-scheme="dark"] .tx-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.18);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
 .expense-breakdown {
   padding: 14px 18px;
   display: flex;
@@ -6766,3 +6804,202 @@ optgroup {
 [data-color-scheme="dark"] .hours-day-label {
   color: var(--text-dark);
 }
+@@ -6766,3 +6766,198 @@ optgroup {
+ [data-color-scheme="dark"] .hours-day-label {
+   color: var(--text-dark);
+ }
+
+/* ═══════════════ PAGE ESTOQUE ═══════════════ */
+.estoque-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.estoque-layout {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 20px;
+  align-items: start;
+}
+@media (max-width: 1024px) {
+  .estoque-layout {
+    grid-template-columns: 1fr;
+  }
+}
+.estoque-main-panel {
+  background: var(--bg-white, #fff);
+  border: 1px solid var(--border, #eef2f6);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.estoque-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+}
+.estoque-table thead th {
+  text-align: left;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary, #8aaccb);
+  padding: 12px 18px;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--border, #eef2f6);
+}
+.estoque-table tbody td {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-lighter, #f0f4f9);
+  vertical-align: middle;
+}
+.estoque-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.estoque-table tbody tr.is-missing {
+  background: rgba(239, 68, 68, 0.05);
+}
+.pill {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  font-weight: 700;
+  display: inline-block;
+}
+.pill-ok {
+  background: #dcfbe8;
+  color: #18a558;
+}
+.pill-low {
+  background: #fef3d6;
+  color: #c58a12;
+}
+.pill-out {
+  background: #fde3e1;
+  color: #d1453b;
+}
+
+.missing-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+.missing-toggle .sq {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  border: 1.6px solid var(--border-darker, #cbd2e3);
+  background: #fff;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+.missing-toggle .sq svg {
+  width: 12px;
+  height: 12px;
+  opacity: 0;
+  stroke: #fff;
+  transition: opacity 0.15s ease;
+}
+.missing-toggle.checked .sq {
+  background: #d1453b;
+  border-color: #d1453b;
+}
+.missing-toggle.checked .sq svg {
+  opacity: 1;
+}
+.missing-toggle .lbl {
+  font-size: 12px;
+  color: var(--text-secondary, #8aaccb);
+  font-weight: 500;
+}
+.missing-toggle.checked .lbl {
+  color: #d1453b;
+  font-weight: 700;
+}
+
+.estoque-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: var(--bg-screen, #f8fafc);
+  border-top: 1px solid var(--border, #eef2f6);
+}
+.estoque-total-row .total-label {
+  color: var(--text-secondary, #8aaccb);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.estoque-total-row .total-value {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary, #0f2340);
+}
+
+.estoque-side-panels {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.badge-num {
+  font-weight: 800;
+  font-size: 11.5px;
+  padding: 2px 9px;
+  border-radius: 20px;
+}
+.badge-num-danger {
+  background: #fde3e1;
+  color: #d1453b;
+}
+.badge-num-warning {
+  background: #fef3d6;
+  color: #c58a12;
+}
+
+/* Dark mode overrides for Estoque */
+[data-color-scheme="dark"] .estoque-main-panel {
+  background: var(--dark-bg-white, #132235);
+  border-color: var(--dark-border, #1e3550);
+}
+[data-color-scheme="dark"] .estoque-table thead th {
+  border-color: var(--dark-border, #1e3550);
+  color: var(--dark-text-muted, #718ea8);
+}
+[data-color-scheme="dark"] .estoque-table tbody td {
+  border-color: var(--dark-border-lighter, #1b3149);
+}
+[data-color-scheme="dark"] .estoque-table tbody tr.is-missing {
+  background: rgba(239, 68, 68, 0.12);
+}
+[data-color-scheme="dark"] .estoque-total-row {
+  background: rgba(0, 0, 0, 0.2);
+  border-color: var(--dark-border, #1e3550);
+}
+[data-color-scheme="dark"] .estoque-total-row .total-value {
+  color: var(--dark-text-dark, #f0f6fc);
+}
+[data-color-scheme="dark"] .missing-toggle .sq {
+  background: var(--dark-bg-card, #0f1c2d);
+  border-color: var(--dark-border, #1e3550);
+}
+[data-color-scheme="dark"] .pill-ok {
+  background: rgba(24, 165, 88, 0.2);
+  color: #4ade80;
+}
+[data-color-scheme="dark"] .pill-low {
+  background: rgba(197, 138, 18, 0.2);
+  color: #fbbf24;
+}
+[data-color-scheme="dark"] .pill-out {
+  background: rgba(209, 68, 59, 0.25);
+  color: #f87171;
+}
+

@@ -112,6 +112,15 @@
         Serviços
       </div>
 
+      <div class="nav-item" onclick="showPage('estoque', this)" data-tooltip="Estoque">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+          <path d="M14 5.5L8 2 2 5.5 8 9l6-3.5z" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M2 5.5v5L8 14l6-3.5v-5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M8 9v5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Estoque
+      </div>
+
       <div class="nav-section">Financeiro</div>
 
       <div class="nav-item" onclick="showPage('financeiro', this)" data-tooltip="Financeiro">
@@ -129,14 +138,6 @@
         Relatórios
       </div>
 
-      <div class="nav-item" onclick="showPage('despesas', this)" data-tooltip="Saídas do Mês">
-        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
-          <path d="M2 4h12v10H2z" stroke="currentColor" stroke-width="1.2" fill="none"/>
-          <path d="M5 2v2M11 2v2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-          <path d="M4 8l2.5 2.5 3-3L12.5 11" stroke="#c05050" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        Saídas do Mês
-      </div>
 
       <div class="nav-section">Sistema</div>
 
@@ -319,7 +320,7 @@
               <div class="finance-total">
                 <div class="finance-label">Diferença do Mês</div>
                 <div class="finance-number" id="fluxo-lucro">—</div>
-                <div class="finance-sub" id="fluxo-meta">—</div>
+                <div class="finance-sub" id="fluxo-meta" style="cursor:pointer;" onclick="openMetaModal()" title="Clique para alterar a meta mensal">—</div>
               </div>
               <div class="bar-chart">
                 <div class="bar-chart-title">Entrada Semanal</div>
@@ -339,7 +340,7 @@
             <div class="panel">
               <div class="panel-header"><div class="panel-title">Alertas</div></div>
               <div class="insights-grid" id="insights-grid">
-                <div class="insight-card" id="insight-meta">
+                <div class="insight-card" id="insight-meta" style="cursor:pointer;" onclick="openMetaModal()" title="Clique para alterar a meta mensal">
                   <div class="insight-icon insight-icon-meta"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1l1.8 4H14l-3.5 2.5 1.3 4.2L8 9.2l-3.8 2.5L5.5 7.5 2 5h4.2z" stroke="#b88a20" fill="#f5d742" stroke-width="1.1"/></svg></div>
                   <div class="insight-body">
                     <div class="insight-value" id="insight-meta-value">—</div>
@@ -596,7 +597,10 @@
             </div>
 
             <div class="panel">
-              <div class="panel-header"><div class="panel-title">Saídas por Categoria</div></div>
+              <div class="panel-header" style="display:flex;justify-content:space-between;align-items:center;">
+                <div class="panel-title">Saídas por Categoria</div>
+                <button type="button" class="btn-outline" style="padding:2px 8px;font-size:11px;font-weight:600;border-radius:5px;cursor:pointer;" onclick="openCategoryModal()" title="Cadastrar nova categoria de saída">+ Categoria</button>
+              </div>
               <div class="expense-breakdown" id="expense-breakdown">
                 <div style="padding:10px 0;color:var(--text-secondary);font-size:13px;">Nenhuma saída registrada</div>
               </div>
@@ -633,53 +637,6 @@
         </div>
       </section>
 
-      <!-- ══════════════════════════════════
-           PAGE: SAÍDAS DO MÊS
-      ══════════════════════════════════ -->
-      <section class="page" id="page-despesas">
-        <div class="metrics" style="grid-template-columns:repeat(4,1fr);">
-          <div class="metric-card c1">
-            <div class="metric-label">Total de Saídas</div>
-            <div class="metric-value" id="desp-total">R$ 0</div>
-            <div class="metric-change" id="desp-count">0 saídas</div>
-          </div>
-          <div class="metric-card c2">
-            <div class="metric-label">Maior Saída</div>
-            <div class="metric-value" id="desp-maior">R$ 0</div>
-            <div class="metric-change" id="desp-maior-label">—</div>
-          </div>
-          <div class="metric-card c3">
-            <div class="metric-label">Categoria com Maior Gasto</div>
-            <div class="metric-value" id="desp-top-cat">—</div>
-            <div class="metric-change" id="desp-top-cat-val">R$ 0</div>
-          </div>
-          <div class="metric-card c4">
-            <div class="metric-label">Média por Saída</div>
-            <div class="metric-value" id="desp-media">R$ 0</div>
-            <div class="metric-change" id="desp-media-label">—</div>
-          </div>
-        </div>
-
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;flex:1;">
-          <div class="panel" style="display:flex;flex-direction:column;">
-            <div class="panel-header">
-              <div class="panel-title">Categorias</div>
-              <button class="btn-outline" style="padding:4px 10px;font-size:11px;" onclick="openCategoryModal()">+ Nova</button>
-            </div>
-            <div id="desp-cat-list" style="padding:10px 18px 14px;flex:1;overflow-y:auto;">
-              <div style="padding:10px 0;color:var(--text-secondary);font-size:13px;">Carregando...</div>
-            </div>
-          </div>
-          <div style="display:flex;flex-direction:column;flex:1;">
-            <div class="panel" style="overflow:hidden;display:flex;flex-direction:column;flex:1;">
-              <div class="panel-header"><div class="panel-title">Todas as Saídas</div><span class="panel-badge" id="desp-list-badge"></span></div>
-              <div style="flex:1;overflow-y:auto;padding:0 18px 14px;" id="desp-list">
-                <div style="padding:20px;text-align:center;color:var(--text-secondary);">Carregando...</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
 
       <!-- ══════════════════════════════════
            PAGE: RELATÓRIOS
@@ -1075,6 +1032,99 @@
         </div>
       </section>
 
+      <!-- ══════════════════════════════════
+           PAGE: ESTOQUE
+      ══════════════════════════════════ -->
+      <section class="page" id="page-estoque">
+        <div class="estoque-toolbar">
+          <div class="search-input-wrap">
+            <svg class="search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none">
+              <circle cx="7" cy="7" r="4.5" stroke="#8aaccb" stroke-width="1.3"/>
+              <path d="M10.5 10.5L13 13" stroke="#8aaccb" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+            <input class="search-input" id="estoque-search" placeholder="Buscar produto por nome..." oninput="renderEstoque()">
+          </div>
+          <div class="filter-tabs" id="estoque-filter-chips">
+            <div class="filter-tab active" data-f="todos" onclick="setEstoqueFilter('todos', this)">
+              Todos <span class="count-badge" id="cnt-todos">0</span>
+            </div>
+            <div class="filter-tab" data-f="baixo" onclick="setEstoqueFilter('baixo', this)">
+              Estoque Baixo <span class="count-badge" id="cnt-baixo">0</span>
+            </div>
+            <div class="filter-tab danger-tab" data-f="falta" onclick="setEstoqueFilter('falta', this)" style="color:#d1453b;">
+              ⚠ Em Falta <span class="count-badge" id="cnt-falta">0</span>
+            </div>
+          </div>
+          <div class="toolbar-actions">
+            <button class="btn-primary" onclick="openEstoqueModal()">+ Novo Produto</button>
+          </div>
+        </div>
+
+        <div class="estoque-layout">
+          <!-- Main Catalog Card -->
+          <div class="panel estoque-main-panel">
+            <div class="panel-header">
+              <div>
+                <div class="panel-title">Catálogo de Estoque</div>
+                <div class="panel-subtitle">Insumos e produtos cadastrados no sistema</div>
+              </div>
+              <span class="panel-badge" id="estoque-sub-count">0 produtos</span>
+            </div>
+
+            <div class="table-responsive">
+              <table class="estoque-table">
+                <thead>
+                  <tr>
+                    <th>Produto</th>
+                    <th>Qtd. Estoque</th>
+                    <th>Preço Unit.</th>
+                    <th>Preço Total</th>
+                    <th>Situação</th>
+                    <th>Produto em Falta?</th>
+                    <th style="text-align:right;">Ações</th>
+                  </tr>
+                </thead>
+                <tbody id="estoque-tbody">
+                  <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-secondary);">Carregando estoque...</td></tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="estoque-total-row">
+              <span class="total-label">Valor Total em Estoque</span>
+              <span class="total-value" id="totalGeralEstoque">R$ 0,00</span>
+            </div>
+          </div>
+
+          <!-- Side Panels -->
+          <div class="estoque-side-panels">
+            <div class="panel side-card">
+              <div class="panel-header">
+                <div class="panel-title" style="color:#d1453b;display:flex;align-items:center;gap:6px;">
+                  <span>⚠ Produtos em Falta</span>
+                </div>
+                <span class="badge-num badge-num-danger" id="badgeFalta">0</span>
+              </div>
+              <div class="side-list" id="listFalta">
+                <div class="side-empty">Nenhum produto em falta 🎉</div>
+              </div>
+            </div>
+
+            <div class="panel side-card low">
+              <div class="panel-header">
+                <div class="panel-title" style="color:#c58a12;display:flex;align-items:center;gap:6px;">
+                  <span>Estoque Baixo</span>
+                </div>
+                <span class="badge-num badge-num-warning" id="badgeBaixo">0</span>
+              </div>
+              <div class="side-list" id="listBaixo">
+                <div class="side-empty">Nenhum produto com estoque baixo</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
     </div>
   </main>
 </div>
@@ -1322,7 +1372,10 @@
 <div class="modal-overlay" id="meta-modal-overlay" onclick="closeMetaModal()">
   <div class="modal-card" style="max-width:380px;" onclick="event.stopPropagation()">
     <div class="modal-header">
-      <div class="modal-title">Alterar Meta Mensal</div>
+      <div>
+        <div class="modal-title">Alterar Meta Mensal</div>
+        <div style="font-size:12.5px;color:var(--text-secondary);margin-top:2px;font-weight:500;" id="meta-modal-month-label">Carregando mês...</div>
+      </div>
       <button class="modal-close" onclick="closeMetaModal()">&times;</button>
     </div>
     <div class="modal-body">
@@ -1610,6 +1663,60 @@
   color: var(--dark-text-muted, #718ea8) !important;
 }
 </style>
+
+<!-- MODAL ESTOQUE -->
+<div class="modal-overlay" id="estoque-modal-overlay" onclick="closeEstoqueModal()">
+  <div class="modal-card" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title" id="estoque-modal-title">Novo Produto</div>
+      <button class="modal-close" onclick="closeEstoqueModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="estoque-form" onsubmit="saveEstoqueProduct(event)">
+        <input type="hidden" id="estoque-id">
+        <div class="form-field" style="margin-bottom:14px;">
+          <label class="form-label" style="display:block;margin-bottom:4px;font-size:12px;font-weight:600;color:var(--text-secondary);">Nome do Produto *</label>
+          <input class="form-input" id="estoque-name" placeholder="Ex: Esmalte OPI, Luvas Descartáveis..." required style="width:100%;">
+        </div>
+        <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+          <div class="form-field">
+            <label class="form-label" style="display:block;margin-bottom:4px;font-size:12px;font-weight:600;color:var(--text-secondary);">Marcação / Cor</label>
+            <select class="form-input" id="estoque-cat" style="width:100%;">
+              <option value="pink">Rosa (Esmaltes / Estética)</option>
+              <option value="amber">Amarelo (Cuidados / Depilação)</option>
+              <option value="blue">Azul (Descartáveis / Higiene)</option>
+              <option value="purple">Roxo (Químicos / Solventes)</option>
+            </select>
+          </div>
+          <div class="form-field">
+            <label class="form-label" style="display:block;margin-bottom:4px;font-size:12px;font-weight:600;color:var(--text-secondary);">Preço Unitário (R$) *</label>
+            <input type="number" step="0.01" min="0" class="form-input" id="estoque-price" placeholder="0.00" required style="width:100%;">
+          </div>
+        </div>
+        <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+          <div class="form-field">
+            <label class="form-label" style="display:block;margin-bottom:4px;font-size:12px;font-weight:600;color:var(--text-secondary);">Qtd. em Estoque *</label>
+            <input type="number" min="0" class="form-input" id="estoque-qty" placeholder="0" required style="width:100%;">
+          </div>
+          <div class="form-field">
+            <label class="form-label" style="display:block;margin-bottom:4px;font-size:12px;font-weight:600;color:var(--text-secondary);">Estoque Mínimo para Alerta</label>
+            <input type="number" min="0" class="form-input" id="estoque-min" value="5" placeholder="5" style="width:100%;">
+          </div>
+        </div>
+        <div class="form-field" style="margin-top:10px;">
+          <label class="checkbox-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
+            <input type="checkbox" id="estoque-missing" style="width:16px;height:16px;cursor:pointer;" onchange="onEstoqueMissingCheckboxChange()">
+            <span style="font-weight:600;">Produto em falta (Sem estoque)</span>
+          </label>
+        </div>
+        <div class="modal-actions" style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;padding-top:16px;border-top:1px solid var(--border,#eef2f6);">
+          <button type="button" class="btn-outline" onclick="closeEstoqueModal()">Cancelar</button>
+          <button type="submit" class="btn-primary" id="estoque-submit-btn">Salvar Produto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <script src="js/app.js"></script>

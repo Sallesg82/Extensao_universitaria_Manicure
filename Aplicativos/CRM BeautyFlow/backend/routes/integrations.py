@@ -4,11 +4,13 @@ from db.database import list_integrations, get_integration, create_integration, 
 integrations_bp = Blueprint('integrations', __name__)
 
 
+@integrations_bp.route('', methods=['GET'])
 @integrations_bp.route('/', methods=['GET'])
 def index():
     return jsonify(list_integrations())
 
 
+@integrations_bp.route('', methods=['POST'])
 @integrations_bp.route('/', methods=['POST'])
 def create():
     data = request.get_json(silent=True) or {}

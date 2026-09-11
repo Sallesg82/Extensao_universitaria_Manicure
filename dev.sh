@@ -37,7 +37,15 @@ export DATABASE_URL="${DATABASE_URL:-postgresql://postgres:beautyflow_pass@local
 # 4. Iniciar Portal de Agendamento Vite (porta 5173)
 echo "🌸 Iniciando Portal de Agendamento Vite (porta 5173)..."
 cd "$AGENDAMENTO"
-npm run dev &
+export PATH="$AGENDAMENTO/node_modules/.bin:$PATH"
+NODE_BIN="$(command -v node || echo "node")"
+if [ -f "$AGENDAMENTO/node_modules/vite/bin/vite.js" ]; then
+    "$NODE_BIN" "$AGENDAMENTO/node_modules/vite/bin/vite.js" --host 0.0.0.0 --port 5173 &
+elif command -v npx >/dev/null 2>&1; then
+    npx vite --host 0.0.0.0 --port 5173 &
+else
+    npm run dev &
+fi
 
 echo ""
 echo "✅ Aplicações rodando com recarregamento dinâmico:"
