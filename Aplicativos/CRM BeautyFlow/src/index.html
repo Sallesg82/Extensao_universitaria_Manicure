@@ -121,6 +121,14 @@
         Estoque
       </div>
 
+      <div class="nav-item" onclick="showPage('metas', this)" data-tooltip="Metas">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+          <path d="M8 1.5l1.2 3.8 3.8 1.2-3.8 1.2L8 11.5l-1.2-3.8L3 6.5l3.8-1.2L8 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
+          <path d="M12.5 10.5l.6 1.9 1.9.6-1.9.6-.6 1.9-.6-1.9-1.9-.6 1.9-.6.6-1.9z" fill="currentColor"/>
+        </svg>
+        Metas
+      </div>
+
       <div class="nav-section">Financeiro</div>
 
       <div class="nav-item" onclick="showPage('financeiro', this)" data-tooltip="Financeiro">
@@ -136,6 +144,14 @@
           <path d="M2 12h12M4 12V8M7 12V5M10 12V7M13 12V3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
         </svg>
         Relatórios
+      </div>
+
+      <div class="nav-item" onclick="showPage('despesas', this)" data-tooltip="Despesas do Mês">
+        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
+          <rect x="2" y="1.5" width="12" height="13" rx="1.5" stroke="currentColor" stroke-width="1.2"/>
+          <path d="M5 5h6M5 8h6M5 11h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
+        </svg>
+        Despesas do Mês
       </div>
 
 
@@ -1037,71 +1053,66 @@
       ══════════════════════════════════ -->
       <section class="page" id="page-estoque">
         <div class="estoque-toolbar">
-          <div class="search-input-wrap">
-            <svg class="search-icon" width="14" height="14" viewBox="0 0 16 16" fill="none">
-              <circle cx="7" cy="7" r="4.5" stroke="#8aaccb" stroke-width="1.3"/>
-              <path d="M10.5 10.5L13 13" stroke="#8aaccb" stroke-width="1.3" stroke-linecap="round"/>
+          <div class="search-input-wrap estoque-search-wrap">
+            <svg class="search-icon" width="15" height="15" viewBox="0 0 16 16" fill="none">
+              <circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/>
+              <path d="M10.5 10.5L13.5 13.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
             </svg>
             <input class="search-input" id="estoque-search" placeholder="Buscar produto por nome..." oninput="renderEstoque()">
           </div>
           <div class="filter-tabs" id="estoque-filter-chips">
             <div class="filter-tab active" data-f="todos" onclick="setEstoqueFilter('todos', this)">
-              Todos <span class="count-badge" id="cnt-todos">0</span>
+              <span>Todos</span> <span class="count-badge" id="cnt-todos">0</span>
             </div>
             <div class="filter-tab" data-f="baixo" onclick="setEstoqueFilter('baixo', this)">
-              Estoque Baixo <span class="count-badge" id="cnt-baixo">0</span>
+              <span>Estoque Baixo</span> <span class="count-badge" id="cnt-baixo">0</span>
             </div>
-            <div class="filter-tab danger-tab" data-f="falta" onclick="setEstoqueFilter('falta', this)" style="color:#d1453b;">
-              ⚠ Em Falta <span class="count-badge" id="cnt-falta">0</span>
+            <div class="filter-tab danger-tab" data-f="falta" onclick="setEstoqueFilter('falta', this)">
+              <svg class="tab-warn-icon" width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M8 1.5l6.5 12H1.5L8 1.5zM8 6a.75.75 0 0 0-.75.75v3a.75.75 0 0 0 1.5 0v-3A.75.75 0 0 0 8 6zm0 5.5a.85.85 0 1 0 0 1.7.85.85 0 0 0 0-1.7z"/>
+              </svg>
+              <span>Produtos em Falta</span> <span class="count-badge" id="cnt-falta">0</span>
             </div>
-          </div>
-          <div class="toolbar-actions">
-            <button class="btn-primary" onclick="openEstoqueModal()">+ Novo Produto</button>
           </div>
         </div>
 
         <div class="estoque-layout">
           <!-- Main Catalog Card -->
           <div class="panel estoque-main-panel">
-            <div class="panel-header">
+            <div class="panel-header estoque-panel-header">
               <div>
                 <div class="panel-title">Catálogo de Estoque</div>
-                <div class="panel-subtitle">Insumos e produtos cadastrados no sistema</div>
+                <div class="panel-subtitle">Produtos comprados via nota fiscal ou leitura de código de barras</div>
               </div>
-              <span class="panel-badge" id="estoque-sub-count">0 produtos</span>
             </div>
 
             <div class="table-responsive">
               <table class="estoque-table">
                 <thead>
                   <tr>
-                    <th>Produto</th>
-                    <th>Qtd. Estoque</th>
-                    <th>Preço Unit.</th>
-                    <th>Preço Total</th>
-                    <th>Situação</th>
-                    <th>Produto em Falta?</th>
-                    <th style="text-align:right;">Ações</th>
+                    <th style="width:32%;">PRODUTO</th>
+                    <th style="width:17%;">QTD. COMPRADA</th>
+                    <th style="width:17%;">PREÇO TOTAL</th>
+                    <th style="width:16%;">SITUAÇÃO</th>
+                    <th style="width:18%;">PRODUTO EM FALTA?</th>
                   </tr>
                 </thead>
                 <tbody id="estoque-tbody">
-                  <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-secondary);">Carregando estoque...</td></tr>
+                  <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary);">Carregando estoque...</td></tr>
                 </tbody>
               </table>
-            </div>
-
-            <div class="estoque-total-row">
-              <span class="total-label">Valor Total em Estoque</span>
-              <span class="total-value" id="totalGeralEstoque">R$ 0,00</span>
             </div>
           </div>
 
           <!-- Side Panels -->
           <div class="estoque-side-panels">
-            <div class="panel side-card">
+            <div class="panel side-card side-card-falta">
               <div class="panel-header">
-                <div class="panel-title" style="color:#d1453b;display:flex;align-items:center;gap:6px;">
-                  <span>⚠ Produtos em Falta</span>
+                <div class="panel-title" style="display:flex;align-items:center;gap:6px;">
+                  <svg class="side-warn-icon" width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="color:inherit;">
+                    <path d="M8 1.5l6.5 12H1.5L8 1.5zM8 6a.75.75 0 0 0-.75.75v3a.75.75 0 0 0 1.5 0v-3A.75.75 0 0 0 8 6zm0 5.5a.85.85 0 1 0 0 1.7.85.85 0 0 0 0-1.7z"/>
+                  </svg>
+                  <span>Produtos em Falta</span>
                 </div>
                 <span class="badge-num badge-num-danger" id="badgeFalta">0</span>
               </div>
@@ -1110,9 +1121,9 @@
               </div>
             </div>
 
-            <div class="panel side-card low">
+            <div class="panel side-card low side-card-baixo">
               <div class="panel-header">
-                <div class="panel-title" style="color:#c58a12;display:flex;align-items:center;gap:6px;">
+                <div class="panel-title" style="display:flex;align-items:center;gap:6px;">
                   <span>Estoque Baixo</span>
                 </div>
                 <span class="badge-num badge-num-warning" id="badgeBaixo">0</span>
@@ -1709,9 +1720,12 @@
             <span style="font-weight:600;">Produto em falta (Sem estoque)</span>
           </label>
         </div>
-        <div class="modal-actions" style="display:flex;gap:10px;justify-content:flex-end;margin-top:18px;padding-top:16px;border-top:1px solid var(--border,#eef2f6);">
-          <button type="button" class="btn-outline" onclick="closeEstoqueModal()">Cancelar</button>
-          <button type="submit" class="btn-primary" id="estoque-submit-btn">Salvar Produto</button>
+        <div class="modal-actions" style="display:flex;gap:10px;justify-content:space-between;align-items:center;margin-top:18px;padding-top:16px;border-top:1px solid var(--border,#eef2f6);">
+          <button type="button" class="btn-outline btn-danger" id="estoque-delete-btn" onclick="onDeleteCurrentEstoqueProduct()" style="display:none;color:#dc2626;border-color:#fca5a5;">Excluir Produto</button>
+          <div style="display:flex;gap:10px;margin-left:auto;">
+            <button type="button" class="btn-outline" onclick="closeEstoqueModal()">Cancelar</button>
+            <button type="submit" class="btn-primary" id="estoque-submit-btn">Salvar Produto</button>
+          </div>
         </div>
       </form>
     </div>

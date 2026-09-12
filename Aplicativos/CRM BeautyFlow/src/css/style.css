@@ -6809,197 +6809,620 @@ optgroup {
    color: var(--text-dark);
  }
 
-/* ═══════════════ PAGE ESTOQUE ═══════════════ */
+/* ═══════════════ PAGE ESTOQUE (REDESIGN) ═══════════════ */
 .estoque-toolbar {
   display: flex;
   align-items: center;
-  gap: 14px;
-  margin-bottom: 20px;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
   flex-wrap: wrap;
 }
+
+.estoque-search-wrap {
+  position: relative;
+  flex: 1;
+  max-width: 480px;
+  min-width: 240px;
+}
+
+.estoque-search-wrap .search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #8aaccb;
+  pointer-events: none;
+}
+
+.estoque-search-wrap .search-input {
+  width: 100%;
+  height: 42px;
+  padding: 10px 16px 10px 42px;
+  background: var(--bg-white, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 12px;
+  font-size: 13.5px;
+  font-family: inherit;
+  color: var(--text-dark, #0f172a);
+  outline: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.estoque-search-wrap .search-input:focus {
+  border-color: var(--primary-500, #3b82f6);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.estoque-search-wrap .search-input::placeholder {
+  color: #8aaccb;
+}
+
+.estoque-toolbar .filter-tabs {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.estoque-toolbar .filter-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--bg-white, #ffffff);
+  color: #334155;
+  transition: all 0.18s ease;
+  user-select: none;
+  font-family: inherit;
+}
+
+.estoque-toolbar .filter-tab:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.estoque-toolbar .filter-tab .count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  font-size: 11.5px;
+  font-weight: 700;
+  background: #f1f5f9;
+  color: #64748b;
+  transition: all 0.18s ease;
+}
+
+/* Tab "Todos" active (dark style like reference mockup) */
+.estoque-toolbar .filter-tab[data-f="todos"].active {
+  background: #1e293b;
+  border-color: #1e293b;
+  color: #ffffff;
+}
+.estoque-toolbar .filter-tab[data-f="todos"].active .count-badge {
+  background: #334155;
+  color: #ffffff;
+}
+
+/* Tab "Estoque Baixo" */
+.estoque-toolbar .filter-tab[data-f="baixo"]:hover {
+  border-color: #fde68a;
+  color: #b45309;
+}
+.estoque-toolbar .filter-tab[data-f="baixo"].active {
+  background: #fffbeb;
+  border-color: #fde68a;
+  color: #b45309;
+}
+.estoque-toolbar .filter-tab[data-f="baixo"] .count-badge-warning {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+/* Tab "Produtos em Falta" */
+.estoque-toolbar .filter-tab.danger-tab {
+  background: #fff5f5;
+  border: 1px solid #fed7d7;
+  color: #dc2626;
+}
+.estoque-toolbar .filter-tab.danger-tab:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+}
+.estoque-toolbar .filter-tab.danger-tab .tab-warn-icon {
+  color: #dc2626;
+  flex-shrink: 0;
+}
+.estoque-toolbar .filter-tab.danger-tab .count-badge-danger {
+  background: #fee2e2;
+  color: #dc2626;
+}
+.estoque-toolbar .filter-tab.danger-tab.active {
+  background: #fee2e2;
+  border-color: #f87171;
+  color: #991b1b;
+}
+
+/* Layout Grid */
 .estoque-layout {
   display: grid;
   grid-template-columns: 1fr 340px;
-  gap: 20px;
+  gap: 24px;
   align-items: start;
 }
-@media (max-width: 1024px) {
+
+@media (max-width: 1100px) {
   .estoque-layout {
     grid-template-columns: 1fr;
   }
 }
+
+/* Catalog Card */
 .estoque-main-panel {
-  background: var(--bg-white, #fff);
-  border: 1px solid var(--border, #eef2f6);
-  border-radius: 12px;
+  background: var(--bg-white, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 16px;
   overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
+
+.estoque-panel-header {
+  padding: 22px 24px 18px 24px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.estoque-panel-header .panel-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.2px;
+  margin: 0;
+}
+
+.estoque-panel-header .panel-subtitle {
+  font-size: 12.5px;
+  color: #8aaccb;
+  margin-top: 4px;
+  font-weight: 400;
+}
+
+/* Table Styling */
 .estoque-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13.5px;
+  font-family: inherit;
 }
+
 .estoque-table thead th {
   text-align: left;
   font-size: 11px;
-  letter-spacing: 0.5px;
-  color: var(--text-secondary, #8aaccb);
-  padding: 12px 18px;
+  letter-spacing: 0.6px;
+  color: #8aaccb;
+  padding: 13px 20px;
   font-weight: 700;
   text-transform: uppercase;
-  border-bottom: 1px solid var(--border, #eef2f6);
+  border-bottom: 1px solid #f1f5f9;
+  background: transparent;
 }
+
 .estoque-table tbody td {
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--border-lighter, #f0f4f9);
+  padding: 15px 20px;
+  border-bottom: 1px solid #f8fafc;
   vertical-align: middle;
 }
+
+.estoque-table tbody tr {
+  transition: background 0.15s ease;
+}
+
+.estoque-table tbody tr:hover {
+  background: #fbfcfe;
+}
+
 .estoque-table tbody tr:last-child td {
   border-bottom: none;
 }
+
+/* Highlight row for missing products */
 .estoque-table tbody tr.is-missing {
-  background: rgba(239, 68, 68, 0.05);
-}
-.pill {
-  padding: 4px 10px;
-  border-radius: 20px;
-  font-size: 11.5px;
-  font-weight: 700;
-  display: inline-block;
-}
-.pill-ok {
-  background: #dcfbe8;
-  color: #18a558;
-}
-.pill-low {
-  background: #fef3d6;
-  color: #c58a12;
-}
-.pill-out {
-  background: #fde3e1;
-  color: #d1453b;
+  background: #fff8f8;
 }
 
-.missing-toggle {
+.estoque-table tbody tr.is-missing:hover {
+  background: #fff2f2;
+}
+
+/* Product column cell */
+.prod-cell {
   display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+}
+
+.prod-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.prod-title {
+  font-weight: 600;
+  font-size: 13.5px;
+  color: #1e293b;
+  line-height: 1.3;
+  transition: color 0.15s ease;
+}
+
+.prod-cell:hover .prod-title {
+  color: var(--primary-500, #3b82f6);
+}
+
+.prod-sub {
+  font-size: 11.5px;
+  color: #8aaccb;
+  font-weight: 400;
+  margin-top: 2px;
+}
+
+.estoque-qty {
+  font-size: 13.5px;
+  font-weight: 500;
+  color: #334155;
+}
+
+.estoque-total-price {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+/* Status Badges */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.1px;
+}
+
+.pill-ok {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.pill-low {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.pill-out {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+/* Missing Toggle Checkbox */
+.missing-toggle {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   cursor: pointer;
   user-select: none;
+  padding: 2px 0;
 }
+
 .missing-toggle .sq {
   width: 18px;
   height: 18px;
   border-radius: 5px;
-  border: 1.6px solid var(--border-darker, #cbd2e3);
-  background: #fff;
+  border: 1.6px solid #cbd5e1;
+  background: #ffffff;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.15s ease;
 }
+
 .missing-toggle .sq svg {
-  width: 12px;
-  height: 12px;
+  width: 11px;
+  height: 11px;
   opacity: 0;
-  stroke: #fff;
+  stroke: #ffffff;
   transition: opacity 0.15s ease;
 }
+
 .missing-toggle.checked .sq {
-  background: #d1453b;
-  border-color: #d1453b;
+  background: #dc2626;
+  border-color: #dc2626;
 }
+
 .missing-toggle.checked .sq svg {
   opacity: 1;
 }
+
 .missing-toggle .lbl {
   font-size: 12px;
-  color: var(--text-secondary, #8aaccb);
+  color: #64748b;
   font-weight: 500;
+  transition: color 0.15s ease;
 }
+
 .missing-toggle.checked .lbl {
-  color: #d1453b;
+  color: #dc2626;
   font-weight: 700;
 }
 
-.estoque-total-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 16px 20px;
-  background: var(--bg-screen, #f8fafc);
-  border-top: 1px solid var(--border, #eef2f6);
-}
-.estoque-total-row .total-label {
-  color: var(--text-secondary, #8aaccb);
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-.estoque-total-row .total-value {
-  font-size: 20px;
-  font-weight: 800;
-  color: var(--text-primary, #0f2340);
-}
-
+/* Side Panels */
 .estoque-side-panels {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
-.badge-num {
-  font-weight: 800;
-  font-size: 11.5px;
-  padding: 2px 9px;
-  border-radius: 20px;
-}
-.badge-num-danger {
-  background: #fde3e1;
-  color: #d1453b;
-}
-.badge-num-warning {
-  background: #fef3d6;
-  color: #c58a12;
+
+.estoque-side-panels .side-card {
+  background: var(--bg-white, #ffffff);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
-/* Dark mode overrides for Estoque */
-[data-color-scheme="dark"] .estoque-main-panel {
+.estoque-side-panels .side-card .panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 20px 14px 20px;
+  border-bottom: 1px solid #f8fafc;
+}
+
+.estoque-side-panels .side-card .panel-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.side-warn-icon {
+  color: #dc2626;
+}
+
+.badge-num {
+  font-weight: 700;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.badge-num-danger {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.badge-num-warning {
+  background: #fef3c7;
+  color: #d97706;
+}
+
+.estoque-side-panels .side-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.side-item-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 13px 20px;
+  border-bottom: 1px solid #f8fafc;
+  transition: background 0.15s ease;
+}
+
+.side-item-row:hover {
+  background: #fafcff;
+}
+
+.side-item-row:last-child {
+  border-bottom: none;
+}
+
+.side-item-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  display: block;
+}
+
+.side-item-sub {
+  color: #8aaccb;
+  font-size: 11.5px;
+  display: block;
+  margin-top: 2px;
+}
+
+.side-empty {
+  padding: 24px 20px;
+  text-align: center;
+  color: #8aaccb;
+  font-size: 12.5px;
+}
+
+/* ═══════════════ DARK MODE OVERRIDES ═══════════════ */
+[data-color-scheme="dark"] .estoque-search-wrap .search-input {
+  background: var(--dark-bg-card, #0f1c2d);
+  border-color: var(--dark-border, #1e3550);
+  color: var(--dark-text-dark, #f0f6fc);
+}
+
+[data-color-scheme="dark"] .estoque-search-wrap .search-input:focus {
+  border-color: var(--primary-400, #60a5fa);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.15);
+}
+
+[data-color-scheme="dark"] .estoque-search-wrap .search-icon,
+[data-color-scheme="dark"] .estoque-search-wrap .search-input::placeholder {
+  color: var(--dark-text-muted, #718ea8);
+}
+
+[data-color-scheme="dark"] .estoque-toolbar .filter-tab {
+  background: var(--dark-bg-card, #0f1c2d);
+  border-color: var(--dark-border, #1e3550);
+  color: #cbd5e1;
+}
+
+[data-color-scheme="dark"] .estoque-toolbar .filter-tab:hover {
+  border-color: #3b577d;
+  background: #14253b;
+}
+
+[data-color-scheme="dark"] .estoque-toolbar .filter-tab .count-badge {
+  background: #1b3149;
+  color: #94a3b8;
+}
+
+[data-color-scheme="dark"] .estoque-toolbar .filter-tab[data-f="todos"].active {
+  background: var(--primary-600, #2563eb);
+  border-color: var(--primary-600, #2563eb);
+  color: #ffffff;
+}
+
+[data-color-scheme="dark"] .estoque-toolbar .filter-tab[data-f="todos"].active .count-badge {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+[data-color-scheme="dark"] .estoque-toolbar .filter-tab[data-f="baixo"].active {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+}
+
+[data-color-scheme="dark"] .estoque-toolbar .filter-tab.danger-tab {
+  background: rgba(220, 38, 38, 0.12);
+  border-color: rgba(220, 38, 38, 0.3);
+  color: #f87171;
+}
+
+[data-color-scheme="dark"] .estoque-toolbar .filter-tab.danger-tab .count-badge-danger {
+  background: rgba(220, 38, 38, 0.25);
+  color: #fca5a5;
+}
+
+[data-color-scheme="dark"] .estoque-toolbar .filter-tab.danger-tab.active {
+  background: rgba(220, 38, 38, 0.25);
+  border-color: #ef4444;
+  color: #fca5a5;
+}
+
+[data-color-scheme="dark"] .estoque-main-panel,
+[data-color-scheme="dark"] .estoque-side-panels .side-card {
   background: var(--dark-bg-white, #132235);
   border-color: var(--dark-border, #1e3550);
 }
+
+[data-color-scheme="dark"] .estoque-panel-header,
+[data-color-scheme="dark"] .estoque-side-panels .side-card .panel-header {
+  border-color: var(--dark-border, #1e3550);
+}
+
+[data-color-scheme="dark"] .estoque-panel-header .panel-title,
+[data-color-scheme="dark"] .estoque-side-panels .side-card .panel-title {
+  color: var(--dark-text-dark, #f0f6fc);
+}
+
+[data-color-scheme="dark"] .estoque-panel-header .panel-subtitle,
+[data-color-scheme="dark"] .side-item-sub,
+[data-color-scheme="dark"] .side-empty,
+[data-color-scheme="dark"] .prod-sub {
+  color: var(--dark-text-muted, #718ea8);
+}
+
 [data-color-scheme="dark"] .estoque-table thead th {
   border-color: var(--dark-border, #1e3550);
   color: var(--dark-text-muted, #718ea8);
 }
-[data-color-scheme="dark"] .estoque-table tbody td {
+
+[data-color-scheme="dark"] .estoque-table tbody td,
+[data-color-scheme="dark"] .side-item-row {
   border-color: var(--dark-border-lighter, #1b3149);
 }
+
+[data-color-scheme="dark"] .estoque-table tbody tr:hover,
+[data-color-scheme="dark"] .side-item-row:hover {
+  background: #16283e;
+}
+
 [data-color-scheme="dark"] .estoque-table tbody tr.is-missing {
-  background: rgba(239, 68, 68, 0.12);
+  background: rgba(220, 38, 38, 0.12);
 }
-[data-color-scheme="dark"] .estoque-total-row {
-  background: rgba(0, 0, 0, 0.2);
-  border-color: var(--dark-border, #1e3550);
+
+[data-color-scheme="dark"] .estoque-table tbody tr.is-missing:hover {
+  background: rgba(220, 38, 38, 0.18);
 }
-[data-color-scheme="dark"] .estoque-total-row .total-value {
+
+[data-color-scheme="dark"] .prod-title,
+[data-color-scheme="dark"] .side-item-name {
   color: var(--dark-text-dark, #f0f6fc);
 }
-[data-color-scheme="dark"] .missing-toggle .sq {
-  background: var(--dark-bg-card, #0f1c2d);
-  border-color: var(--dark-border, #1e3550);
+
+[data-color-scheme="dark"] .estoque-qty {
+  color: #cbd5e1;
 }
+
+[data-color-scheme="dark"] .estoque-total-price {
+  color: #ffffff;
+}
+
 [data-color-scheme="dark"] .pill-ok {
-  background: rgba(24, 165, 88, 0.2);
+  background: rgba(34, 197, 94, 0.18);
   color: #4ade80;
 }
+
 [data-color-scheme="dark"] .pill-low {
-  background: rgba(197, 138, 18, 0.2);
+  background: rgba(245, 158, 11, 0.18);
   color: #fbbf24;
 }
+
 [data-color-scheme="dark"] .pill-out {
-  background: rgba(209, 68, 59, 0.25);
+  background: rgba(239, 68, 68, 0.22);
   color: #f87171;
+}
+
+[data-color-scheme="dark"] .missing-toggle .sq {
+  background: var(--dark-bg-card, #0f1c2d);
+  border-color: #2e4768;
+}
+
+[data-color-scheme="dark"] .missing-toggle .lbl {
+  color: var(--dark-text-muted, #718ea8);
+}
+
+[data-color-scheme="dark"] .badge-num-danger {
+  background: rgba(220, 38, 38, 0.22);
+  color: #f87171;
+}
+
+[data-color-scheme="dark"] .badge-num-warning {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
 }
 

@@ -1,5 +1,27 @@
 const API = window.location.origin + '/api'
 
+async function apiFetch(endpoint, options = {}) {
+  const url = endpoint.startsWith('http')
+    ? endpoint
+    : (endpoint.startsWith('/api') ? window.location.origin + endpoint : API + (endpoint.startsWith('/') ? endpoint : '/' + endpoint));
+  const opts = { ...options };
+  opts.headers = {
+    'Content-Type': 'application/json',
+    ...(opts.headers || {})
+  };
+  const res = await fetch(url, opts);
+  if (!res.ok) {
+    let errBody = {};
+    try { errBody = await res.json(); } catch(e){}
+    throw new Error(errBody.error || `HTTP error ${res.status}`);
+  }
+  const contentType = res.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    return await res.json();
+  }
+  return res;
+}
+
 let currentUser = null
 
 function getLocalDateString(d = new Date()) {
@@ -337,10 +359,23 @@ function showPage(pageId, navEl) {
 
   const cfg = pageConfig[pageId] || pageConfig.dashboard
   document.getElementById('page-title').textContent = cfg.title
-  document.getElementById('page-sub').textContent = cfg.sub
+  if (pageId === 'estoque') {
+    document.getElementById('page-sub').textContent = (estoqueProducts && estoqueProducts.length) ? `${estoqueProducts.length} produtos cadastrados` : '10 produtos cadastrados'
+  } else {
+    document.getElementById('page-sub').textContent = cfg.sub
+  }
   const btn = document.getElementById('topbar-btn')
   if (cfg.btn) { btn.textContent = cfg.btn; btn.style.display = '' }
   else { btn.style.display = 'none' }
+
+  const periodFilter = document.getElementById('topbar-period-filter')
+  if (periodFilter) {
+    if (pageId === 'estoque' || pageId === 'configuracoes' || pageId === 'usuarios') {
+      periodFilter.style.display = 'none'
+    } else {
+      periodFilter.style.display = ''
+    }
+  }
 
   syncGlobalDateControls()
 
@@ -4810,57 +4845,53 @@ function renderEstoque() {
 
   tbody.innerHTML = '';
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--text-secondary);">Nenhum produto encontrado</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:36px;color:var(--text-secondary);font-size:13px;">Nenhum produto encontrado</td></tr>`;
   } else {
     filtered.forEach(p => {
       const min = p.min_qty !== undefined ? p.min_qty : (p.min || 5);
       const st = getEstoqueProductStatus(p);
-      const total = p.qty * p.price;
+      const total = (p.qty || 0) * (p.price || 0);
       const dotColor = _dotColors[p.category] || '#ef7fa8';
+      const formattedTotal = (total % 1 === 0) ? 'R$ ' + Math.round(total) : 'R$ ' + _fmtMoney(total);
+      const formattedPrice = (p.price % 1 === 0) ? 'R$ ' + Math.round(p.price) : 'R$ ' + _fmtMoney(p.price);
 
       const tr = document.createElement('tr');
       if (p.missing) tr.classList.add('is-missing');
 
       tr.innerHTML = `
         <td>
-          <div class="prod-name" style="display:flex;align-items:center;gap:10px;font-weight:600;">
-            <span class="dot" style="width:9px;height:9px;border-radius:50%;flex-shrink:0;background:${dotColor}"></span>
+          <div class="prod-cell" onclick="openEstoqueModalById(${p.id})" title="Clique para editar este produto">
+            <span class="prod-dot" style="background:${dotColor};"></span>
             <div>
-              <div style="color:var(--text-primary);">${_escapeHtml(p.name)}</div>
-              <div class="prod-sub" style="color:var(--text-secondary);font-weight:400;font-size:11.5px;">R$ ${_fmtMoney(p.price)} / un.</div>
+              <div class="prod-title">${_escapeHtml(p.name)}</div>
+              <div class="prod-sub">${formattedPrice} / un.</div>
             </div>
           </div>
         </td>
-        <td style="font-weight:600;">${p.qty} un.</td>
-        <td style="color:var(--text-secondary);">R$ ${_fmtMoney(p.price)}</td>
-        <td class="price-total" style="font-weight:700;">R$ ${_fmtMoney(total)}</td>
+        <td><span class="estoque-qty">${p.qty} un.</span></td>
+        <td><span class="estoque-total-price">${formattedTotal}</span></td>
         <td><span class="pill ${st.cls}">${st.txt}</span></td>
         <td>
-          <div class="missing-toggle ${p.missing ? 'checked' : ''}" onclick="toggleEstoqueMissing(${p.id})">
+          <div class="missing-toggle ${p.missing ? 'checked' : ''}" onclick="toggleEstoqueMissing(${p.id})" title="Alternar situação em falta">
             <div class="sq">
-              <svg viewBox="0 0 24 24" fill="none" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20 6L9 17l-5-5"/>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
               </svg>
             </div>
-            <span class="lbl">${p.missing ? 'Em falta' : 'Produto em falta'}</span>
+            <span class="lbl">Produto em falta</span>
           </div>
-        </td>
-        <td style="text-align:right;">
-          <button class="btn-outline btn-sm" onclick="openEstoqueModalById(${p.id})" title="Editar produto" style="padding:4px 8px;margin-right:4px;">✏️</button>
-          <button class="btn-outline btn-sm btn-danger" onclick="deleteEstoqueProduct(${p.id})" title="Remover produto" style="padding:4px 8px;">🗑️</button>
         </td>
       `;
       tbody.appendChild(tr);
     });
   }
 
-  // Calculate totals and statistics
-  const geral = estoqueProducts.reduce((acc, p) => acc + (p.qty * p.price), 0);
-  const totalElem = document.getElementById('totalGeralEstoque');
-  if (totalElem) totalElem.textContent = 'R$ ' + _fmtMoney(geral);
-
-  const subCount = document.getElementById('estoque-sub-count');
-  if (subCount) subCount.textContent = estoqueProducts.length + ' produtos cadastrados';
+  // Update topbar subtitle if on estoque page
+  const pageEstoque = document.getElementById('page-estoque');
+  if (pageEstoque && pageEstoque.classList.contains('active')) {
+    const pageSub = document.getElementById('page-sub');
+    if (pageSub) pageSub.textContent = `${estoqueProducts.length} produtos cadastrados`;
+  }
 
   const missingList = estoqueProducts.filter(p => p.missing);
   const lowList = estoqueProducts.filter(p => {
@@ -4886,16 +4917,16 @@ function renderEstoque() {
   if (listFalta) {
     if (missingList.length > 0) {
       listFalta.innerHTML = missingList.map(p => `
-        <div class="side-item-row" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border-lighter,#f0f2f8);">
+        <div class="side-item-row" onclick="openEstoqueModalById(${p.id})" style="cursor:pointer;" title="Clique para editar este produto">
           <div>
-            <b style="font-size:13px;display:block;color:var(--text-primary);">${_escapeHtml(p.name)}</b>
-            <small style="color:var(--text-secondary);font-size:11px;">R$ ${_fmtMoney(p.price)} / un.</small>
+            <span class="side-item-name">${_escapeHtml(p.name)}</span>
+            <span class="side-item-sub">Última compra: ${p.qty || 0} un.</span>
           </div>
-          <span class="pill pill-out">0 un.</span>
+          <span class="pill pill-out">${p.qty || 0} un.</span>
         </div>
       `).join('');
     } else {
-      listFalta.innerHTML = `<div class="side-empty" style="padding:20px;text-align:center;color:var(--text-secondary);font-size:12.5px;">Nenhum produto em falta 🎉</div>`;
+      listFalta.innerHTML = `<div class="side-empty">Nenhum produto em falta 🎉</div>`;
     }
   }
 
@@ -4906,17 +4937,17 @@ function renderEstoque() {
       listBaixo.innerHTML = lowList.map(p => {
         const min = p.min_qty !== undefined ? p.min_qty : (p.min || 5);
         return `
-          <div class="side-item-row" style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid var(--border-lighter,#f0f2f8);">
+          <div class="side-item-row" onclick="openEstoqueModalById(${p.id})" style="cursor:pointer;" title="Clique para editar este produto">
             <div>
-              <b style="font-size:13px;display:block;color:var(--text-primary);">${_escapeHtml(p.name)}</b>
-              <small style="color:var(--text-secondary);font-size:11px;">Mínimo recomendado: ${min} un.</small>
+              <span class="side-item-name">${_escapeHtml(p.name)}</span>
+              <span class="side-item-sub">Mínimo recomendado: ${min} un.</span>
             </div>
             <span class="pill pill-low">${p.qty} un.</span>
           </div>
         `;
       }).join('');
     } else {
-      listBaixo.innerHTML = `<div class="side-empty" style="padding:20px;text-align:center;color:var(--text-secondary);font-size:12.5px;">Nenhum produto com estoque baixo</div>`;
+      listBaixo.innerHTML = `<div class="side-empty">Nenhum produto com estoque baixo</div>`;
     }
   }
 }
@@ -4925,16 +4956,20 @@ async function toggleEstoqueMissing(id) {
   const p = estoqueProducts.find(x => x.id === id);
   if (!p) return;
   const newMissing = !p.missing;
-  const newQty = newMissing ? 0 : p.qty;
-
+  
+  if (newMissing) {
+    p._lastQty = p.qty;
+    p.qty = 0;
+  } else {
+    p.qty = p._lastQty && p._lastQty > 0 ? p._lastQty : (p.min_qty || 5);
+  }
   p.missing = newMissing;
-  p.qty = newQty;
   renderEstoque();
 
   try {
     await apiFetch(`/api/products/${id}`, {
       method: 'PUT',
-      body: JSON.stringify({ missing: newMissing, qty: newQty })
+      body: JSON.stringify({ missing: newMissing, qty: p.qty })
     });
     showToast(newMissing ? `Produto "${p.name}" marcado como em falta` : `Produto "${p.name}" atualizado`);
   } catch (err) {
@@ -4946,6 +4981,7 @@ function openEstoqueModal(product = null) {
   const modal = document.getElementById('estoque-modal-overlay');
   const title = document.getElementById('estoque-modal-title');
   const form = document.getElementById('estoque-form');
+  const deleteBtn = document.getElementById('estoque-delete-btn');
 
   if (!modal || !form) return;
 
@@ -4953,6 +4989,7 @@ function openEstoqueModal(product = null) {
 
   if (product) {
     title.textContent = 'Editar Produto';
+    if (deleteBtn) deleteBtn.style.display = '';
     document.getElementById('estoque-id').value = product.id;
     document.getElementById('estoque-name').value = product.name;
     document.getElementById('estoque-cat').value = product.category || 'pink';
@@ -4962,6 +4999,7 @@ function openEstoqueModal(product = null) {
     document.getElementById('estoque-missing').checked = !!product.missing;
   } else {
     title.textContent = 'Novo Produto';
+    if (deleteBtn) deleteBtn.style.display = 'none';
     document.getElementById('estoque-id').value = '';
     document.getElementById('estoque-cat').value = 'pink';
     document.getElementById('estoque-price').value = '';
@@ -4971,6 +5009,14 @@ function openEstoqueModal(product = null) {
   }
 
   modal.classList.add('open');
+}
+
+function onDeleteCurrentEstoqueProduct() {
+  const id = parseInt(document.getElementById('estoque-id').value);
+  if (id) {
+    closeEstoqueModal();
+    deleteEstoqueProduct(id);
+  }
 }
 
 function openEstoqueModalById(id) {

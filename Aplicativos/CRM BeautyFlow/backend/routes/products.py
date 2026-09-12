@@ -48,7 +48,7 @@ def _first(table, column, value):
 @products_bp.route('/', methods=['GET'])
 def list_products():
     _ensure_products_table()
-    result = get_db().table('products').select('*').order('name').execute()
+    result = get_db().table('products').select('*').order('id').execute()
     return jsonify([dict(r) for r in result.data])
 
 
