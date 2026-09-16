@@ -162,7 +162,7 @@ CREATE TABLE public.integrations (
     enabled boolean DEFAULT true,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT integrations_type_check CHECK ((type = ANY (ARRAY['webhook'::text, 'n8n'::text, 'google_calendar'::text])))
+    CONSTRAINT integrations_type_check CHECK ((type = ANY (ARRAY['webhook'::text, 'n8n'::text, 'google_calendar'::text, 'whatsapp'::text, 'waha'::text])))
 );
 
 
@@ -228,6 +228,37 @@ ALTER SEQUENCE public.notifications_id_seq OWNED BY public.notifications.id;
 
 CREATE TABLE public.schema_migrations (
     version character varying NOT NULL
+);
+
+
+--
+-- Name: metas; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE IF NOT EXISTS public.metas (
+    id SERIAL PRIMARY KEY,
+    mes character varying(7) NOT NULL,
+    meta numeric(12, 2) DEFAULT 7000.00 NOT NULL,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now(),
+    CONSTRAINT metas_mes_unique UNIQUE (mes)
+);
+
+
+--
+-- Name: products; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE IF NOT EXISTS public.products (
+    id SERIAL PRIMARY KEY,
+    name text NOT NULL,
+    category text DEFAULT 'pink'::text,
+    qty integer DEFAULT 0,
+    price real DEFAULT 0,
+    min_qty integer DEFAULT 5,
+    missing boolean DEFAULT false,
+    created_at timestamp with time zone DEFAULT now(),
+    updated_at timestamp with time zone DEFAULT now()
 );
 
 
@@ -788,6 +819,19 @@ ON CONFLICT (name) DO NOTHING;
 INSERT INTO public.settings (key, value) VALUES
     ('meta_mensal', '7000')
 ON CONFLICT (key) DO NOTHING;
+
+INSERT INTO public.products (name, category, qty, price, min_qty, missing) VALUES
+    ('Esmalte OPI', 'pink', 12, 8.0, 5, false),
+    ('Óleo de Cutícula', 'amber', 2, 15.0, 5, false),
+    ('Luvas Descartáveis (cx)', 'blue', 3, 25.0, 2, false),
+    ('Algodão', 'pink', 0, 4.0, 8, true),
+    ('Removedor de Esmalte', 'purple', 5, 12.0, 3, false),
+    ('Cera Depilatória', 'amber', 0, 45.0, 2, true),
+    ('Henna para Sobrancelha', 'amber', 2, 20.0, 4, false),
+    ('Toalhas Descartáveis', 'blue', 8, 18.0, 4, false),
+    ('Álcool 70%', 'purple', 6, 10.0, 3, false),
+    ('Palito de Laranjeira', 'pink', 15, 3.0, 6, false)
+ON CONFLICT DO NOTHING;
 
 INSERT INTO public.users (name, email, phone, password_hash, role) VALUES
     ('Administrador', 'admin', '', 'scrypt:32768:8:1$kq437aO5wIVX7lZw$3e6f2a22fdbc83cc0b7919c7d1e7a7532d1d8c9e0bddcab485e447e46f69e473f40634949b20102cca401ab947f403c7a1f23f7ab14b9b0969c15ba0cb736002', 'admin')

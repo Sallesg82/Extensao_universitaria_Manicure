@@ -82,8 +82,9 @@ Ambos se comunicam em **tempo real** — quando um cliente agenda pelo portal, o
 | Tecnologia | Finalidade |
 |---|---|
 | Docker | Conteinerização dos serviços |
-| Docker Compose | Orquestração (PostgreSQL + CRM + Agendamento) |
+| Docker Compose | Orquestração (PostgreSQL + CRM + Agendamento + WAHA) |
 | Nginx | Reverse proxy e servidor estático (produção) |
+| WhatsApp WAHA | Microserviço HTTP para notificações automatizadas no WhatsApp (Porta 3000) |
 | n8n | Automação de workflows via webhooks |
 
 ---
@@ -129,19 +130,21 @@ Painel completo de gestão para o profissional. O backend Flask serve tanto a AP
 - CRUD completo: nome, duração (min), buffer/intervalo, preço (R$), cor hexadecimal
 - Cor do serviço refletida nos cards da agenda
 
+#### 📦 Estoque
+- Catálogo completo de insumos e produtos
+- Métricas e filtros: Todos, Estoque Baixo e Em Falta
+- Painéis laterais de reposição e alertas de nível mínimo
+- Cadastro, edição e exclusão de itens de estoque
+
 #### 💰 Módulo Financeiro
 - KPIs: Receita Mensal, Despesas, Lucro Líquido, Margem %
-- Gráfico diário comparativo Receitas × Despesas
-- Gráfico Donut SVG de receita por serviço
-- Lançamentos manuais com método de pagamento (Pix, Dinheiro, Cartão Crédito/Débito)
+- Gráfico comparativo de Receitas × Despesas (visão semanal e diária)
+- Gráfico Donut/Barras de receitas por serviço
+- Painel de **Saídas por Categoria** com cadastro dinâmico de novas categorias
+- Acompanhamento da **Meta do Mês**: barra de progresso em tempo real, cálculo percentual e modal para ajuste rápido da meta mensal
+- Lançamentos manuais de entradas e saídas com método de pagamento (Pix, Dinheiro, Cartão Crédito/Débito)
 - **Snapshot imutável de receita** — ao marcar agendamento como pago, grava transação com nome persistente do cliente (não se perde se o cliente for excluído)
-- Extrato completo de transações
-
-#### 📉 Controle de Despesas
-- Métricas: Total, Maior Despesa, Categoria mais custosa, Média
-- Gráfico horizontal por categoria (Aluguel, Produtos, Energia, Marketing, Salários, Outros)
-- Categorias de despesa customizáveis
-- Lista completa com exclusão e novo lançamento
+- Extrato completo de lançamentos do mês
 
 #### 📈 Relatórios e Exportação PDF
 - Gráfico de tendência de receita SVG com gradiente e comparativo com período anterior
@@ -150,11 +153,6 @@ Painel completo de gestão para o profissional. O backend Flask serve tanto a AP
 - Mapa de calor completo de horários
 - **Exportação em PDF** profissional com cabeçalho oficial (Razão Social, CNPJ, Telefone, Endereço)
 - Seletor de período (7, 30, 90 dias, Ano)
-
-#### 🎯 Metas
-- Meta mensal customizável (padrão R$ 7.000)
-- Barra de progresso em tempo real
-- Notificação automática ao atingir a meta
 
 #### 👤 Gestão de Usuários
 - CRUD de operadores/administradores
@@ -281,7 +279,7 @@ Painel completo de gestão para o profissional. O backend Flask serve tanto a AP
 | `POST` | `/api/google/disconnect` | Desconectar |
 | `POST` | `/api/google/sync` | Sincronizar evento |
 
-#### Configurações e Despesas
+#### Configurações e Categorias Financeiras
 | Método | Rota | Descrição |
 |---|---|---|
 | `GET` | `/api/settings/` | Configurações globais |
@@ -458,24 +456,24 @@ A plataforma conta com um **Hub Interativo em Terminal (TUI)** multiplataforma p
 ### Opção 1 — Linux / macOS (Hub Interativo)
 
 ```bash
-cd "Aplicativos/instalacao"
-chmod +x install.sh
+# Executável diretamente na raiz ou em Aplicativos/instalacao:
 ./install.sh
 ```
 
 O script `install.sh`:
 - Detecta a distribuição do sistema operacional (Ubuntu, Debian, Arch, Fedora, openSUSE, macOS)
 - Verifica e instala automaticamente o Docker e Docker Compose caso necessário
-- Checa preventivamente conflitos de portas (`5432`, `3001`, `5173`)
+- Checa preventivamente conflitos de portas (`5432`, `3001`, `5173`, `3000`)
 - Detecta o IP local na rede Wi-Fi/Ethernet para acesso remoto e via smartphones
+- Oferece suporte completo à ativação do **WhatsApp WAHA (Porta 3000)**
 - Inicializa os contêineres com healthchecks HTTP e sementes completas de dados no PostgreSQL
-- Disponibiliza submenu de backup (`pg_dump`) e restauração (`psql`)
+- Inclui menu de diagnóstico de conexões e saúde de todos os serviços
+- Disponibiliza submenu de backup (`pg_dump`), restauração (`psql`) e otimização (`VACUUM ANALYZE`)
 
 ### Opção 2 — Windows (Hub Interativo)
 
-Dê dois cliques no arquivo `install.bat` ou abra o CMD/PowerShell:
+Dê dois cliques no arquivo `install.bat` na raiz do projeto ou abra o CMD/PowerShell:
 ```cmd
-cd Aplicativos\instalacao
 install.bat
 ```
 
@@ -493,6 +491,7 @@ Para quem deseja apenas ligar ou desligar a plataforma sem abrir o menu interati
 | PostgreSQL | `beautyflow-postgres` | `postgres:16-alpine` | `5432` |
 | CRM BeautyFlow | `beautyflow-crm` | `python:3.11-slim` | `3001` |
 | Portal Agendamento | `beautyflow-agendamento` | `node:20-alpine` → `nginx:alpine` | `5173:80` |
+| WhatsApp WAHA | `beautyflow-waha` | `devlikeapro/waha:latest` | `3000` |
 
 ### Opção 3 — Manual (Desenvolvimento)
 

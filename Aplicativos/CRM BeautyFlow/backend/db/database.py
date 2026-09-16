@@ -52,6 +52,12 @@ def _rows(rows):
     return [{k: _conv(v) for k, v in r.items()} for r in rows]
 
 
+def _serialize_val(val):
+    if isinstance(val, (dict, list)):
+        return json.dumps(val)
+    return val
+
+
 def _run(sql, params=()):
     with _get_pool().connection() as conn:
         with conn.cursor() as cur:
@@ -265,7 +271,7 @@ class TableBuilder:
         placeholders = ', '.join(['%s'] * len(cols))
         sql = (f'INSERT INTO "{self.table}" ({col_sql}) VALUES ({placeholders}) '
                f'RETURNING *')
-        raw = _run(sql, [payload[c] for c in cols])
+        raw = _run(sql, [_serialize_val(payload[c]) for c in cols])
         data = _rows(raw)
         if self._single:
             return Result(data[0] if data else {})
@@ -300,7 +306,7 @@ class TableBuilder:
                 conflict_sql = ''
             sql = (f'INSERT INTO "{self.table}" ({col_sql}) VALUES ({placeholders}) '
                    f'{conflict_sql} RETURNING *')
-            raw = _run(sql, [data[c] for c in cols])
+            raw = _run(sql, [_serialize_val(data[c]) for c in cols])
             results.extend(_rows(raw))
         return Result(results)
 
@@ -310,7 +316,7 @@ class TableBuilder:
         set_sql = ', '.join(f'"{c}" = %s' for c in cols)
         where, params = self._where_sql()
         sql = (f'UPDATE "{self.table}" SET {set_sql}{where} RETURNING *')
-        raw = _run(sql, [payload[c] for c in cols] + params)
+        raw = _run(sql, [_serialize_val(payload[c]) for c in cols] + params)
         data = _rows(raw)
         if self._single:
             if not data:
@@ -465,7 +471,7 @@ CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications (created_a
 CREATE TABLE IF NOT EXISTS integrations (
     id          SERIAL PRIMARY KEY,
     name        TEXT NOT NULL,
-    type        TEXT NOT NULL CHECK(type IN ('webhook', 'n8n', 'google_calendar')),
+    type        TEXT NOT NULL CHECK(type IN ('webhook', 'n8n', 'google_calendar', 'whatsapp', 'waha')),
     config      JSONB DEFAULT '{}',
     enabled     BOOLEAN DEFAULT TRUE,
     created_at  TIMESTAMPTZ DEFAULT NOW(),
@@ -488,6 +494,26 @@ CREATE TABLE IF NOT EXISTS users (
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
+
+CREATE TABLE IF NOT EXISTS metas (
+    id          SERIAL PRIMARY KEY,
+    mes         VARCHAR(7) NOT NULL UNIQUE,
+    meta        NUMERIC(12, 2) NOT NULL DEFAULT 7000.00,
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS products (
+    id          SERIAL PRIMARY KEY,
+    name        TEXT NOT NULL,
+    category    TEXT DEFAULT 'pink',
+    qty         INTEGER DEFAULT 0,
+    price       REAL DEFAULT 0,
+    min_qty     INTEGER DEFAULT 5,
+    missing     BOOLEAN DEFAULT false,
+    created_at  TIMESTAMPTZ DEFAULT NOW(),
+    updated_at  TIMESTAMPTZ DEFAULT NOW()
+);
 
 CREATE OR REPLACE VIEW v_clients AS
 SELECT c.*,
@@ -551,6 +577,21 @@ ORDER BY d.date;
 
 def init_schema():
     _run(_SCHEMA_SQL)
+    try:
+        _run("""
+        DO $$
+        BEGIN
+          IF EXISTS (
+            SELECT 1 FROM information_schema.table_constraints
+            WHERE constraint_name = 'integrations_type_check' AND table_name = 'integrations'
+          ) THEN
+            ALTER TABLE integrations DROP CONSTRAINT integrations_type_check;
+            ALTER TABLE integrations ADD CONSTRAINT integrations_type_check CHECK(type IN ('webhook', 'n8n', 'google_calendar', 'whatsapp', 'waha'));
+          END IF;
+        END $$;
+        """)
+    except Exception as e:
+        print(f'[DB] Aviso ao atualizar restrição de integrações: {e}')
 
 
 def ensure_admin_user():
@@ -671,6 +712,20 @@ def ensure_default_data():
             INSERT INTO settings (key, value) VALUES
                 ('meta_mensal', '7000')
             ON CONFLICT (key) DO NOTHING;
+        """)
+        _run("""
+            INSERT INTO products (name, category, qty, price, min_qty, missing) VALUES
+                ('Esmalte OPI', 'pink', 12, 8.0, 5, false),
+                ('Óleo de Cutícula', 'amber', 2, 15.0, 5, false),
+                ('Luvas Descartáveis (cx)', 'blue', 3, 25.0, 2, false),
+                ('Algodão', 'pink', 0, 4.0, 8, true),
+                ('Removedor de Esmalte', 'purple', 5, 12.0, 3, false),
+                ('Cera Depilatória', 'amber', 0, 45.0, 2, true),
+                ('Henna para Sobrancelha', 'amber', 2, 20.0, 4, false),
+                ('Toalhas Descartáveis', 'blue', 8, 18.0, 4, false),
+                ('Álcool 70%', 'purple', 6, 10.0, 3, false),
+                ('Palito de Laranjeira', 'pink', 15, 3.0, 6, false)
+            ON CONFLICT DO NOTHING;
         """)
         ensure_metas_table()
     except Exception as e:
@@ -1461,6 +1516,22 @@ def delete_integration(integ_id):
         get_db().table(TABLE_INTEGRATIONS).delete().eq('id', integ_id).execute()
     except Exception:
         pass
+
+
+def delete_integrations_by_type(integ_type):
+    try:
+        get_db().table(TABLE_INTEGRATIONS).delete().eq('type', integ_type).execute()
+        return True
+    except Exception:
+        return False
+
+
+def is_type_integrated(integ_type):
+    try:
+        r = get_db().table(TABLE_INTEGRATIONS).select('id').eq('type', integ_type).limit(1).execute()
+        return bool(r.data and len(r.data) > 0)
+    except Exception:
+        return False
 
 
 # ══════════════════════════════════════════════════════════════════════════

@@ -31,6 +31,9 @@ services:
     environment:
       DATABASE_URL: postgresql://postgres:beautyflow_pass@postgres:5432/beautyflow
       N8N_WEBHOOK_URL: https://mirianfiorini.app.n8n.cloud/webhook/calendar-webhook
+      WAHA_API_URL: http://waha:3000
+      WAHA_API_KEY: ${WAHA_API_KEY:-218c0effefb845238a1ae3651c8ced5b}
+      INSTALL_WAHA: ${INSTALL_WAHA:-false}
     volumes:
       - "../CRM BeautyFlow/backend:/app/backend"
       - "../CRM BeautyFlow/src:/app/src"
@@ -45,6 +48,8 @@ services:
       start_period: 10s
     networks:
       - beautyflow-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   agendamento-app:
     build:
@@ -68,9 +73,38 @@ services:
     networks:
       - beautyflow-net
 
+  waha:
+    image: devlikeapro/waha:latest
+    container_name: beautyflow-waha
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - WAHA_LOG_LEVEL=info
+      - WAHA_PRINT_QR=False
+      - WAHA_DASHBOARD_ENABLED=True
+      - WHATSAPP_DEFAULT_ENGINE=WEBJS
+      - WAHA_BASE_URL=http://localhost:3000
+      - WAHA_API_KEY=${WAHA_API_KEY:-218c0effefb845238a1ae3651c8ced5b}
+    volumes:
+      - waha_sessions:/app/.sessions
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/ping >/dev/null 2>&1 || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    networks:
+      - beautyflow-net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    profiles:
+      - waha
+
 networks:
   beautyflow-net:
     driver: bridge
 
 volumes:
   postgres_data:
+  waha_sessions:

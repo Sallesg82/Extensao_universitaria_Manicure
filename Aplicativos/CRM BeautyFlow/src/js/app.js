@@ -322,11 +322,6 @@ const pageConfig = {
 function showPage(pageId, navEl) {
   stopPageRefresh()
 
-  if (pageId === 'metas' || pageId === 'despesas') {
-    pageId = 'financeiro'
-    navEl = document.querySelector('.nav-item[onclick*="\'financeiro\'"]')
-  }
-
   if (pageId === 'usuarios' && currentUser && currentUser.role !== 'admin') {
     pageId = 'dashboard'
     navEl = document.querySelector('.nav-item[onclick*="\'dashboard\'"]')
@@ -387,7 +382,7 @@ function showPage(pageId, navEl) {
   else if (pageId === 'financeiro') { _financeCurrentDrillWeek = null; loadFinanceiro() }
   else if (pageId === 'usuarios') loadUsuarios()
   else if (pageId === 'relatorios') loadRelatorios()
-  else if (pageId === 'configuracoes') updateProfileTab()
+  else if (pageId === 'configuracoes') { updateProfileTab(); checkWahaStatus(); }
 
   startPageRefresh(pageId)
 }
@@ -421,12 +416,13 @@ function showSettingsTab(navEl, tabId) {
   }
   document.querySelectorAll('.settings-nav-item').forEach(n => n.classList.remove('active'))
   navEl.classList.add('active')
-  ;['tab-perfil','tab-horarios','tab-notif','tab-integ','tab-aparencia','tab-empresa'].forEach(id => {
+  ;['tab-perfil','tab-horarios','tab-notif','tab-integ','tab-whatsapp','tab-aparencia','tab-empresa'].forEach(id => {
     const el = document.getElementById(id)
     if (el) el.style.display = id === tabId ? '' : 'none'
   })
   if (tabId === 'tab-perfil') updateProfileTab()
-  if (tabId === 'tab-integ') { loadIntegrations() }
+  if (tabId === 'tab-integ') { loadIntegrations(); checkWahaStatus(); }
+  if (tabId === 'tab-whatsapp') { loadWhatsAppTab() }
   if (tabId === 'tab-horarios') { loadBusinessHours() }
   if (tabId === 'tab-empresa') { loadCompanyInfo() }
   if (tabId === 'tab-notif') { loadNotificacoes() }
@@ -1106,6 +1102,7 @@ async function selectClient(row, clientId) {
   try {
     const res = await fetch(API + '/clients/' + clientId)
     const c = await res.json()
+    window._selectedClientData = c
 
     document.getElementById('cd-av').textContent = c.avatar_initials
     document.getElementById('cd-av').style.background = c.avatar_bg
@@ -1917,99 +1914,6 @@ async function loadFinanceiro() {
   }
 }
 
-async function loadDespesas() {
-  try {
-    syncGlobalDateControls()
-    const y = globalSelectedYear
-    const m = globalSelectedMonth
-    const monthStart = `${y}-${String(m).padStart(2, '0')}-01`
-    const lastDay = new Date(y, m, 0).getDate()
-    const monthEnd = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
-    const pageSub = document.getElementById('page-sub')
-    if (pageSub) pageSub.textContent = (_monthNames[m - 1] || '') + ' ' + y
-    const res = await fetch(API + '/transactions/?type=expense&date_from=' + monthStart + '&date_to=' + monthEnd)
-    const expenses = await res.json()
-
-    const total = expenses.reduce((s, t) => s + Number(t.amount), 0)
-    const count = expenses.length
-    const maior = count > 0 ? Math.max(...expenses.map(t => Number(t.amount))) : 0
-    const media = count > 0 ? total / count : 0
-    const maiorTx = count > 0 ? expenses.find(t => Number(t.amount) === maior) : null
-
-    document.getElementById('desp-total').textContent = 'R$ ' + total.toLocaleString('pt-BR', {minimumFractionDigits: 2})
-    document.getElementById('desp-count').textContent = count + ' saída' + (count !== 1 ? 's' : '')
-    document.getElementById('desp-maior').textContent = 'R$ ' + maior.toLocaleString('pt-BR', {minimumFractionDigits: 2})
-    document.getElementById('desp-maior-label').textContent = maiorTx?.description || '—'
-    document.getElementById('desp-media').textContent = 'R$ ' + media.toLocaleString('pt-BR', {minimumFractionDigits: 2})
-    document.getElementById('desp-media-label').textContent = 'média por lançamento'
-
-    // Category breakdown
-    const catMap = {}
-    expenses.forEach(t => {
-      const cat = t.category || 'Outros'
-      catMap[cat] = (catMap[cat] || 0) + Number(t.amount)
-    })
-    const catKeys = Object.keys(catMap)
-    const catTotal = Object.values(catMap).reduce((a, b) => a + b, 0)
-    const maxCatAmount = Math.max(...Object.values(catMap), 1)
-
-    // Top category
-    const topCat = catKeys.length > 0 ? catKeys.reduce((a, b) => catMap[a] > catMap[b] ? a : b) : null
-    document.getElementById('desp-top-cat').textContent = topCat || '—'
-    document.getElementById('desp-top-cat-val').textContent = topCat ? 'R$ ' + catMap[topCat].toLocaleString('pt-BR', {minimumFractionDigits: 2}) : ''
-
-    const catColors = ['#c05050','#e5825c','#f0b35e','#6fa8dc','#93c47d','#a06fb5','#5a5a5a']
-    const catList = document.getElementById('desp-cat-list')
-    if (catKeys.length > 0) {
-      catList.innerHTML = catKeys.map((cat, i) => {
-        const pct = ((catMap[cat] / catTotal) * 100).toFixed(1)
-        const barW = Math.round((catMap[cat] / maxCatAmount) * 100)
-        return `
-          <div class="exp-row">
-            <div class="service-dot" style="background:${catColors[i % catColors.length]};"></div>
-            <div class="exp-name">${cat}</div>
-            <div class="exp-bar-bg"><div class="exp-bar-fill" style="width:${barW}%;background:${catColors[i % catColors.length]};"></div></div>
-            <div class="exp-val">R$ ${catMap[cat].toLocaleString('pt-BR', {minimumFractionDigits: 0})}</div>
-            <div class="exp-pct" style="font-size:11px;color:#8aaccb;min-width:30px;text-align:right;">${pct}%</div>
-          </div>`
-      }).join('')
-    } else {
-      catList.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);font-size:13px;">Nenhuma saída neste mês</div>'
-    }
-
-    // Load categories into the transaction modal dropdown
-    loadDespesaCatDropdown()
-
-    // List all expenses
-    const list = document.getElementById('desp-list')
-    const badge = document.getElementById('desp-list-badge')
-    if (badge) badge.textContent = count + ' registro' + (count !== 1 ? 's' : '')
-    if (expenses.length > 0) {
-      list.innerHTML = expenses.map(t => {
-        const desc = t.description || ''
-        const dateStr = t.date ? t.date.split('-').reverse().join('/') : ''
-        return `
-          <div class="tx-row">
-            <div class="tx-icon out">
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-                <path d="M8 4v8M4 8l4 4 4-4" stroke="#c05050" stroke-width="1.3" stroke-linecap="round"/>
-              </svg>
-            </div>
-            <div class="tx-desc">
-              <div class="tx-name">${desc}</div>
-              <div class="tx-date">${dateStr}${t.category ? ' · ' + t.category : ''}</div>
-            </div>
-            <div class="tx-amount out">−R$ ${Number(t.amount).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</div>
-          </div>`
-      }).join('')
-    } else {
-      list.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text-secondary);font-size:13px;">Nenhuma saída neste mês</div>'
-    }
-  } catch (e) {
-    console.error('Erro ao carregar despesas:', e)
-  }
-}
-
 async function loadDespesaCatDropdown() {
   try {
     const r = await fetch(API + '/expense-categories')
@@ -2051,7 +1955,8 @@ async function saveCategory() {
     }
     closeCategoryModal()
     showToast('Categoria criada!', 'success')
-    loadDespesas()
+    loadFinanceiro()
+    loadDespesaCatDropdown()
   } catch (_) {
     document.getElementById('cat-msg').textContent = 'Erro de conexão.'
     document.getElementById('cat-msg').className = 'auth-msg error'
@@ -3679,21 +3584,48 @@ async function saveCompanyInfo() {
 
 async function loadIntegrations() {
   const list = document.getElementById('integrations-list')
+  const wahaContainer = document.getElementById('waha-integrated-card')
+  const navWhatsapp = document.getElementById('settings-nav-whatsapp')
   if (!list) return
   try {
     const res = await fetch(API + '/integrations/')
     const data = await res.json()
-    if (!data.length) {
-      list.innerHTML = '<div class="integ-empty">Nenhuma integração criada. Clique em "Nova Integração" para começar.</div>'
+
+    // Find WhatsApp integration
+    const wahaInteg = data.find(i => i.type === 'whatsapp' || i.type === 'waha')
+    const otherData = data.filter(i => i.type !== 'whatsapp' && i.type !== 'waha')
+    window._wahaInteg = wahaInteg
+
+    // Conditionally show/hide WhatsApp integration area
+    if (wahaInteg) {
+      if (wahaContainer) {
+        wahaContainer.style.display = 'block'
+        renderWahaIntegrationCard(wahaInteg)
+      }
+      if (navWhatsapp) navWhatsapp.style.display = ''
+    } else {
+      if (wahaContainer) {
+        wahaContainer.style.display = 'none'
+        wahaContainer.innerHTML = ''
+      }
+      if (navWhatsapp) navWhatsapp.style.display = 'none'
+      const tabWa = document.getElementById('tab-whatsapp')
+      if (tabWa && tabWa.style.display !== 'none') {
+        showSettingsTab(document.getElementById('settings-nav-integ'), 'tab-integ')
+      }
+    }
+
+    if (!otherData.length) {
+      list.innerHTML = '<div class="integ-empty">Nenhuma outra integração criada. Clique em "+ Nova Integração" para começar.</div>'
       return
     }
     const typeLabels = { webhook: 'Webhook', n8n: 'n8n', google_calendar: 'Google Calendar' }
     const typeIcons = {
       webhook: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M4 10a6 6 0 1 1 12 0" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M8 10l2-2 2 2-2 2z" fill="currentColor"/></svg>',
       n8n: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><circle cx="5" cy="10" r="3" stroke="currentColor" stroke-width="1.5"/><circle cx="15" cy="5" r="3" stroke="currentColor" stroke-width="1.5"/><circle cx="15" cy="15" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M8 10h3l1.5-3M8 10h3l1.5 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>',
-      google_calendar: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="15" rx="2" stroke="currentColor" stroke-width="1.3"/><path d="M2 7h16M7 2v3M13 2v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><text x="10" y="16" text-anchor="middle" font-size="7" fill="currentColor" font-weight="700">GC</text></svg>',
+      google_calendar: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="15" rx="2" stroke="currentColor" stroke-width="1.3"/><path d="M2 7h16M7 2v3M13 2v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><text x="10" y="16" text-anchor="middle" font-size="7" fill="currentColor" font-weight="700">GC</text></svg>'
     }
-    list.innerHTML = data.map(integ => {
+    list.innerHTML = otherData.map(integ => {
       const canTest = integ.type === 'webhook' || integ.type === 'n8n'
       return `
       <div class="integ-list-item">
@@ -3720,6 +3652,122 @@ async function loadIntegrations() {
   }
 }
 
+function renderWahaIntegrationCard(integ) {
+  const container = document.getElementById('waha-integrated-card')
+  if (!container) return
+
+  const data = window._wahaStatus || {}
+  const isInstalled = data.installed !== false
+  const isWorking = data.status === 'WORKING'
+  const isScan = data.status === 'SCAN_QR_CODE' || data.status === 'STARTING'
+  const phone = (data.me && data.me.id) ? data.me.id.split('@')[0] : ''
+  const settings = data.settings || {}
+
+  let statusBadge = ''
+  if (!isInstalled) {
+    statusBadge = `<span style="background:#201515;color:#f87171;border:1px solid #7f1d1d;padding:4px 12px;border-radius:20px;font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> WhatsApp Não Habilitado</span>`
+  } else if (isWorking) {
+    statusBadge = `<span style="background:rgba(34,197,94,0.15);color:#16a34a;border:1px solid rgba(34,197,94,0.3);padding:4px 12px;border-radius:20px;font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+      <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;"></span>
+      Conectado e Operacional
+    </span>`
+  } else {
+    statusBadge = `<span style="background:rgba(234,179,8,0.15);color:#ca8a04;border:1px solid rgba(234,179,8,0.3);padding:4px 12px;border-radius:20px;font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+      <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#eab308;"></span>
+      ${isScan ? 'Aguardando Leitura do QR Code' : 'Desconectado'}
+    </span>`
+  }
+
+  container.innerHTML = `
+    <div class="settings-section" style="border-top:3px solid #25d366;box-shadow:0 2px 10px rgba(0,0,0,0.03);">
+      <div class="settings-section-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="width:44px;height:44px;border-radius:12px;background:rgba(37,211,102,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="#25d366"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm0 18.09c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.04 8.04 0 0 1-1.23-4.32c0-4.48 3.64-8.12 8.12-8.12 2.17 0 4.21.85 5.74 2.38s2.38 3.57 2.38 5.74c0 4.49-3.64 8.13-8.12 8.13zm4.45-6.09c-.24-.12-1.45-.71-1.67-.8-.23-.08-.39-.12-.56.12-.17.24-.64.8-.79.96-.14.16-.29.18-.53.06-.24-.12-1.03-.38-1.96-1.21-.73-.65-1.22-1.45-1.36-1.69-.14-.24-.02-.37.1-.49.11-.11.24-.29.37-.43.12-.15.16-.25.24-.41.08-.17.04-.31-.02-.43s-.56-1.35-.77-1.85c-.2-.48-.41-.42-.56-.43h-.48c-.16 0-.43.06-.66.31s-.87.85-.87 2.07c0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.47-.07 1.45-.59 1.65-1.17.2-.57.2-1.07.14-1.17-.06-.11-.23-.17-.47-.29z"/></svg>
+          </div>
+          <div>
+            <div class="settings-section-title" style="display:flex;align-items:center;gap:8px;">
+              ${integ.name || 'WhatsApp (WAHA)'}
+            </div>
+            <div class="settings-section-sub">
+              Sessão: <strong>${data.session || 'default'}</strong> ${phone ? '• Telefone: <strong>+' + phone + '</strong>' : ''} • Conexão Ativa
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          ${statusBadge}
+        </div>
+      </div>
+      <div class="settings-body">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;padding-bottom:14px;border-bottom:1px solid var(--border);">
+          <div style="font-size:12.5px;color:var(--text-secondary);">
+            ${isWorking
+              ? 'WhatsApp pareado e ativo para envio de lembretes aos clientes e conexão com n8n.'
+              : 'WhatsApp desconectado. Conecte lendo o QR Code para habilitar disparos automáticos aos clientes.'}
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            ${isWorking
+              ? `<button class="btn-primary" onclick="openWahaTestModal()" style="font-size:12px;padding:6px 12px;display:inline-flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> Testar Disparo</button>
+                 <button class="btn-outline" onclick="openWahaScreenshotModal()" style="font-size:12px;padding:6px 12px;display:inline-flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Ver Print WhatsApp</button>
+                 <button class="btn-outline" onclick="showSettingsTab(document.getElementById('settings-nav-whatsapp'), 'tab-whatsapp')" style="font-size:12px;padding:6px 12px;display:inline-flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Gerenciar Notificações & n8n</button>`
+              : `<button class="btn-primary" onclick="openWahaQrModal()" style="font-size:12px;padding:6px 12px;display:inline-flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> Conectar com QR Code</button>
+                 <button class="btn-outline" onclick="checkWahaStatus(true)" style="font-size:12px;padding:6px 12px;display:inline-flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg> Atualizar</button>`
+            }
+            <button class="btn-outline btn-danger" onclick="removeWahaIntegration(${integ.id})" style="font-size:12px;padding:6px 12px;display:inline-flex;align-items:center;gap:6px;" title="Remover esta integração">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Remover Integração
+            </button>
+          </div>
+        </div>
+
+        <div style="margin-top:14px;">
+          <div style="font-size:12.5px;font-weight:600;color:var(--text-dark);margin-bottom:8px;">Gatilhos Rápidos de Notificação:</div>
+          <div class="checkbox-group">
+            <label class="checkbox-card" style="margin-bottom:6px;">
+              <input type="checkbox" id="waha-card-notif-create" ${settings.notify_on_create !== false ? 'checked' : ''} onchange="toggleWahaSetting('notify_on_create', this.checked)">
+              <div class="checkbox-card-content">
+                <div class="checkbox-card-title">Aviso de Novo Agendamento</div>
+                <div class="checkbox-card-desc">Envia mensagem de confirmação instantânea assim que o agendamento é salvo no sistema</div>
+              </div>
+            </label>
+            <label class="checkbox-card">
+              <input type="checkbox" id="waha-card-notif-cancel" ${settings.notify_on_cancel !== false ? 'checked' : ''} onchange="toggleWahaSetting('notify_on_cancel', this.checked)">
+              <div class="checkbox-card-content">
+                <div class="checkbox-card-title">Aviso de Cancelamento</div>
+                <div class="checkbox-card-desc">Envia aviso amigável quando um agendamento for cancelado ou desmarcado</div>
+              </div>
+            </label>
+          </div>
+          <div style="margin-top:12px;padding:10px 14px;background:var(--bg-raised,#f8fafc);border-radius:8px;border:1px solid var(--border);font-size:12px;color:var(--text-secondary);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+            <span style="display:inline-flex;align-items:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> Personalize os modelos de mensagens e conecte <strong>Webhooks com o n8n</strong> na aba <strong>WhatsApp</strong>.</span>
+            <button class="btn-outline" onclick="showSettingsTab(document.getElementById('settings-nav-whatsapp'), 'tab-whatsapp')" style="font-size:11px;padding:3px 10px;">Acessar Aba WhatsApp &gt;</button>
+          </div>
+        </div>
+      </div>
+    </div>`
+}
+
+async function removeWahaIntegration(integId) {
+  if (!confirm('Deseja realmente remover a integração com o WhatsApp?\n\nO WhatsApp será desconectado e os disparos automáticos de mensagens aos clientes serão desativados.')) return
+  try {
+    showToast('Removendo integração do WhatsApp...', 'info')
+    await fetch(API + '/whatsapp/integration', { method: 'DELETE' })
+    if (integId) {
+      await fetch(API + '/integrations/' + integId, { method: 'DELETE' }).catch(() => {})
+    }
+    showToast('Integração do WhatsApp removida com sucesso.', 'success')
+    await checkWahaStatus()
+    await loadIntegrations()
+    const navWhatsapp = document.getElementById('settings-nav-whatsapp')
+    if (navWhatsapp) navWhatsapp.style.display = 'none'
+    const tabWa = document.getElementById('tab-whatsapp')
+    if (tabWa && tabWa.style.display !== 'none') {
+      showSettingsTab(document.getElementById('settings-nav-integ'), 'tab-integ')
+    }
+  } catch (e) {
+    showToast('Erro ao remover integração do WhatsApp.')
+  }
+}
+
 async function toggleInteg(id, enabled) {
   try {
     await fetch(API + '/integrations/' + id, {
@@ -3734,7 +3782,8 @@ async function deleteInteg(id) {
   if (!confirm('Excluir esta integração?')) return
   try {
     await fetch(API + '/integrations/' + id, { method: 'DELETE' })
-    loadIntegrations()
+    await checkWahaStatus()
+    await loadIntegrations()
     showToast('Integração removida.', 'info')
   } catch {
     showToast('Erro ao remover integração.')
@@ -3744,7 +3793,11 @@ async function deleteInteg(id) {
 function showCreateIntegrationModal() {
   document.getElementById('integ-id').value = ''
   document.getElementById('integ-modal-title').textContent = 'Nova Integração'
-  document.getElementById('integ-save-btn').textContent = 'Criar Integração'
+  const saveBtn = document.getElementById('integ-save-btn')
+  if (saveBtn) {
+    saveBtn.textContent = 'Criar Integração'
+    saveBtn.disabled = false
+  }
   document.getElementById('integ-name').value = ''
   document.getElementById('integ-status').textContent = ''
   document.getElementById('integ-status').className = 'integ-status'
@@ -3756,6 +3809,17 @@ function showCreateIntegrationModal() {
     el.style.opacity = ''
     el.style.cursor = ''
   })
+  const wahaTile = document.getElementById('integ-opt-whatsapp')
+  if (wahaTile) {
+    const isInst = window._wahaStatus && window._wahaStatus.installed
+    if (!isInst) {
+      wahaTile.classList.add('waha-inactive')
+      wahaTile.title = 'Serviço de WhatsApp não habilitado'
+    } else {
+      wahaTile.classList.remove('waha-inactive')
+      wahaTile.title = 'WhatsApp Automático'
+    }
+  }
   document.getElementById('integ-modal-overlay').classList.add('open')
 }
 
@@ -3875,6 +3939,84 @@ function renderIntegConfigFields(type) {
         }
       }
     }).catch(() => {})
+  } else if (type === 'whatsapp') {
+    const isInst = window._wahaStatus && window._wahaStatus.installed
+    const status = window._wahaStatus || {}
+    const isWorking = status.status === 'WORKING'
+    const saveBtn = document.getElementById('integ-save-btn')
+
+    if (!isInst) {
+      if (saveBtn) saveBtn.disabled = true
+      container.innerHTML = `
+        <hr class="integ-divider" style="margin:16px 0;">
+        <div class="waha-error-banner" style="background:#181212;border:1px solid #7f1d1d;border-radius:8px;padding:16px;color:#fca5a5;font-size:13px;line-height:1.5;">
+          <div style="font-weight:700;font-size:14px;color:#f87171;display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Serviço de WhatsApp não habilitado
+          </div>
+          <p style="margin:0 0 10px 0;color:#fecaca;">
+            O serviço de mensagens do WhatsApp não foi detectado em execução. Esta integração requer o serviço ativo na plataforma para poder enviar notificações automáticas aos seus clientes.
+          </p>
+          <div style="background:#221313;border:1px solid #991b1b;border-radius:6px;padding:10px 12px;font-size:12px;color:#fca5a5;">
+            <strong>Como habilitar o WhatsApp:</strong><br>
+            Execute o instalador <code style="background:#000;color:#38bdf8;padding:1px 5px;border-radius:3px;">./install.sh</code> (ou <code style="background:#000;color:#38bdf8;padding:1px 5px;border-radius:3px;">install.bat</code>) e habilite a integração de WhatsApp.
+          </div>
+          <div style="margin-top:12px;">
+            <button type="button" class="btn-outline" onclick="checkWahaStatus(true); selectIntegType('whatsapp', document.getElementById('integ-opt-whatsapp'))" style="border-color:#7f1d1d;color:#fca5a5;font-size:12px;display:inline-flex;align-items:center;gap:6px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg> Verificar se já está ativo
+            </button>
+          </div>
+        </div>`
+      return
+    }
+
+    if (saveBtn) saveBtn.disabled = false
+    const cfg = window._wahaStatus?.settings || {}
+    container.innerHTML = `
+      <hr class="integ-divider" style="margin:16px 0;">
+      <div class="integ-section-title">WhatsApp Automático — Notificações</div>
+      <div class="integ-helper" style="margin-bottom:12px;">
+        Envio individual e automático de notificações aos clientes. Sem interface de chat.
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-raised, #f8fafc);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:14px;">
+        <div>
+          <div style="font-size:13px;font-weight:600;color:var(--text-dark);display:flex;align-items:center;gap:6px;">
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${isWorking ? '#22c55e' : '#eab308'};"></span>
+            Status: ${isWorking ? '<span style="color:#16a34a;">Conectado</span>' : '<span style="color:#ca8a04;">Aguardando leitura do QR Code</span>'}
+          </div>
+          <div style="font-size:11.5px;color:var(--text-secondary);margin-top:2px;">
+            Sessão: <strong>${status.session || 'default'}</strong> ${status.me ? ' • ' + (status.me.id || '') : ''}
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          ${isWorking
+            ? `<button type="button" class="btn-outline" onclick="openWahaTestModal()" style="font-size:12px;display:inline-flex;align-items:center;gap:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> Testar</button>
+               <button type="button" class="btn-outline btn-danger" onclick="disconnectWaha()" style="font-size:12px;">Desconectar</button>`
+            : `<button type="button" class="btn-primary" onclick="openWahaQrModal()" style="font-size:12px;display:inline-flex;align-items:center;gap:4px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> Escanear QR Code</button>`
+          }
+        </div>
+      </div>
+
+      <div class="integ-field" style="margin-bottom:12px;">
+        <label class="form-label">Gatilhos de Notificação Automática</label>
+        <div class="checkbox-group">
+          <label class="checkbox-card" style="margin-bottom:6px;">
+            <input type="checkbox" id="waha-cfg-notif-create" ${cfg.notify_on_create !== false ? 'checked' : ''}>
+            <div class="checkbox-card-content">
+              <div class="checkbox-card-title">Notificar ao Criar Agendamento</div>
+              <div class="checkbox-card-desc">Envia confirmação imediata para o cliente quando o agendamento é marcado</div>
+            </div>
+          </label>
+          <label class="checkbox-card">
+            <input type="checkbox" id="waha-cfg-notif-cancel" ${cfg.notify_on_cancel !== false ? 'checked' : ''}>
+            <div class="checkbox-card-content">
+              <div class="checkbox-card-title">Notificar ao Cancelar Agendamento</div>
+              <div class="checkbox-card-desc">Envia aviso amigável quando um agendamento é cancelado</div>
+            </div>
+          </label>
+        </div>
+      </div>`
   }
 }
 
@@ -3902,6 +4044,23 @@ async function saveInteg() {
       client_id: (document.getElementById('integ-cfg-google-client-id')?.value || '').trim(),
       client_secret: (document.getElementById('integ-cfg-google-client-secret')?.value || '').trim(),
     }
+  } else if (_selectedIntegType === 'whatsapp') {
+    if (!window._wahaStatus || !window._wahaStatus.installed) {
+      showToast('O WAHA não está instalado na plataforma.')
+      return
+    }
+    const notifCreate = document.getElementById('waha-cfg-notif-create')?.checked ?? true
+    const notifCancel = document.getElementById('waha-cfg-notif-cancel')?.checked ?? true
+    config = {
+      notify_on_create: notifCreate,
+      notify_on_cancel: notifCancel,
+      session: window._wahaStatus?.session || 'default'
+    }
+    await fetch(API + '/whatsapp/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ notify_on_create: notifCreate, notify_on_cancel: notifCancel })
+    }).catch(() => {})
   }
 
   status.textContent = 'Salvando...'
@@ -3926,7 +4085,11 @@ async function saveInteg() {
       showToast('Integração criada!', 'success')
     }
     closeIntegModal()
-    loadIntegrations()
+    await checkWahaStatus()
+    await loadIntegrations()
+    if (_selectedIntegType === 'whatsapp' && window._wahaStatus?.status !== 'WORKING') {
+      setTimeout(() => openWahaQrModal(), 400)
+    }
   } catch {
     showToast('Erro de conexão.')
   }
@@ -4052,6 +4215,1159 @@ async function integDisconnectGoogle() {
     if (dc) dc.style.display = 'none'
   } catch {
     showToast('Erro ao desconectar.')
+  }
+}
+
+// ── WHATSAPP (WAHA) INTEGRATION & NOTIFICATIONS ──────────
+
+let _wahaPollTimer = null
+let _wahaQrExpiryTimer = null
+let _lastWahaTextarea = null
+
+async function checkWahaStatus(showToastFeedback = false) {
+  const badgeWrapper = document.getElementById('waha-badge-wrapper')
+  const cardBody = document.getElementById('waha-card-body')
+  const optWhatsapp = document.getElementById('integ-opt-whatsapp')
+  const navWhatsapp = document.getElementById('settings-nav-whatsapp')
+
+  try {
+    const res = await fetch(API + '/whatsapp/status')
+    const data = await res.json()
+    window._wahaStatus = data
+
+    // Update tile in integration modal
+    if (optWhatsapp) {
+      if (!data.installed) {
+        optWhatsapp.classList.add('waha-inactive')
+        optWhatsapp.title = 'Serviço de WhatsApp não habilitado'
+      } else {
+        optWhatsapp.classList.remove('waha-inactive')
+        optWhatsapp.title = 'WhatsApp Automático'
+      }
+    }
+
+    // Toggle WhatsApp navigation tab in Settings sidebar (only if integrated)
+    if (navWhatsapp) {
+      if (data.installed && data.is_integrated) {
+        navWhatsapp.style.display = ''
+        const navDot = navWhatsapp.querySelector('.waha-nav-dot')
+        if (navDot) {
+          navDot.style.background = data.status === 'WORKING' ? '#22c55e' : '#eab308'
+        }
+      } else {
+        navWhatsapp.style.display = 'none'
+      }
+    }
+
+    // Refresh dynamic WhatsApp integration card if integrated
+    const wahaContainer = document.getElementById('waha-integrated-card')
+    if (wahaContainer && data.is_integrated) {
+      wahaContainer.style.display = 'block'
+      renderWahaIntegrationCard(window._wahaInteg || { name: 'WhatsApp Automático' })
+    } else if (wahaContainer && !data.is_integrated) {
+      wahaContainer.style.display = 'none'
+      wahaContainer.innerHTML = ''
+    }
+
+    if (!data.installed) {
+      if (badgeWrapper) {
+        badgeWrapper.innerHTML = `
+          <span class="badge-waha-inactive" style="background:#201515;color:#f87171;border:1px solid #7f1d1d;padding:4px 12px;border-radius:20px;font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:5px;">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            WhatsApp Não Habilitado
+          </span>`
+      }
+      if (cardBody) {
+        cardBody.innerHTML = `
+          <div class="waha-card waha-inactive" style="background:#111827;border:1px solid #374151;border-radius:12px;padding:22px;color:#9ca3af;">
+            <div style="display:flex;align-items:flex-start;gap:16px;">
+              <div style="width:48px;height:48px;border-radius:12px;background:#1f2937;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              </div>
+              <div style="flex:1;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;flex-wrap:wrap;">
+                  <h4 style="margin:0;color:#f3f4f6;font-size:15px;font-weight:700;">Serviço de WhatsApp não está ativo nesta plataforma</h4>
+                  <span style="background:#374151;color:#d1d5db;font-size:11px;padding:2px 8px;border-radius:4px;font-weight:600;">Inativo</span>
+                </div>
+                <p style="margin:0 0 12px 0;font-size:13px;line-height:1.5;color:#9ca3af;">
+                  ${data.error || 'O serviço de WhatsApp não está em execução no momento.'}
+                  Para disparar notificações de agendamentos e lembretes aos clientes via WhatsApp, o serviço deve ser habilitado no instalador da plataforma.
+                </p>
+                <div style="background:#1f2937;border:1px solid #374151;border-radius:8px;padding:12px 14px;font-size:12px;color:#e5e7eb;margin-bottom:14px;line-height:1.6;">
+                  <strong style="color:#60a5fa;">Como habilitar o WhatsApp:</strong>
+                  <div style="margin-top:4px;">
+                    1. Execute o instalador no terminal: <code style="background:#0f172a;padding:2px 6px;border-radius:4px;color:#38bdf8;">./install.sh</code> (ou <code style="background:#0f172a;padding:2px 6px;border-radius:4px;color:#38bdf8;">install.bat</code>)<br>
+                    2. Responda <strong>S (Sim)</strong> ao perguntar se deseja habilitar o WhatsApp ou selecione a opção <strong>[11]</strong> no menu.<br>
+                    3. Ou inicie via Docker: <code style="background:#0f172a;padding:2px 6px;border-radius:4px;color:#38bdf8;">docker compose --profile waha up -d</code>
+                  </div>
+                </div>
+                <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+                  <button class="btn-outline" onclick="checkWahaStatus(true)" style="border-color:#4b5563;color:#e5e7eb;font-size:12px;display:inline-flex;align-items:center;gap:6px;">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg> Verificar Novamente
+                  </button>
+                  <span style="font-size:11.5px;color:#6b7280;">Serviço Integrado: <strong>WhatsApp Automático</strong></span>
+                </div>
+              </div>
+            </div>
+          </div>`
+      }
+      if (showToastFeedback) showToast('Serviço de WhatsApp não está ativo na plataforma.', 'error')
+      return
+    }
+
+    // Installed! Check session status
+    const isWorking = data.status === 'WORKING'
+    const isScan = data.status === 'SCAN_QR_CODE' || data.status === 'STARTING'
+    const settings = data.settings || {}
+
+    if (badgeWrapper) {
+      if (isWorking) {
+        badgeWrapper.innerHTML = `
+          <span class="badge-waha-active" style="background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid rgba(34,197,94,0.3);padding:4px 12px;border-radius:20px;font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:5px;">
+            <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#22c55e;"></span>
+            Conectado
+          </span>`
+      } else {
+        badgeWrapper.innerHTML = `
+          <span class="badge-waha-scan" style="background:rgba(234,179,8,0.15);color:#eab308;border:1px solid rgba(234,179,8,0.3);padding:4px 12px;border-radius:20px;font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:5px;">
+            <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#eab308;"></span>
+            ${isScan ? 'Aguardando QR Code' : 'Desconectado'}
+          </span>`
+      }
+    }
+
+    if (cardBody) {
+      if (isWorking) {
+        const phone = (data.me && data.me.id) ? data.me.id.split('@')[0] : ''
+        cardBody.innerHTML = `
+          <div class="waha-card waha-active" style="background:var(--bg-card,#fff);border:1px solid var(--border);border-radius:12px;padding:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;padding-bottom:18px;border-bottom:1px solid var(--border);">
+              <div style="display:flex;align-items:center;gap:14px;">
+                <div style="width:48px;height:48px;border-radius:12px;background:rgba(37,211,102,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="#25d366"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm0 18.09c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.04 8.04 0 0 1-1.23-4.32c0-4.48 3.64-8.12 8.12-8.12 2.17 0 4.21.85 5.74 2.38s2.38 3.57 2.38 5.74c0 4.49-3.64 8.13-8.12 8.13z"/></svg>
+                </div>
+                <div>
+                  <div style="font-size:15px;font-weight:700;color:var(--text-dark);display:flex;align-items:center;gap:8px;">
+                    WhatsApp Conectado e Operacional
+                    <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;"></span>
+                  </div>
+                  <div style="font-size:12.5px;color:var(--text-secondary);margin-top:2px;">
+                    Sessão: <strong>${data.session || 'default'}</strong> ${phone ? '• Telefone: <strong>'+phone+'</strong>' : ''} • Conexão Ativa
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                <button class="btn-primary" onclick="openWahaTestModal()" style="font-size:12px;display:inline-flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> Testar WhatsApp</button>
+                <button class="btn-outline" onclick="openWahaScreenshotModal()" style="font-size:12px;display:inline-flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Ver WhatsApp Web (Print)</button>
+                <button class="btn-outline" onclick="showSettingsTab(document.getElementById('settings-nav-whatsapp'), 'tab-whatsapp')" style="font-size:12px;display:inline-flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Gerenciar Notificações</button>
+                <button class="btn-outline btn-danger" onclick="disconnectWaha()" style="font-size:12px;">Desconectar</button>
+              </div>
+            </div>
+
+            <div style="margin-top:16px;">
+              <div style="font-size:13px;font-weight:600;color:var(--text-dark);margin-bottom:10px;">Gatilhos Rápidos de Notificação</div>
+              <div class="checkbox-group">
+                <label class="checkbox-card" style="margin-bottom:8px;">
+                  <input type="checkbox" id="waha-card-notif-create" ${settings.notify_on_create !== false ? 'checked' : ''} onchange="toggleWahaSetting('notify_on_create', this.checked)">
+                  <div class="checkbox-card-content">
+                    <div class="checkbox-card-title">Aviso de Novo Agendamento</div>
+                    <div class="checkbox-card-desc">Envia mensagem de confirmação para a cliente assim que o horário é registrado no sistema</div>
+                  </div>
+                </label>
+                <label class="checkbox-card">
+                  <input type="checkbox" id="waha-card-notif-cancel" ${settings.notify_on_cancel !== false ? 'checked' : ''} onchange="toggleWahaSetting('notify_on_cancel', this.checked)">
+                  <div class="checkbox-card-content">
+                    <div class="checkbox-card-title">Aviso de Cancelamento</div>
+                    <div class="checkbox-card-desc">Envia notificação amigável para a cliente caso o agendamento seja cancelado</div>
+                  </div>
+                </label>
+              </div>
+              <div style="margin-top:14px;padding:10px 12px;background:var(--bg-raised,#f8fafc);border-radius:6px;border:1px solid var(--border);font-size:12px;color:var(--text-secondary);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+                <span style="display:inline-flex;align-items:center;gap:6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> Personalize os textos das mensagens na nova aba <strong>WhatsApp</strong> nas configurações.</span>
+                <button class="btn-outline" onclick="showSettingsTab(document.getElementById('settings-nav-whatsapp'), 'tab-whatsapp')" style="font-size:11px;padding:3px 8px;">Acessar Aba WhatsApp &gt;</button>
+              </div>
+            </div>
+          </div>`
+      } else {
+        cardBody.innerHTML = `
+          <div class="waha-card" style="background:var(--bg-card,#fff);border:1px solid var(--border);border-radius:12px;padding:20px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;">
+              <div style="display:flex;align-items:center;gap:14px;">
+                <div style="width:48px;height:48px;border-radius:12px;background:rgba(234,179,8,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="#d97706"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm0 18.09c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.04 8.04 0 0 1-1.23-4.32c0-4.48 3.64-8.12 8.12-8.12 2.17 0 4.21.85 5.74 2.38s2.38 3.57 2.38 5.74c0 4.49-3.64 8.13-8.12 8.13z"/></svg>
+                </div>
+                <div>
+                  <div style="font-size:15px;font-weight:700;color:var(--text-dark);">Aparelho Desconectado</div>
+                  <div style="font-size:12.5px;color:var(--text-secondary);margin-top:2px;">
+                    Serviço pronto para conexão. Conecte seu WhatsApp lendo o QR Code para disparar notificações.
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <button class="btn-primary" onclick="openWahaQrModal()" style="display:inline-flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> Conectar com QR Code</button>
+                <button class="btn-outline" onclick="checkWahaStatus(true)" style="display:inline-flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg> Atualizar</button>
+              </div>
+            </div>
+          </div>`
+      }
+    }
+
+    if (showToastFeedback) {
+      showToast('Status do WhatsApp atualizado!', 'info')
+    }
+  } catch (e) {
+    if (badgeWrapper) {
+      badgeWrapper.innerHTML = `
+        <span style="background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3);padding:4px 12px;border-radius:20px;font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:5px;">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Erro ao verificar WhatsApp
+        </span>`
+    }
+    if (cardBody) {
+      cardBody.innerHTML = `
+        <div class="waha-card waha-inactive" style="background:#111827;border:1px solid #374151;border-radius:12px;padding:22px;color:#9ca3af;">
+          <div style="display:flex;align-items:flex-start;gap:14px;">
+            <div style="width:40px;height:40px;border-radius:10px;background:#1f2937;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+            <div>
+              <h4 style="margin:0 0 6px 0;color:#f3f4f6;font-size:15px;">Serviço de WhatsApp não está ativo nesta plataforma</h4>
+              <p style="margin:0 0 10px 0;font-size:13px;line-height:1.5;color:#9ca3af;">
+                Não foi possível conectar ao serviço de mensagens do WhatsApp. Verifique se o serviço está ativo ou habilite-o no instalador.
+              </p>
+              <button class="btn-outline" onclick="checkWahaStatus(true)" style="border-color:#4b5563;color:#e5e7eb;font-size:12px;display:inline-flex;align-items:center;gap:6px;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg> Tentar Novamente</button>
+            </div>
+          </div>
+        </div>`
+    }
+    if (showToastFeedback) showToast('Erro ao consultar status do WhatsApp.', 'error')
+  }
+}
+
+async function toggleWahaSetting(key, val) {
+  try {
+    const payload = {}
+    payload[key] = val
+    await fetch(API + '/whatsapp/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    showToast('Configuração do WhatsApp salva!', 'success')
+  } catch {
+    showToast('Erro ao salvar configuração do WhatsApp.')
+  }
+}
+
+function openWahaQrModal() {
+  const modal = document.getElementById('waha-qr-modal')
+  if (!modal) return
+  modal.classList.add('open')
+  loadWahaQr(false)
+
+  // Start polling
+  if (_wahaPollTimer) clearInterval(_wahaPollTimer)
+  _wahaPollTimer = setInterval(async () => {
+    try {
+      const res = await fetch(API + '/whatsapp/status')
+      const data = await res.json()
+      if (data.status === 'WORKING') {
+        clearInterval(_wahaPollTimer)
+        _wahaPollTimer = null
+        if (_wahaQrExpiryTimer) {
+          clearInterval(_wahaQrExpiryTimer)
+          _wahaQrExpiryTimer = null
+        }
+        const ld = document.getElementById('waha-qr-loading')
+        const ct = document.getElementById('waha-qr-content')
+        const eb = document.getElementById('waha-qr-error')
+        const sc = document.getElementById('waha-qr-success')
+        if (ld) ld.style.display = 'none'
+        if (ct) ct.style.display = 'none'
+        if (eb) eb.style.display = 'none'
+        if (sc) sc.style.display = 'block'
+        showToast('WhatsApp conectado com sucesso!', 'success')
+        checkWahaStatus()
+        loadWhatsAppTab()
+      }
+    } catch {}
+  }, 2500)
+}
+
+function closeWahaQrModal() {
+  if (_wahaPollTimer) {
+    clearInterval(_wahaPollTimer)
+    _wahaPollTimer = null
+  }
+  if (_wahaQrExpiryTimer) {
+    clearInterval(_wahaQrExpiryTimer)
+    _wahaQrExpiryTimer = null
+  }
+  const modal = document.getElementById('waha-qr-modal')
+  if (modal) modal.classList.remove('open')
+  const tabWa = document.getElementById('tab-whatsapp')
+  if (tabWa && tabWa.style.display !== 'none') {
+    loadWhatsAppTab()
+  }
+}
+
+async function loadWahaQr(forceRefresh = false) {
+  const loading = document.getElementById('waha-qr-loading')
+  const content = document.getElementById('waha-qr-content')
+  const errBox = document.getElementById('waha-qr-error')
+  const succBox = document.getElementById('waha-qr-success')
+  const qrImg = document.getElementById('waha-qr-image')
+  const errMsg = document.getElementById('waha-qr-error-msg')
+  const expiredOverlay = document.getElementById('waha-qr-expired-overlay')
+  const secEl = document.getElementById('waha-qr-seconds')
+
+  if (_wahaQrExpiryTimer) {
+    clearInterval(_wahaQrExpiryTimer)
+    _wahaQrExpiryTimer = null
+  }
+
+  if (loading) loading.style.display = 'block'
+  if (content) content.style.display = 'none'
+  if (errBox) errBox.style.display = 'none'
+  if (succBox) succBox.style.display = 'none'
+  if (expiredOverlay) expiredOverlay.style.display = 'none'
+  if (qrImg) qrImg.style.filter = 'none'
+
+  try {
+    const endpoint = forceRefresh ? API + '/whatsapp/refresh-qr' : API + '/whatsapp/qr'
+    const res = await fetch(endpoint, {
+      method: forceRefresh ? 'POST' : 'GET'
+    })
+    const data = await res.json()
+
+    if (loading) loading.style.display = 'none'
+
+    if (data.status === 'WORKING') {
+      if (succBox) succBox.style.display = 'block'
+      checkWahaStatus()
+      return
+    }
+
+    const qrUrl = data.qr || data.qr_image
+    if (qrUrl) {
+      if (qrImg) qrImg.src = qrUrl
+      if (content) content.style.display = 'block'
+
+      // Start countdown timer for QR expiration
+      let remaining = data.expires_in || 35
+      if (secEl) secEl.textContent = remaining + 's'
+      _wahaQrExpiryTimer = setInterval(() => {
+        remaining--
+        if (secEl) secEl.textContent = remaining + 's'
+        if (remaining <= 0) {
+          clearInterval(_wahaQrExpiryTimer)
+          _wahaQrExpiryTimer = null
+          if (expiredOverlay) expiredOverlay.style.display = 'flex'
+          if (qrImg) qrImg.style.filter = 'blur(3px) grayscale(60%)'
+        }
+      }, 1000)
+    } else {
+      if (errMsg) errMsg.textContent = data.error || 'QR code indisponível no momento. Tente novamente em instantes.'
+      if (errBox) errBox.style.display = 'block'
+    }
+  } catch (err) {
+    if (loading) loading.style.display = 'none'
+    if (errMsg) errMsg.textContent = 'Erro ao conectar ao serviço de WhatsApp. Tente novamente em instantes.'
+    if (errBox) errBox.style.display = 'block'
+  }
+}
+
+async function disconnectWaha() {
+  if (!confirm('Tem certeza de que deseja desconectar o WhatsApp? As notificações deixarão de ser enviadas.')) return
+  try {
+    const res = await fetch(API + '/whatsapp/logout', { method: 'POST' })
+    const data = await res.json()
+    if (res.ok) {
+      showToast('WhatsApp desconectado com sucesso.', 'info')
+      checkWahaStatus()
+      if (document.getElementById('tab-whatsapp')?.style.display !== 'none') {
+        showSettingsTab(document.getElementById('settings-nav-integ'), 'tab-integ')
+      }
+    } else {
+      showToast(data.error || 'Erro ao desconectar WhatsApp.')
+    }
+  } catch {
+    showToast('Erro ao comunicar com o servidor.')
+  }
+}
+
+// ── WHATSAPP SCREENSHOT VIEWER (PRINT DA SESSÃO) ──────────
+
+function openWahaScreenshotModal() {
+  const modal = document.getElementById('waha-screenshot-modal')
+  if (!modal) return
+  modal.classList.add('open')
+  loadWahaScreenshot()
+}
+
+function closeWahaScreenshotModal() {
+  const modal = document.getElementById('waha-screenshot-modal')
+  if (modal) modal.classList.remove('open')
+}
+
+async function loadWahaScreenshot() {
+  const loading = document.getElementById('waha-screenshot-loading')
+  const container = document.getElementById('waha-screenshot-container')
+  const errBox = document.getElementById('waha-screenshot-error')
+  const errMsg = document.getElementById('waha-screenshot-error-msg')
+  const img = document.getElementById('waha-screenshot-img')
+  const tsEl = document.getElementById('waha-screenshot-timestamp')
+
+  if (loading) loading.style.display = 'block'
+  if (container) container.style.display = 'none'
+  if (errBox) errBox.style.display = 'none'
+
+  try {
+    const res = await fetch(API + '/whatsapp/screenshot')
+    const data = await res.json()
+
+    if (loading) loading.style.display = 'none'
+
+    if (res.ok && data.success && data.screenshot) {
+      if (img) img.src = data.screenshot
+      if (tsEl) tsEl.textContent = 'Capturado em: ' + (data.timestamp || 'Agora') + ' • Sessão: ' + (data.session || 'WAHA')
+      if (container) container.style.display = 'block'
+    } else {
+      if (errMsg) errMsg.textContent = data.error || 'Não foi possível obter a captura do WhatsApp Web.'
+      if (errBox) errBox.style.display = 'block'
+    }
+  } catch (e) {
+    if (loading) loading.style.display = 'none'
+    if (errMsg) errMsg.textContent = 'Erro ao conectar com o serviço WAHA.'
+    if (errBox) errBox.style.display = 'block'
+  }
+}
+
+async function loadWahaInlineScreenshot() {
+  const loading = document.getElementById('wa-inline-screenshot-loading')
+  const container = document.getElementById('wa-inline-screenshot-container')
+  const img = document.getElementById('wa-inline-screenshot-img')
+  const timeEl = document.getElementById('wa-inline-screenshot-time')
+
+  if (loading) loading.style.display = 'block'
+  if (container) container.style.opacity = '0.5'
+
+  try {
+    const res = await fetch(API + '/whatsapp/screenshot')
+    const data = await res.json()
+
+    if (loading) loading.style.display = 'none'
+    if (container) container.style.opacity = '1'
+
+    if (res.ok && data.success && data.screenshot) {
+      if (img) img.src = data.screenshot
+      if (timeEl) timeEl.textContent = 'Última captura em: ' + (data.timestamp || 'Agora') + ' • Sessão: ' + (data.session || 'WAHA')
+    } else {
+      if (timeEl) timeEl.textContent = 'Não foi possível carregar a captura de tela.'
+    }
+  } catch (e) {
+    if (loading) loading.style.display = 'none'
+    if (container) container.style.opacity = '1'
+    if (timeEl) timeEl.textContent = 'Erro ao capturar tela.'
+  }
+}
+
+// ── WHATSAPP SETTINGS TAB CONTROLLER ──────────────────────
+
+async function loadWhatsAppTab(showToastFeedback = false) {
+  const badgeEl = document.getElementById('waha-tab-badge')
+  const statusCard = document.getElementById('waha-tab-status-card')
+  const unconnectedEl = document.getElementById('tab-whatsapp-unconnected')
+  const contentEl = document.getElementById('tab-whatsapp-content')
+
+  // Fast pre-render if cached status exists
+  if (window._wahaStatus) {
+    if (window._wahaStatus.status === 'WORKING') {
+      if (unconnectedEl) unconnectedEl.style.display = 'none'
+      if (contentEl) contentEl.style.display = 'block'
+    } else {
+      if (unconnectedEl) unconnectedEl.style.display = 'flex'
+      if (contentEl) contentEl.style.display = 'none'
+    }
+  }
+
+  try {
+    const res = await fetch(API + '/whatsapp/status')
+    const data = await res.json()
+    const settings = data.settings || {}
+    window._wahaStatus = data
+
+    const isWorking = data.status === 'WORKING'
+
+    if (!isWorking) {
+      if (unconnectedEl) {
+        unconnectedEl.style.display = 'flex'
+
+        const pillEl = document.getElementById('waha-unconnected-pill')
+        const pillText = document.getElementById('waha-unconnected-pill-text')
+        const titleEl = document.getElementById('waha-unconnected-title')
+        const descEl = document.getElementById('waha-unconnected-desc')
+        const btnConnect = document.getElementById('waha-btn-connect-qr')
+
+        if (!data.installed) {
+          if (pillEl) {
+            pillEl.style.background = 'rgba(239, 68, 68, 0.15)'
+            pillEl.style.borderColor = 'rgba(239, 68, 68, 0.3)'
+            pillEl.style.color = '#f87171'
+          }
+          if (pillText) pillText.textContent = 'Serviço do WhatsApp Inativo'
+          if (titleEl) titleEl.textContent = 'Serviço do WhatsApp Inativo'
+          if (descEl) descEl.textContent = 'O serviço do WhatsApp (WAHA) não está ativo ou instalado nesta plataforma. Para conectar seu número e habilitar automações, ative o WhatsApp através do instalador ou inicie o container Docker.'
+          if (btnConnect) btnConnect.style.display = 'none'
+        } else {
+          if (pillEl) {
+            pillEl.style.background = 'rgba(234, 179, 8, 0.12)'
+            pillEl.style.borderColor = 'rgba(234, 179, 8, 0.28)'
+            pillEl.style.color = '#fbbf24'
+          }
+          if (pillText) pillText.textContent = 'WhatsApp Desconectado • Leitura do QR Code Pendente'
+          if (titleEl) titleEl.textContent = 'Conexão com WhatsApp Necessária'
+          if (descEl) descEl.textContent = 'Para acessar as configurações de notificações automáticas, modelos de mensagens e integração com n8n, é necessário conectar seu WhatsApp primeiro realizando a leitura do QR Code.'
+          if (btnConnect) btnConnect.style.display = 'inline-flex'
+        }
+      }
+      if (contentEl) contentEl.style.display = 'none'
+
+      const navDot = document.querySelector('#settings-nav-whatsapp .waha-nav-dot')
+      if (navDot) navDot.style.background = '#eab308'
+
+      if (showToastFeedback) {
+        showToast('WhatsApp ainda não conectado. Escaneie o QR Code.', 'info')
+      }
+      return
+    }
+
+    // CONNECTED AND OPERATIONAL
+    if (unconnectedEl) unconnectedEl.style.display = 'none'
+    if (contentEl) contentEl.style.display = 'block'
+
+    const navDot = document.querySelector('#settings-nav-whatsapp .waha-nav-dot')
+    if (navDot) navDot.style.background = '#22c55e'
+
+    if (showToastFeedback) {
+      showToast('WhatsApp conectado e operacional!', 'success')
+    }
+
+    if (badgeEl) {
+      badgeEl.innerHTML = `
+        <span class="badge-waha-active" style="background:rgba(34,197,94,0.15);color:#22c55e;border:1px solid rgba(34,197,94,0.3);padding:4px 12px;border-radius:20px;font-size:var(--text-11);font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+          <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#22c55e;"></span>
+          Conectado e Operacional
+        </span>`
+    }
+
+    if (statusCard) {
+      const phone = (data.me && data.me.id) ? data.me.id.split('@')[0] : 'Dispositivo Pareado'
+      statusCard.innerHTML = `
+        <div class="waha-status-connected-box">
+          <div style="display:flex;align-items:center;gap:14px;">
+            <div style="width:48px;height:48px;border-radius:12px;background:rgba(37,211,102,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="#25d366"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm0 18.09c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.04 8.04 0 0 1-1.23-4.32c0-4.48 3.64-8.12 8.12-8.12 2.17 0 4.21.85 5.74 2.38s2.38 3.57 2.38 5.74c0 4.49-3.64 8.13-8.12 8.13z"/></svg>
+            </div>
+            <div>
+              <div class="waha-phone-title">
+                ${phone}
+                <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;"></span>
+              </div>
+              <div class="waha-session-subinfo">
+                Sessão: <strong>${data.session || 'default'}</strong> • Status: <strong style="color:#22c55e;">Conectado</strong>
+              </div>
+            </div>
+          </div>
+          <div class="waha-status-actions">
+            <button class="btn-primary waha-action-btn" onclick="openWahaTestModal()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> Testar Envio de Mensagem</button>
+            <button class="btn-outline waha-action-btn" onclick="scrollToN8nCredentials()" style="border-color:#ea580c;color:#ea580c;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg> Credenciais n8n</button>
+            <button class="btn-outline waha-action-btn" onclick="openWahaScreenshotModal()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg> Ver Print do WhatsApp</button>
+            <button class="btn-outline btn-danger waha-action-btn" onclick="removeWahaIntegration()" title="Remover esta integração"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg> Remover Integração</button>
+          </div>
+        </div>`
+    }
+
+    // Populate templates
+    const tmplCreated = document.getElementById('wa-tmpl-created')
+    const tmplReminder = document.getElementById('wa-tmpl-reminder')
+    const tmplCancelled = document.getElementById('wa-tmpl-cancelled')
+    const tmplReturn = document.getElementById('wa-tmpl-return')
+    const tmplThanks = document.getElementById('wa-tmpl-thanks')
+
+    if (tmplCreated) tmplCreated.value = settings.template_created || ''
+    if (tmplReminder) tmplReminder.value = settings.template_reminder || ''
+    if (tmplCancelled) tmplCancelled.value = settings.template_cancelled || ''
+    if (tmplReturn) tmplReturn.value = settings.template_return || ''
+    if (tmplThanks) tmplThanks.value = settings.template_thanks || ''
+
+    // Populate toggles
+    const togCreated = document.getElementById('wa-toggle-created')
+    const togReminder = document.getElementById('wa-toggle-reminder')
+    const togCancelled = document.getElementById('wa-toggle-cancelled')
+    const togReturn = document.getElementById('wa-toggle-return')
+    const togThanks = document.getElementById('wa-toggle-thanks')
+
+    if (togCreated) {
+      togCreated.checked = settings.notify_on_create !== false
+      updateWahaSwitchVisual(togCreated, 'created')
+    }
+    if (togReminder) {
+      togReminder.checked = settings.notify_on_reminder !== false
+      updateWahaSwitchVisual(togReminder, 'reminder')
+    }
+    if (togCancelled) {
+      togCancelled.checked = settings.notify_on_cancel !== false
+      updateWahaSwitchVisual(togCancelled, 'cancelled')
+    }
+    if (togReturn) {
+      togReturn.checked = settings.notify_on_return === true || settings.notify_on_return === 'true'
+      updateWahaSwitchVisual(togReturn, 'return')
+    }
+    if (togThanks) {
+      togThanks.checked = settings.notify_on_thanks === true || settings.notify_on_thanks === 'true'
+      updateWahaSwitchVisual(togThanks, 'thanks')
+    }
+
+    // Populate timing settings
+    const selTiming = document.getElementById('wa-reminder-timing')
+    const inpReminderTime = document.getElementById('wa-reminder-time')
+    const selReturnInterval = document.getElementById('wa-return-interval')
+    const inpReturnTime = document.getElementById('wa-return-time')
+    const selThanksDelay = document.getElementById('wa-thanks-delay')
+
+    if (selTiming) selTiming.value = settings.reminder_timing || '1_day'
+    if (inpReminderTime) inpReminderTime.value = settings.reminder_time || '09:00'
+    if (selReturnInterval) selReturnInterval.value = settings.return_interval_days || '20'
+    if (inpReturnTime) inpReturnTime.value = settings.return_time || '10:00'
+    if (selThanksDelay) selThanksDelay.value = settings.thanks_delay || 'immediate'
+
+    if (selTiming) handleReminderTimingChange(selTiming.value)
+
+    // Populate API config
+    const apiUrl = document.getElementById('wa-cfg-api-url')
+    const apiSess = document.getElementById('wa-cfg-session')
+    const apiKey = document.getElementById('wa-cfg-api-key')
+    const ddi = document.getElementById('wa-cfg-country-code')
+
+    if (apiUrl) apiUrl.value = settings.waha_api_url || ''
+    if (apiSess) apiSess.value = settings.waha_session_name || data.session || 'default'
+    if (apiKey) apiKey.value = settings.waha_api_key || ''
+    if (ddi) ddi.value = settings.country_code || '55'
+
+    // Load inline screenshot
+    loadWahaInlineScreenshot()
+
+    // Load n8n webhook settings
+    loadWahaN8nConfig()
+  } catch {
+    if (unconnectedEl) {
+      unconnectedEl.style.display = 'flex'
+      const titleEl = document.getElementById('waha-unconnected-title')
+      const descEl = document.getElementById('waha-unconnected-desc')
+      if (titleEl) titleEl.textContent = 'Erro ao verificar WhatsApp'
+      if (descEl) descEl.textContent = 'Não foi possível conectar ao servidor para obter o status do WhatsApp. Verifique sua conexão e tente novamente.'
+    }
+    if (contentEl) contentEl.style.display = 'none'
+    showToast('Erro ao carregar dados do WhatsApp.')
+  }
+}
+
+function updateWahaSwitchVisual(checkboxEl, key) {
+  const isChecked = checkboxEl ? checkboxEl.checked : false
+  const pill = document.getElementById('wa-status-pill-' + key)
+  if (pill) {
+    if (isChecked) {
+      pill.className = 'waha-status-badge-top pill-active'
+      pill.innerHTML = '<span class="badge-dot"></span><span class="badge-text">Ativado</span>'
+    } else {
+      pill.className = 'waha-status-badge-top pill-inactive'
+      pill.innerHTML = '<span class="badge-dot"></span><span class="badge-text">Desativado</span>'
+    }
+  }
+}
+
+function handleReminderTimingChange(val) {
+  const hintEl = document.getElementById('wa-reminder-time-hint')
+  const timeBox = document.getElementById('wa-reminder-time-box')
+  if (!hintEl) return
+
+  const map = {
+    '1_day': 'As mensagens serão disparadas neste horário na véspera do atendimento.',
+    '2_days': 'As mensagens serão disparadas neste horário 2 dias antes do atendimento.',
+    '3_days': 'As mensagens serão disparadas neste horário 3 dias antes do atendimento.',
+    'same_day': 'As mensagens serão disparadas neste horário no próprio dia do atendimento.',
+    '2_hours': 'Disparo calculado automaticamente 2 horas antes de cada horário agendado.',
+    '4_hours': 'Disparo calculado automaticamente 4 horas antes de cada horário agendado.',
+    '6_hours': 'Disparo calculado automaticamente 6 horas antes de cada horário agendado.',
+  }
+
+  hintEl.textContent = map[val] || 'Horário de envio configurado para o lembrete.'
+  if (timeBox) {
+    if (val && val.includes('_hours')) {
+      timeBox.style.opacity = '0.5'
+      timeBox.title = 'Horário dinâmico calculado conforme o horário marcado da cliente'
+    } else {
+      timeBox.style.opacity = '1'
+      timeBox.title = ''
+    }
+  }
+}
+
+async function triggerPendingRemindersNow() {
+  try {
+    showToast('Verificando e disparando lembretes pendentes...', 'info')
+    const res = await fetch(API + '/whatsapp/send-pending-reminders', { method: 'POST' })
+    const data = await res.json()
+    if (res.ok) {
+      if (data.sent > 0) {
+        showToast(`${data.sent} lembrete(s) disparado(s) com sucesso via WhatsApp!`, 'success')
+      } else {
+        showToast('Nenhum agendamento pendente de lembrete para a regra atual.', 'info')
+      }
+    } else {
+      showToast(data.error || 'Erro ao disparar lembretes.')
+    }
+  } catch {
+    showToast('Falha na comunicação com o servidor.')
+  }
+}
+
+function insertWahaTag(tag) {
+  const ta = window._lastWahaTextarea || document.getElementById('wa-tmpl-created')
+  if (!ta) return
+  ta.focus()
+  const start = ta.selectionStart !== undefined ? ta.selectionStart : ta.value.length
+  const end = ta.selectionEnd !== undefined ? ta.selectionEnd : ta.value.length
+  const val = ta.value
+  ta.value = val.substring(0, start) + tag + val.substring(end)
+  ta.selectionStart = ta.selectionEnd = start + tag.length
+}
+
+async function saveWahaTemplates() {
+  const payload = {
+    template_created: document.getElementById('wa-tmpl-created')?.value || '',
+    template_reminder: document.getElementById('wa-tmpl-reminder')?.value || '',
+    template_cancelled: document.getElementById('wa-tmpl-cancelled')?.value || '',
+    template_return: document.getElementById('wa-tmpl-return')?.value || '',
+    template_thanks: document.getElementById('wa-tmpl-thanks')?.value || '',
+    notify_on_create: document.getElementById('wa-toggle-created')?.checked ?? true,
+    notify_on_reminder: document.getElementById('wa-toggle-reminder')?.checked ?? true,
+    notify_on_cancel: document.getElementById('wa-toggle-cancelled')?.checked ?? true,
+    notify_on_return: document.getElementById('wa-toggle-return')?.checked ?? false,
+    notify_on_thanks: document.getElementById('wa-toggle-thanks')?.checked ?? false,
+    reminder_timing: document.getElementById('wa-reminder-timing')?.value || '1_day',
+    reminder_time: document.getElementById('wa-reminder-time')?.value || '09:00',
+    return_interval_days: document.getElementById('wa-return-interval')?.value || '20',
+    return_time: document.getElementById('wa-return-time')?.value || '10:00',
+    thanks_delay: document.getElementById('wa-thanks-delay')?.value || 'immediate',
+  }
+
+  try {
+    const res = await fetch(API + '/whatsapp/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    if (res.ok) {
+      showToast('Modelos e regras de envio salvos com sucesso!', 'success')
+      checkWahaStatus()
+    } else {
+      showToast('Erro ao salvar modelos.')
+    }
+  } catch {
+    showToast('Erro ao salvar configurações.')
+  }
+}
+
+async function saveWahaApiConfig() {
+  const apiUrl = (document.getElementById('wa-cfg-api-url')?.value || '').trim()
+  const session = (document.getElementById('wa-cfg-session')?.value || '').trim()
+  const apiKey = (document.getElementById('wa-cfg-api-key')?.value || '').trim()
+  const ddi = (document.getElementById('wa-cfg-country-code')?.value || '55').trim()
+
+  const payload = {
+    waha_api_url: apiUrl,
+    waha_session_name: session,
+    waha_api_key: apiKey,
+    whatsapp_country_code: ddi
+  }
+
+  try {
+    const res = await fetch(API + '/whatsapp/settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    })
+    if (res.ok) {
+      showToast('Configurações da API salvas com sucesso!', 'success')
+      checkWahaStatus()
+    } else {
+      showToast('Erro ao salvar configurações da API.')
+    }
+  } catch {
+    showToast('Erro de conexão ao salvar.')
+  }
+}
+
+// ── N8N WEBHOOK INTEGRATION CONTROLLERS ───────────────────
+
+async function loadWahaN8nConfig() {
+  const urlInput = document.getElementById('wa-n8n-webhook-url')
+  const evMessage = document.getElementById('wa-n8n-ev-message')
+  const evMessageAny = document.getElementById('wa-n8n-ev-message-any')
+  const evStatus = document.getElementById('wa-n8n-ev-status')
+
+  // Update credentials fields
+  const credKey = document.getElementById('waha-n8n-cred-key')
+  const credSession = document.getElementById('waha-n8n-cred-session')
+  const credHost = document.getElementById('waha-n8n-cred-host')
+
+  if (window._wahaStatus) {
+    const s = window._wahaStatus.settings || {}
+    if (credKey) credKey.value = s.waha_api_key || '218c0effefb845238a1ae3651c8ced5b'
+    if (credSession) credSession.value = window._wahaStatus.session || window._wahaStatus.session_name || s.waha_session_name || 'beautyflow'
+    if (credHost) credHost.value = 'http://172.23.0.1:3000'
+  }
+
+  if (!urlInput) return
+
+  try {
+    const res = await fetch(API + '/whatsapp/webhook/config')
+    const data = await res.json()
+    if (data.url) urlInput.value = data.url
+    const events = data.events || []
+    if (evMessage) evMessage.checked = events.includes('message')
+    if (evMessageAny) evMessageAny.checked = events.includes('message.any')
+    if (evStatus) evStatus.checked = events.includes('session.status')
+  } catch {}
+}
+
+async function saveWahaN8nWebhook() {
+  const url = (document.getElementById('wa-n8n-webhook-url')?.value || '').trim()
+  const events = []
+  if (document.getElementById('wa-n8n-ev-message')?.checked) events.push('message')
+  if (document.getElementById('wa-n8n-ev-message-any')?.checked) events.push('message.any')
+  if (document.getElementById('wa-n8n-ev-status')?.checked) events.push('session.status')
+
+  if (!events.length) events.push('message')
+
+  try {
+    showToast('Sincronizando webhook com o WAHA...', 'info')
+    const res = await fetch(API + '/whatsapp/webhook/config', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, events })
+    })
+    const data = await res.json()
+    if (res.ok) {
+      showToast(data.message || 'Webhook do n8n salvo com sucesso!', 'success')
+      const fb = document.getElementById('wa-n8n-test-feedback')
+      if (fb) fb.style.display = 'none'
+    } else {
+      showToast(data.error || 'Erro ao salvar webhook do n8n.')
+    }
+  } catch {
+    showToast('Erro de conexão ao salvar webhook do n8n.')
+  }
+}
+
+async function testWahaN8nWebhook() {
+  const url = (document.getElementById('wa-n8n-webhook-url')?.value || '').trim()
+  const fb = document.getElementById('wa-n8n-test-feedback')
+
+  if (!url) {
+    showToast('Informe a URL do webhook do n8n para realizar o teste.', 'warning')
+    return
+  }
+
+  if (fb) {
+    fb.style.display = 'block'
+    fb.style.background = 'var(--bg-raised, #f8fafc)'
+    fb.style.border = '1px solid var(--border)'
+    fb.style.color = 'var(--text-secondary)'
+    fb.innerHTML = '<span style="display:inline-flex;align-items:center;gap:6px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> Enviando disparo de teste para o n8n...</span>'
+  }
+
+  try {
+    const res = await fetch(API + '/whatsapp/webhook/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    })
+    const data = await res.json()
+
+    if (res.ok && data.status === 'ok') {
+      if (fb) {
+        fb.style.display = 'block'
+        fb.style.background = 'rgba(34,197,94,0.12)'
+        fb.style.border = '1px solid rgba(34,197,94,0.3)'
+        fb.style.color = '#15803d'
+        fb.innerHTML = `<strong>Sucesso!</strong> ${data.message || `O nó Webhook do n8n respondeu com status HTTP ${data.http_status}.`}<br><span style="font-size:11px;opacity:0.9;">Resposta do n8n: <code>${(data.response || '').substring(0, 100) || 'OK'}</code></span>`
+      }
+      showToast('Disparo de teste recebido pelo n8n!', 'success')
+    } else {
+      if (fb) {
+        fb.style.display = 'block'
+        fb.style.background = 'rgba(239,68,68,0.12)'
+        fb.style.border = '1px solid rgba(239,68,68,0.3)'
+        fb.style.color = '#b91c1c'
+        fb.innerHTML = `<strong><span style="display:inline-flex;align-items:center;gap:4px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Falha no teste:</span></strong> ${data.error || 'O n8n não respondeu adequadamente.'}<br><span style="font-size:11px;opacity:0.9;">Dica: Verifique se o workflow está ativo ou se o nó Webhook está em modo "Listen for Test Event".</span>`
+      }
+      showToast(data.error || 'Falha ao testar webhook do n8n.', 'error')
+    }
+  } catch (e) {
+    if (fb) {
+      fb.style.display = 'block'
+      fb.style.background = 'rgba(239,68,68,0.12)'
+      fb.style.border = '1px solid rgba(239,68,68,0.3)'
+      fb.style.color = '#b91c1c'
+      fb.innerHTML = `<strong><span style="display:inline-flex;align-items:center;gap:4px;"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#b91c1c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> Erro de conexão:</span></strong> Não foi possível contatar o servidor para disparar o teste.`
+    }
+    showToast('Erro de conexão ao testar webhook.')
+  }
+}
+
+function copySnippet(elementId, btn) {
+  const el = document.getElementById(elementId)
+  if (!el) return
+  const text = (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA') ? el.value : el.textContent
+  if (!text) return
+
+  const originalText = btn ? btn.textContent : ''
+  const setFeedback = () => {
+    if (btn) {
+      btn.textContent = 'Copiado!'
+      btn.style.color = '#16a34a'
+      setTimeout(() => {
+        btn.textContent = originalText
+        btn.style.color = ''
+      }, 2000)
+    }
+    showToast('Copiado para a área de transferência!', 'info')
+  }
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(setFeedback).catch(() => {
+      const ta = document.createElement('textarea')
+      ta.value = text
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand('copy')
+      document.body.removeChild(ta)
+      setFeedback()
+    })
+  } else {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    document.body.appendChild(ta)
+    ta.select()
+    document.execCommand('copy')
+    document.body.removeChild(ta)
+    setFeedback()
+  }
+}
+
+function copyAllN8nCredentials(btn) {
+  const host = document.getElementById('waha-n8n-cred-host')?.value || 'http://172.23.0.1:3000'
+  const key = document.getElementById('waha-n8n-cred-key')?.value || '218c0effefb845238a1ae3651c8ced5b'
+  const session = document.getElementById('waha-n8n-cred-session')?.value || 'beautyflow'
+  const text = `Credenciais WAHA para o n8n:
+• Host URL: ${host}
+• API Key: ${key}
+• Session Name: ${session}
+• Allowed HTTP Request Domains: All`
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => {
+      if (btn) {
+        const orig = btn.innerHTML
+        btn.innerHTML = '<span style="color:#16a34a;display:inline-flex;align-items:center;gap:4px;">Copiado!</span>'
+        setTimeout(() => { btn.innerHTML = orig }, 2000)
+      }
+    })
+  }
+  showToast('Todas as credenciais copiadas para a área de transferência!', 'success')
+}
+
+function toggleN8nApiKeyVisibility(btn) {
+  const inp = document.getElementById('waha-n8n-cred-key')
+  if (!inp) return
+  const isPass = inp.type === 'password'
+  inp.type = isPass ? 'text' : 'password'
+  if (btn) {
+    btn.innerHTML = isPass
+      ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
+      : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'
+  }
+}
+
+function scrollToN8nCredentials() {
+  const el = document.getElementById('waha-n8n-credentials-section')
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.style.transition = 'box-shadow 0.3s, border-color 0.3s'
+    el.style.boxShadow = '0 0 0 3px rgba(249,115,22,0.4)'
+    el.style.borderColor = '#ea580c'
+    setTimeout(() => {
+      el.style.boxShadow = ''
+      el.style.borderColor = ''
+    }, 2000)
+  }
+}
+
+// Client manual notifications (WITHOUT ANY CHAT)
+const _wahaTemplates = {
+  lembrete: "Olá, {nome}! Tudo bem? Passando para lembrar do seu horário agendado conosco no BeautyFlow. Qualquer dúvida ou imprevisto, por favor nos avise!",
+  confirmacao: "Olá, {nome}! Seu agendamento no BeautyFlow foi confirmado com sucesso. Estamos preparando tudo com muito carinho para receber você!",
+  retorno: "Olá, {nome}! Sentimos sua falta por aqui no BeautyFlow! Que tal agendarmos uma manutenção para manter suas unhas lindas e impecáveis?",
+  agradecimento: "Olá, {nome}! Muito obrigado pela sua visita ao BeautyFlow hoje. Foi um enorme prazer atender você! Esperamos você em breve novamente.",
+  livre: ""
+}
+
+function openWahaClientNotifModal(clientId, clientName, clientPhone) {
+  const nameEl = document.getElementById('waha-notif-client-name')
+  const phoneEl = document.getElementById('waha-notif-phone')
+  const msgEl = document.getElementById('waha-notif-msg')
+
+  if (msgEl) { msgEl.textContent = ''; msgEl.className = 'auth-msg' }
+
+  let cName = clientName
+  let cPhone = clientPhone
+
+  if (!cName && window._selectedClientData) {
+    cName = window._selectedClientData.name
+    cPhone = window._selectedClientData.phone
+  } else if (!cName) {
+    cName = document.getElementById('cd-name')?.textContent || ''
+    const rawPhone = document.getElementById('cd-phone')?.textContent || ''
+    cPhone = rawPhone.split('·')[0].trim()
+  }
+
+  if (nameEl) nameEl.value = cName || 'Cliente'
+  if (phoneEl) phoneEl.value = cPhone || ''
+
+  window._wahaCurrentClientName = cName || 'Cliente'
+  selectWahaTemplate('lembrete')
+
+  const modal = document.getElementById('waha-client-notif-modal')
+  if (modal) modal.classList.add('open')
+}
+
+function closeWahaClientNotifModal() {
+  const modal = document.getElementById('waha-client-notif-modal')
+  if (modal) modal.classList.remove('open')
+}
+
+function selectWahaTemplate(key) {
+  document.querySelectorAll('.waha-template-pills .pill-btn').forEach(btn => btn.classList.remove('active'))
+  const pill = document.getElementById('pill-tmpl-' + key)
+  if (pill) pill.classList.add('active')
+
+  const msgTextarea = document.getElementById('waha-notif-message')
+  if (!msgTextarea) return
+
+  const customTmpl = window._wahaStatus?.settings
+  let tmpl = ''
+  if (key === 'lembrete' && customTmpl?.template_reminder) tmpl = customTmpl.template_reminder
+  else if (key === 'confirmacao' && customTmpl?.template_created) tmpl = customTmpl.template_created
+  else if (key === 'retorno' && customTmpl?.template_return) tmpl = customTmpl.template_return
+  else if (key === 'agradecimento' && customTmpl?.template_thanks) tmpl = customTmpl.template_thanks
+  else tmpl = _wahaTemplates[key] || ''
+
+  const firstName = (window._wahaCurrentClientName || 'Cliente').split(' ')[0]
+  msgTextarea.value = tmpl.replace(/\{nome\}/g, firstName).replace(/\{primeiro_nome\}/g, firstName).replace(/\{empresa\}/g, 'BeautyFlow')
+  msgTextarea.focus()
+}
+
+async function submitWahaClientNotification() {
+  const phone = (document.getElementById('waha-notif-phone')?.value || '').trim()
+  const message = (document.getElementById('waha-notif-message')?.value || '').trim()
+  const msgEl = document.getElementById('waha-notif-msg')
+  const btn = document.getElementById('btn-submit-waha-notif')
+
+  if (!phone) {
+    if (msgEl) { msgEl.textContent = 'Informe o número de telefone / WhatsApp.'; msgEl.className = 'auth-msg err' }
+    return
+  }
+  if (!message) {
+    if (msgEl) { msgEl.textContent = 'Escreva uma mensagem de notificação.'; msgEl.className = 'auth-msg err' }
+    return
+  }
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando...' }
+  if (msgEl) { msgEl.textContent = 'Disparando notificação...'; msgEl.className = 'auth-msg' }
+
+  try {
+    const res = await fetch(API + '/whatsapp/send-notification', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, message, client_id: selectedClientId })
+    })
+    const data = await res.json()
+
+    if (res.ok && (data.success || data.status === 'ok')) {
+      showToast('Notificação enviada com sucesso via WhatsApp!', 'success')
+      closeWahaClientNotifModal()
+    } else {
+      const err = data.error || 'Falha ao enviar notificação.'
+      if (msgEl) { msgEl.textContent = err; msgEl.className = 'auth-msg err' }
+      showToast(err, 'error')
+    }
+  } catch {
+    if (msgEl) { msgEl.textContent = 'Erro ao comunicar com o servidor.'; msgEl.className = 'auth-msg err' }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Enviar Notificação' }
+  }
+}
+
+function openWahaTestModal() {
+  const modal = document.getElementById('waha-test-modal')
+  if (!modal) return
+  const msgEl = document.getElementById('waha-test-msg')
+  if (msgEl) { msgEl.textContent = ''; msgEl.className = 'auth-msg' }
+  modal.classList.add('open')
+}
+
+function closeWahaTestModal() {
+  const modal = document.getElementById('waha-test-modal')
+  if (modal) modal.classList.remove('open')
+}
+
+async function submitWahaTest() {
+  const phone = (document.getElementById('waha-test-phone')?.value || '').trim()
+  const msgEl = document.getElementById('waha-test-msg')
+  const btn = document.getElementById('btn-submit-waha-test')
+
+  if (!phone) {
+    if (msgEl) { msgEl.textContent = 'Informe o número com DDD.'; msgEl.className = 'auth-msg err' }
+    return
+  }
+
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando...' }
+  if (msgEl) { msgEl.textContent = 'Enviando mensagem de teste via WhatsApp...'; msgEl.className = 'auth-msg' }
+
+  try {
+    const res = await fetch(API + '/whatsapp/test', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone })
+    })
+    const data = await res.json()
+
+    if (res.ok && (data.success || data.status === 'ok')) {
+      if (msgEl) { msgEl.textContent = 'Mensagem de teste enviada com sucesso!'; msgEl.className = 'auth-msg ok' }
+      showToast('Mensagem de teste enviada!', 'success')
+      setTimeout(() => closeWahaTestModal(), 1500)
+    } else {
+      const err = data.error || 'Falha no envio.'
+      if (msgEl) { msgEl.textContent = err; msgEl.className = 'auth-msg err' }
+      showToast(err, 'error')
+    }
+  } catch {
+    if (msgEl) { msgEl.textContent = 'Erro de comunicação.'; msgEl.className = 'auth-msg err' }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Enviar Teste' }
   }
 }
 
@@ -4674,8 +5990,10 @@ function setFontSize(size, el) {
   document.documentElement.setAttribute('data-font-size', size)
   const screen = document.querySelector('.screen')
   if (screen) screen.setAttribute('data-font-size', size)
-  document.querySelectorAll('.font-size-option').forEach(o => o.classList.remove('active'))
-  if (el) el.classList.add('active')
+  document.querySelectorAll('.font-size-option').forEach(o => {
+    if (o.getAttribute('data-size') === size) o.classList.add('active')
+    else o.classList.remove('active')
+  })
   localStorage.setItem('beautyflow-fontsize', size)
 }
 
@@ -4741,7 +6059,8 @@ function setColorScheme(scheme, el) {
   if (activeLayout) activeLayout.classList.add('active')
 
   const savedFontSize = localStorage.getItem('beautyflow-fontsize') || 'small'
-  screen.setAttribute('data-font-size', savedFontSize)
+  document.documentElement.setAttribute('data-font-size', savedFontSize)
+  if (screen) screen.setAttribute('data-font-size', savedFontSize)
   document.querySelectorAll('.font-size-option').forEach(o => o.classList.remove('active'))
   const activeFont = document.querySelector(`.font-size-option[data-size="${savedFontSize}"]`)
   if (activeFont) activeFont.classList.add('active')

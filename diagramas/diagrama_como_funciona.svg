@@ -1,0 +1,168 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 2560 1440" width="2560" height="1440" style="background:#0c1220; font-family:'Inter', 'Noto Sans', 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, Roboto, sans-serif;">
+  <defs>
+    <!-- Crisp Arrow Markers -->
+    <marker id="arrow-pink" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto">
+      <path d="M 1 1.5 L 11 6 L 1 10.5 z" fill="#f43f5e" />
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto">
+      <path d="M 1 1.5 L 11 6 L 1 10.5 z" fill="#3b82f6" />
+    </marker>
+    <marker id="arrow-green" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto">
+      <path d="M 1 1.5 L 11 6 L 1 10.5 z" fill="#10b981" />
+    </marker>
+    <marker id="arrow-amber" viewBox="0 0 12 12" refX="10" refY="6" markerWidth="10" markerHeight="10" orient="auto">
+      <path d="M 1 1.5 L 11 6 L 1 10.5 z" fill="#f59e0b" />
+    </marker>
+  </defs>
+
+  <!-- Clean Uniform Dark Background (Original Style, No Lighting/Glow) -->
+  <rect width="2560" height="1440" fill="#0c1220" />
+
+  <!-- ==================== HEADER ==================== -->
+  <g transform="translate(70, 38)">
+    <text x="0" y="58" font-size="64" font-weight="800" fill="#ffffff" letter-spacing="-0.5">BeautyFlow — Como o Sistema Funciona</text>
+    <text x="0" y="104" font-size="30" font-weight="400" fill="#94a3b8" letter-spacing="0.2">Visão Funcional do Ecossistema Integrado para Salões de Beleza</text>
+    <line x1="0" y1="132" x2="2420" y2="132" stroke="#222f47" stroke-width="1.5" />
+  </g>
+
+  <!-- ==================== CONNECTIONS / ARROWS ==================== -->
+  <!-- Arrow 1: Portal -> Central -->
+  <line x1="660" y1="505" x2="880" y2="635" stroke="#f43f5e" stroke-width="3.5" marker-end="url(#arrow-pink)" />
+
+  <!-- Arrow 2: Central -> CRM -->
+  <line x1="1680" y1="645" x2="1900" y2="515" stroke="#3b82f6" stroke-width="3.5" marker-end="url(#arrow-blue)" />
+
+  <!-- Arrow 3: Central -> Banco de Dados -->
+  <line x1="880" y1="950" x2="660" y2="1080" stroke="#10b981" stroke-width="3.5" marker-end="url(#arrow-green)" />
+
+  <!-- Arrow 4: Central -> Automações -->
+  <line x1="1680" y1="950" x2="1900" y2="1080" stroke="#f59e0b" stroke-width="3.5" marker-end="url(#arrow-amber)" />
+
+  <!-- ==================== STEP BADGES ==================== -->
+  <!-- Badge 1: 1. Cliente solicita agendamento -->
+  <g transform="translate(770, 570)">
+    <rect x="-225" y="-28" width="450" height="56" rx="28" fill="#0c1220" stroke="#f43f5e" stroke-width="2.5" />
+    <text x="0" y="10" font-size="26" font-weight="700" fill="#fb7185" text-anchor="middle">1. Cliente solicita agendamento</text>
+  </g>
+
+  <!-- Badge 2: 2. Atualiza o CRM do Salão -->
+  <g transform="translate(1790, 580)">
+    <rect x="-205" y="-28" width="410" height="56" rx="28" fill="#0c1220" stroke="#3b82f6" stroke-width="2.5" />
+    <text x="0" y="10" font-size="26" font-weight="700" fill="#60a5fa" text-anchor="middle">2. Atualiza o CRM do Salão</text>
+  </g>
+
+  <!-- Badge 3: 3. Salva no Histórico -->
+  <g transform="translate(770, 1015)">
+    <rect x="-175" y="-28" width="350" height="56" rx="28" fill="#0c1220" stroke="#10b981" stroke-width="2.5" />
+    <text x="0" y="10" font-size="26" font-weight="700" fill="#34d399" text-anchor="middle">3. Salva no Histórico</text>
+  </g>
+
+  <!-- Badge 4: 4. Sincroniza & Alerta -->
+  <g transform="translate(1790, 1015)">
+    <rect x="-175" y="-28" width="350" height="56" rx="28" fill="#0c1220" stroke="#f59e0b" stroke-width="2.5" />
+    <text x="0" y="10" font-size="26" font-weight="700" fill="#fbbf24" text-anchor="middle">4. Sincroniza &amp; Alerta</text>
+  </g>
+
+
+  <!-- ==================== CARDS ==================== -->
+
+  <!-- CARD 1: Portal do Cliente (Autoatendimento) -->
+  <g transform="translate(70, 205)">
+    <rect x="0" y="0" width="1160" height="300" rx="22" fill="#131b2e" stroke="#f43f5e" stroke-width="3" />
+    <text x="48" y="66" font-size="44" font-weight="800" fill="#fb7185" letter-spacing="-0.4">Portal do Cliente (Autoatendimento)</text>
+    
+    <g transform="translate(48, 76)">
+      <!-- Item 1 -->
+      <circle cx="12" cy="50" r="7" fill="#f43f5e" />
+      <text x="38" y="61" font-size="34" font-weight="600" fill="#ffffff">Agendamento online simples e rápido pelo celular</text>
+
+      <!-- Item 2 -->
+      <circle cx="12" cy="112" r="7" fill="#f43f5e" />
+      <text x="38" y="123" font-size="34" font-weight="600" fill="#ffffff">Escolha de serviços, datas e horários disponíveis</text>
+
+      <!-- Item 3 -->
+      <circle cx="12" cy="174" r="7" fill="#f43f5e" />
+      <text x="38" y="185" font-size="34" font-weight="600" fill="#ffffff">Confirmação instantânea sem precisar de mensagem</text>
+    </g>
+  </g>
+
+  <!-- CARD 2: Painel de Gestão (CRM do Salão) -->
+  <g transform="translate(1330, 205)">
+    <rect x="0" y="0" width="1160" height="300" rx="22" fill="#131b2e" stroke="#3b82f6" stroke-width="3" />
+    <text x="48" y="66" font-size="44" font-weight="800" fill="#60a5fa" letter-spacing="-0.4">Painel de Gestão (CRM do Salão)</text>
+    
+    <g transform="translate(48, 76)">
+      <!-- Item 1 -->
+      <circle cx="12" cy="50" r="7" fill="#3b82f6" />
+      <text x="38" y="61" font-size="34" font-weight="600" fill="#ffffff">Controle completo de agenda em tempo real</text>
+
+      <!-- Item 2 -->
+      <circle cx="12" cy="112" r="7" fill="#3b82f6" />
+      <text x="38" y="123" font-size="34" font-weight="600" fill="#ffffff">Gestão de clientes, estoque e produtos em falta</text>
+
+      <!-- Item 3 -->
+      <circle cx="12" cy="174" r="7" fill="#3b82f6" />
+      <text x="38" y="185" font-size="34" font-weight="600" fill="#ffffff">Relatórios financeiros, comissões e faturamento</text>
+    </g>
+  </g>
+
+  <!-- CARD 3: Central de Processamento Inteligente (HUB) -->
+  <g transform="translate(620, 645)">
+    <rect x="0" y="0" width="1320" height="305" rx="22" fill="#131b2e" stroke="#a855f7" stroke-width="3.2" />
+    <text x="48" y="68" font-size="45" font-weight="800" fill="#c084fc" letter-spacing="-0.4">Central de Processamento Inteligente</text>
+    
+    <g transform="translate(48, 78)">
+      <!-- Item 1 -->
+      <circle cx="12" cy="50" r="7" fill="#a855f7" />
+      <text x="38" y="61" font-size="34" font-weight="600" fill="#ffffff">Sincroniza agendamentos entre o cliente e o salão ao vivo</text>
+
+      <!-- Item 2 -->
+      <circle cx="12" cy="112" r="7" fill="#a855f7" />
+      <text x="38" y="123" font-size="34" font-weight="600" fill="#ffffff">Calcula automaticamente horários vagos e evita conflitos</text>
+
+      <!-- Item 3 -->
+      <circle cx="12" cy="174" r="7" fill="#a855f7" />
+      <text x="38" y="185" font-size="34" font-weight="600" fill="#ffffff">Atualiza a agenda do salão e o estoque automaticamente</text>
+    </g>
+  </g>
+
+  <!-- CARD 4: Banco de Dados & Histórico Seguro -->
+  <g transform="translate(70, 1090)">
+    <rect x="0" y="0" width="1160" height="300" rx="22" fill="#131b2e" stroke="#10b981" stroke-width="3" />
+    <text x="48" y="66" font-size="44" font-weight="800" fill="#34d399" letter-spacing="-0.4">Banco de Dados &amp; Histórico Seguro</text>
+    
+    <g transform="translate(48, 76)">
+      <!-- Item 1 -->
+      <circle cx="12" cy="50" r="7" fill="#10b981" />
+      <text x="38" y="61" font-size="34" font-weight="600" fill="#ffffff">Guarda com segurança os dados de clientes e atendimentos</text>
+
+      <!-- Item 2 -->
+      <circle cx="12" cy="112" r="7" fill="#10b981" />
+      <text x="38" y="123" font-size="34" font-weight="600" fill="#ffffff">Registro imutável de vendas, compras e estoque do salão</text>
+
+      <!-- Item 3 -->
+      <circle cx="12" cy="174" r="7" fill="#10b981" />
+      <text x="38" y="185" font-size="34" font-weight="600" fill="#ffffff">Opção de cópia de segurança (Backup) dos dados</text>
+    </g>
+  </g>
+
+  <!-- CARD 5: Integrações & Alertas do Sistema -->
+  <g transform="translate(1330, 1090)">
+    <rect x="0" y="0" width="1160" height="300" rx="22" fill="#131b2e" stroke="#f59e0b" stroke-width="3" />
+    <text x="48" y="66" font-size="44" font-weight="800" fill="#fbbf24" letter-spacing="-0.4">Integrações &amp; Alertas do Sistema</text>
+    
+    <g transform="translate(48, 76)">
+      <!-- Item 1 -->
+      <circle cx="12" cy="50" r="7" fill="#f59e0b" />
+      <text x="38" y="61" font-size="34" font-weight="600" fill="#ffffff">Sincronização automática com a agenda do Google</text>
+
+      <!-- Item 2 -->
+      <circle cx="12" cy="112" r="7" fill="#f59e0b" />
+      <text x="38" y="123" font-size="34" font-weight="600" fill="#ffffff">Notificações instantâneas de agendamentos no CRM</text>
+
+      <!-- Item 3 -->
+      <circle cx="12" cy="174" r="7" fill="#f59e0b" />
+      <text x="38" y="185" font-size="34" font-weight="600" fill="#ffffff">Disparo de webhooks para integrações externas (n8n)</text>
+    </g>
+  </g>
+</svg>

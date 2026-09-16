@@ -18,13 +18,16 @@ def create():
     integ_type = (data.get('type') or '').strip()
     if not name:
         return jsonify({'error': 'Nome é obrigatório'}), 400
-    if integ_type not in ('webhook', 'n8n', 'google_calendar'):
+    if integ_type not in ('webhook', 'n8n', 'google_calendar', 'whatsapp', 'waha'):
         return jsonify({'error': 'Tipo inválido'}), 400
     config = data.get('config', {})
     enabled = data.get('enabled', True)
     integ = create_integration(name, integ_type, config, enabled)
     if not integ:
         return jsonify({'error': 'Erro ao criar integração'}), 500
+    if integ_type in ('whatsapp', 'waha'):
+        from db.database import update_setting
+        update_setting('whatsapp_integrated', 'true')
     return jsonify(integ), 201
 
 
@@ -63,4 +66,11 @@ def delete(integ_id):
     if not integ:
         return jsonify({'error': 'Integração não encontrada'}), 404
     delete_integration(integ_id)
+    if integ.get('type') in ('whatsapp', 'waha'):
+        from db.database import update_setting, is_type_integrated
+        if not is_type_integrated('whatsapp') and not is_type_integrated('waha'):
+            update_setting('whatsapp_integrated', 'false')
+            update_setting('whatsapp_auto_notify_created', 'false')
+            update_setting('whatsapp_auto_notify_cancelled', 'false')
+            update_setting('whatsapp_auto_notify_reminder', 'false')
     return jsonify({'message': 'Integração removida', 'id': integ_id})

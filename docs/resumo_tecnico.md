@@ -6,8 +6,8 @@ BeautyFlow CRM — sistema de gestão para salão de beleza, SPA com backend Fla
 
 ```
 src/                          # Frontend SPA
-├── index.html                # 7 páginas: Dashboard, Agenda, Clientes, Serviços,
-│                             #   Financeiro, Despesas, Relatórios
+├── index.html                # SPA: Dashboard, Agenda, Clientes, Serviços,
+│                             #   Estoque, Financeiro, Relatórios, Usuários, Configurações
 ├── css/style.css             # 5 temas, dark/light, responsivo (5477 linhas)
 └── js/app.js                 # Lógica completa (~4000 linhas)
 

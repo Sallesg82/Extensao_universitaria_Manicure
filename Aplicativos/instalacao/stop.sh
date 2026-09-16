@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# ==============================================================================
+# BeautyFlow Platform — Pausar Plataforma (stop.sh)
+# ==============================================================================
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -22,7 +25,8 @@ else
 fi
 
 echo "[*] Parando conteineres da plataforma BeautyFlow..."
-$COMPOSE_CMD stop
+$COMPOSE_CMD --profile waha stop 2>/dev/null || $COMPOSE_CMD stop
+docker stop beautyflow-waha 2>/dev/null || true
 
 echo ""
 echo "=================================================================="

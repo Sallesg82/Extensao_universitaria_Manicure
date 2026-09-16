@@ -7,7 +7,10 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&family=DM+Serif+Display:ital@0;1&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="css/style.css">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<link rel="stylesheet" href="css/style.css?v=2.4">
 <script>
 (function(){
   var theme = localStorage.getItem('beautyflow-theme') || 'default';
@@ -121,14 +124,6 @@
         Estoque
       </div>
 
-      <div class="nav-item" onclick="showPage('metas', this)" data-tooltip="Metas">
-        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
-          <path d="M8 1.5l1.2 3.8 3.8 1.2-3.8 1.2L8 11.5l-1.2-3.8L3 6.5l3.8-1.2L8 1.5z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/>
-          <path d="M12.5 10.5l.6 1.9 1.9.6-1.9.6-.6 1.9-.6-1.9-1.9-.6 1.9-.6.6-1.9z" fill="currentColor"/>
-        </svg>
-        Metas
-      </div>
-
       <div class="nav-section">Financeiro</div>
 
       <div class="nav-item" onclick="showPage('financeiro', this)" data-tooltip="Financeiro">
@@ -144,14 +139,6 @@
           <path d="M2 12h12M4 12V8M7 12V5M10 12V7M13 12V3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
         </svg>
         Relatórios
-      </div>
-
-      <div class="nav-item" onclick="showPage('despesas', this)" data-tooltip="Despesas do Mês">
-        <svg class="nav-icon" viewBox="0 0 16 16" fill="none">
-          <rect x="2" y="1.5" width="12" height="13" rx="1.5" stroke="currentColor" stroke-width="1.2"/>
-          <path d="M5 5h6M5 8h6M5 11h4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>
-        </svg>
-        Despesas do Mês
       </div>
 
 
@@ -495,6 +482,10 @@
                   <svg width="11" height="11" viewBox="0 0 16 16" fill="none" style="vertical-align:-1px;margin-right:3px;"><path d="M2 12v2h2l8-8-2-2-8 8z" stroke="currentColor" stroke-width="1.2"/><path d="M10 4l2 2" stroke="currentColor" stroke-width="1.2"/></svg>
                   Editar
                 </button>
+                <button class="btn-outline btn-icon" id="btn-waha-notify-client" onclick="openWahaClientNotifModal()" title="Enviar Notificação via WhatsApp">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="#25d366" style="vertical-align:-1px;margin-right:3px;"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm0 18.09c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.04 8.04 0 0 1-1.23-4.32c0-4.48 3.64-8.12 8.12-8.12 2.17 0 4.21.85 5.74 2.38s2.38 3.57 2.38 5.74c0 4.49-3.64 8.13-8.12 8.13z"/></svg>
+                  Notificar WhatsApp
+                </button>
                 <button class="btn-outline btn-icon" id="btn-caloteiro" onclick="toggleCaloteiro()">
                   <svg width="12" height="12" viewBox="0 0 16 16" fill="none" style="vertical-align:-2px;margin-right:3px;"><path d="M8 1L1 14h14L8 1zM8 5v4M8 12v1" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
                   <span id="btn-caloteiro-text">Inadimplente</span>
@@ -727,6 +718,11 @@
               <svg class="settings-nav-icon" viewBox="0 0 16 16" fill="none"><circle cx="4" cy="8" r="2.5" stroke="currentColor" stroke-width="1.2"/><circle cx="12" cy="4" r="2.5" stroke="currentColor" stroke-width="1.2"/><circle cx="12" cy="12" r="2.5" stroke="currentColor" stroke-width="1.2"/><path d="M6.5 8h2L10 5M6.5 8h2L10 11" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
               Integrações
             </div>
+            <div class="settings-nav-item" id="settings-nav-whatsapp" style="display:none;" onclick="showSettingsTab(this,'tab-whatsapp')">
+              <svg class="settings-nav-icon" viewBox="0 0 24 24" fill="#25d366" style="width:16px;height:16px;"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm0 18.09c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.04 8.04 0 0 1-1.23-4.32c0-4.48 3.64-8.12 8.12-8.12 2.17 0 4.21.85 5.74 2.38s2.38 3.57 2.38 5.74c0 4.49-3.64 8.13-8.12 8.13z"/></svg>
+              WhatsApp
+              <span class="waha-nav-dot" style="width:7px;height:7px;border-radius:50%;background:#22c55e;margin-left:auto;display:inline-block;"></span>
+            </div>
             <div class="settings-nav-item" onclick="showSettingsTab(this,'tab-aparencia')">
               <svg class="settings-nav-icon" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6.5" stroke="currentColor" stroke-width="1.2"/><path d="M8 2v2M8 12v2M2 8h2M12 8h2M4.5 4.5l1.4 1.4M10.1 10.1l1.4 1.4M10.1 4.5l-1.4 1.4M4.5 10.1l1.4 1.4" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>
               Aparência
@@ -834,17 +830,783 @@
             </div>
 
             <div id="tab-integ" style="display:none;">
+              <!-- WHATSAPP (WAHA) INTEGRATION CARD (APENAS EXIBIDO QUANDO ADICIONADO VIA NOVA INTEGRAÇÃO) -->
+              <div id="waha-integrated-card" style="display:none;margin-bottom:20px;"></div>
+
+              <!-- DEMAIS INTEGRAÇÕES & WEBHOOKS -->
               <div class="settings-section">
-                <div class="settings-section-header" style="display:flex;align-items:center;justify-content:space-between;">
+                <div class="settings-section-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
                   <div>
-                    <div class="settings-section-title">Integrações</div>
-                    <div class="settings-section-sub">Conecte o BeautyFlow com outros serviços</div>
+                    <div class="settings-section-title">Minhas Integrações & Webhooks</div>
+                    <div class="settings-section-sub">Conecte com WhatsApp (WAHA), fluxos no n8n, Google Calendar e Webhooks externos</div>
                   </div>
                   <button class="btn-primary" onclick="showCreateIntegrationModal()">+ Nova Integração</button>
                 </div>
                 <div class="settings-body" id="integrations-list">
-                  <div class="integ-empty">Nenhuma integração criada. Clique em "Nova Integração" para começar.</div>
+                  <div class="integ-empty">Nenhuma integração criada. Clique em "+ Nova Integração" para começar.</div>
                 </div>
+              </div>
+            </div>
+
+            <!-- WHATSAPP (WAHA) TAB -->
+            <div id="tab-whatsapp" style="display:none; position:relative;">
+
+              <!-- ESTADO DESCONECTADO (FUNDO ESCURO COM MENSAGEM NO CENTRO) -->
+              <div id="tab-whatsapp-unconnected" class="tab-whatsapp-unconnected-card" style="display:none;">
+                <div class="tab-wa-glow"></div>
+                <div class="tab-wa-inner">
+                  <div class="tab-wa-badge-pill" id="waha-unconnected-pill">
+                    <span class="tab-wa-badge-dot"></span>
+                    <span id="waha-unconnected-pill-text">Aguardando Conexão com WhatsApp</span>
+                  </div>
+
+                  <div class="tab-wa-icon-wrapper">
+                    <div class="tab-wa-icon-box">
+                      <svg width="48" height="48" viewBox="0 0 24 24" fill="#25d366"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm0 18.09c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.04 8.04 0 0 1-1.23-4.32c0-4.48 3.64-8.12 8.12-8.12 2.17 0 4.21.85 5.74 2.38s2.38 3.57 2.38 5.74c0 4.49-3.64 8.13-8.12 8.13zm4.45-6.09c-.24-.12-1.45-.71-1.67-.8-.23-.08-.39-.12-.56.12-.17.24-.64.8-.79.96-.14.16-.29.18-.53.06-.24-.12-1.03-.38-1.96-1.21-.73-.65-1.22-1.45-1.36-1.69-.14-.24-.02-.37.1-.49.11-.11.24-.29.37-.43.12-.15.16-.25.24-.41.08-.17.04-.31-.02-.43s-.56-1.35-.77-1.85c-.2-.48-.41-.42-.56-.43h-.48c-.16 0-.43.06-.66.31s-.87.85-.87 2.07c0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.47-.07 1.45-.59 1.65-1.17.2-.57.2-1.07.14-1.17-.06-.11-.23-.17-.47-.29z"/></svg>
+                    </div>
+                    <div class="tab-wa-mini-badge" id="waha-unconnected-mini-badge">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    </div>
+                  </div>
+
+                  <h2 class="tab-wa-title" id="waha-unconnected-title">Conexão com WhatsApp Necessária</h2>
+                  <p class="tab-wa-desc" id="waha-unconnected-desc">
+                    Para configurar modelos de mensagens, lembretes automáticos e integração com n8n, é necessário conectar seu WhatsApp primeiro realizando a leitura do QR Code.
+                  </p>
+
+                  <div class="tab-wa-actions" id="waha-unconnected-actions">
+                    <button type="button" class="tab-wa-btn-primary" id="waha-btn-connect-qr" onclick="openWahaQrModal()">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                      <span>Conectar WhatsApp com QR Code</span>
+                    </button>
+                    <button type="button" class="tab-wa-btn-secondary" onclick="loadWhatsAppTab(true)">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+                      <span>Verificar Conexão</span>
+                    </button>
+                  </div>
+
+                  <div class="tab-wa-info-card">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#38bdf8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                    <div>
+                      <strong>Por que a conexão é obrigatória?</strong>
+                      O BeautyFlow envia lembretes e avisos diretamente pelo seu número pareado. Sem o pareamento por QR Code, os disparos automáticos e gatilhos de mensagens não podem operar.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- CONTEÚDO COMPLETO QUANDO CONECTADO -->
+              <div id="tab-whatsapp-content">
+                <!-- STATUS & SESSAO WAHA -->
+                <div class="settings-section" style="margin-bottom:20px;border-top:3px solid #25d366;">
+                  <div class="settings-section-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+                    <div>
+                      <div class="settings-section-title" style="display:flex;align-items:center;gap:8px;">
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:rgba(37,211,102,0.15);">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="#25d366"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm0 18.09c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.04 8.04 0 0 1-1.23-4.32c0-4.48 3.64-8.12 8.12-8.12 2.17 0 4.21.85 5.74 2.38s2.38 3.57 2.38 5.74c0 4.49-3.64 8.13-8.12 8.13zm4.45-6.09c-.24-.12-1.45-.71-1.67-.8-.23-.08-.39-.12-.56.12-.17.24-.64.8-.79.96-.14.16-.29.18-.53.06-.24-.12-1.03-.38-1.96-1.21-.73-.65-1.22-1.45-1.36-1.69-.14-.24-.02-.37.1-.49.11-.11.24-.29.37-.43.12-.15.16-.25.24-.41.08-.17.04-.31-.02-.43s-.56-1.35-.77-1.85c-.2-.48-.41-.42-.56-.43h-.48c-.16 0-.43.06-.66.31s-.87.85-.87 2.07c0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.47-.07 1.45-.59 1.65-1.17.2-.57.2-1.07.14-1.17-.06-.11-.23-.17-.47-.29z"/></svg>
+                        </span>
+                        WhatsApp Automático — Status &amp; Conexão
+                      </div>
+                      <div class="settings-section-sub">Disparo de lembretes, avisos aos clientes e integração com workflows</div>
+                    </div>
+                    <div id="waha-tab-badge"></div>
+                  </div>
+                  <div class="settings-body" id="waha-tab-status-card">
+                    <div style="padding:16px;text-align:center;color:var(--text-muted);font-size:var(--text-13);">Carregando dados da sessão...</div>
+                  </div>
+                </div>
+
+                <!-- MODELOS DE MENSAGENS AUTOMÁTICAS (TEMPLATES) -->
+                <div class="settings-section" style="margin-bottom:20px;border-top:3px solid #3b82f6;">
+                  <div class="settings-section-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+                    <div>
+                      <div class="settings-section-title" style="display:flex;align-items:center;gap:8px;">
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:rgba(59,130,246,0.15);">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        </span>
+                        Modelos de Mensagem Automática (Templates de Clientes)
+                      </div>
+                      <div class="settings-section-sub">Personalize as mensagens automáticas enviadas aos clientes e configure as regras de envio.</div>
+                    </div>
+                    <button class="btn-primary" onclick="saveWahaTemplates()" style="display:inline-flex;align-items:center;gap:6px;">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                      Salvar Modelos
+                    </button>
+                  </div>
+                  <div class="settings-body">
+                    
+                    <!-- TAGS DINAMICAS HELPER -->
+                    <div class="waha-tags-container">
+                      <div class="waha-tags-label">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+                        <span>Variáveis dinâmicas (clique para inserir no modelo em edição):</span>
+                      </div>
+                      <div class="waha-tags-list">
+                        <button type="button" class="waha-tag-pill" onclick="insertWahaTag('{nome}')"><code>{nome}</code> <span>Nome completo</span></button>
+                        <button type="button" class="waha-tag-pill" onclick="insertWahaTag('{primeiro_nome}')"><code>{primeiro_nome}</code> <span>Primeiro nome</span></button>
+                        <button type="button" class="waha-tag-pill" onclick="insertWahaTag('{servico}')"><code>{servico}</code> <span>Procedimento</span></button>
+                        <button type="button" class="waha-tag-pill" onclick="insertWahaTag('{data}')"><code>{data}</code> <span>Data</span></button>
+                        <button type="button" class="waha-tag-pill" onclick="insertWahaTag('{horario}')"><code>{horario}</code> <span>Horário</span></button>
+                        <button type="button" class="waha-tag-pill" onclick="insertWahaTag('{valor}')"><code>{valor}</code> <span>Preço</span></button>
+                        <button type="button" class="waha-tag-pill" onclick="insertWahaTag('{empresa}')"><code>{empresa}</code> <span>Espaço</span></button>
+                      </div>
+                    </div>
+
+                    <!-- TEMPLATE 1: CRIAR AGENDAMENTO -->
+                    <div class="waha-tmpl-card">
+                      <div class="waha-tmpl-header">
+                        <div class="waha-tmpl-header-info">
+                          <div class="waha-tmpl-title-row">
+                            <span class="waha-step-badge">1</span>
+                            <h3 class="waha-tmpl-title">Confirmação de Agendamento</h3>
+                          </div>
+                          <p class="waha-tmpl-sub">Enviada automaticamente quando um novo horário for registrado no sistema.</p>
+                        </div>
+                        <div class="waha-tmpl-controls">
+                          <div id="wa-status-pill-created" class="waha-status-badge-top pill-active">
+                            <span class="badge-dot"></span>
+                            <span class="badge-text">Ativado</span>
+                          </div>
+                          <label class="waha-switch-large" title="Clique para ativar ou desativar">
+                            <input type="checkbox" id="wa-toggle-created" checked onchange="updateWahaSwitchVisual(this, 'created')">
+                            <span class="waha-slider-large"></span>
+                          </label>
+                        </div>
+                      </div>
+
+                      <div class="waha-tmpl-grid">
+                        <div class="waha-tmpl-left">
+                          <div class="waha-textarea-wrapper">
+                            <div class="waha-textarea-header">
+                              <label class="form-label" style="font-size:var(--text-12);font-weight:600;margin:0;">Texto da Mensagem no WhatsApp:</label>
+                              <span style="color:var(--text-muted);font-size:var(--text-11);">Suporta emojis e tags</span>
+                            </div>
+                            <textarea class="waha-textarea" id="wa-tmpl-created" rows="5" placeholder="Olá {nome}, seu agendamento está confirmado..." onfocus="window._lastWahaTextarea = this"></textarea>
+                          </div>
+                        </div>
+
+                        <div class="waha-tmpl-right">
+                          <div class="waha-rules-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            Regra de Disparo
+                          </div>
+                          <div class="waha-config-fields">
+                            <div class="form-field" style="margin-bottom:0;">
+                              <label class="form-label" style="font-size:var(--text-11);font-weight:600;">Momento do Envio:</label>
+                              <div class="waha-dispatch-info">
+                                <div style="font-weight:600;color:var(--text-dark);margin-bottom:4px;display:flex;align-items:center;gap:6px;">
+                                  <span>⚡ Imediato</span>
+                                  <span style="font-size:var(--text-10);background:rgba(34,197,94,0.15);color:#16a34a;padding:2px 6px;border-radius:4px;font-weight:700;">Automático</span>
+                                </div>
+                                Disparada assim que o agendamento é registrado no CRM ou concluído pelo cliente no Portal de Agendamento Online.
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- TEMPLATE 2: LEMBRETE -->
+                    <div class="waha-tmpl-card">
+                      <div class="waha-tmpl-header">
+                        <div class="waha-tmpl-header-info">
+                          <div class="waha-tmpl-title-row">
+                            <span class="waha-step-badge">2</span>
+                            <h3 class="waha-tmpl-title">Lembrete de Horário (Pré-atendimento)</h3>
+                          </div>
+                          <p class="waha-tmpl-sub">Enviada com antecedência para lembrar a cliente e evitar faltas / no-show.</p>
+                        </div>
+                        <div class="waha-tmpl-controls">
+                          <div id="wa-status-pill-reminder" class="waha-status-badge-top pill-active">
+                            <span class="badge-dot"></span>
+                            <span class="badge-text">Ativado</span>
+                          </div>
+                          <label class="waha-switch-large" title="Clique para ativar ou desativar">
+                            <input type="checkbox" id="wa-toggle-reminder" checked onchange="updateWahaSwitchVisual(this, 'reminder')">
+                            <span class="waha-slider-large"></span>
+                          </label>
+                        </div>
+                      </div>
+
+                      <div class="waha-tmpl-grid">
+                        <div class="waha-tmpl-left">
+                          <div class="waha-textarea-wrapper">
+                            <div class="waha-textarea-header">
+                              <label class="form-label" style="font-size:var(--text-12);font-weight:600;margin:0;">Texto da Mensagem no WhatsApp:</label>
+                              <span style="color:var(--text-muted);font-size:var(--text-11);">Suporta emojis e tags</span>
+                            </div>
+                            <textarea class="waha-textarea" id="wa-tmpl-reminder" rows="6" placeholder="Oi {primeiro_nome}, passando para lembrar do seu horário..." onfocus="window._lastWahaTextarea = this"></textarea>
+                          </div>
+                        </div>
+
+                        <div class="waha-tmpl-right">
+                          <div class="waha-rules-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            Regra de Agendamento do Lembrete
+                          </div>
+                          <div class="waha-config-fields">
+                            <div class="form-field">
+                              <label class="form-label" style="font-size:var(--text-11);font-weight:600;">Quando enviar o lembrete?</label>
+                              <select class="form-input" id="wa-reminder-timing" onchange="handleReminderTimingChange(this.value)" style="font-size:var(--text-12);height:36px;">
+                                <option value="1_day" selected>1 dia antes (Véspera do atendimento)</option>
+                                <option value="2_days">2 dias antes</option>
+                                <option value="3_days">3 dias antes</option>
+                                <option value="same_day">No mesmo dia do atendimento</option>
+                                <option value="2_hours">2 horas antes do horário</option>
+                                <option value="4_hours">4 horas antes do horário</option>
+                                <option value="6_hours">6 horas antes do horário</option>
+                              </select>
+                            </div>
+
+                            <div class="form-field" id="wa-reminder-time-box">
+                              <label class="form-label" style="font-size:var(--text-11);font-weight:600;">Horário preferencial de disparo:</label>
+                              <input type="time" class="form-input" id="wa-reminder-time" value="09:00" style="font-size:var(--text-12);height:36px;">
+                              <div style="font-size:var(--text-11);color:var(--text-muted);margin-top:3px;" id="wa-reminder-time-hint">
+                                As mensagens serão disparadas neste horário no dia anterior.
+                              </div>
+                            </div>
+
+                            <button type="button" class="btn-outline" onclick="triggerPendingRemindersNow()" style="width:100%;font-size:var(--text-12);height:34px;display:inline-flex;align-items:center;justify-content:center;gap:6px;margin-top:4px;" title="Verifica e dispara lembretes pendentes que se encaixam na regra agora">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                              Disparar Lembretes Agora
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- TEMPLATE 3: CANCELAMENTO -->
+                    <div class="waha-tmpl-card">
+                      <div class="waha-tmpl-header">
+                        <div class="waha-tmpl-header-info">
+                          <div class="waha-tmpl-title-row">
+                            <span class="waha-step-badge" style="background:rgba(239,68,68,0.12);color:#ef4444;">3</span>
+                            <h3 class="waha-tmpl-title">Agendamento Cancelado</h3>
+                          </div>
+                          <p class="waha-tmpl-sub">Enviada caso o agendamento seja cancelado ou desmarcado.</p>
+                        </div>
+                        <div class="waha-tmpl-controls">
+                          <div id="wa-status-pill-cancelled" class="waha-status-badge-top pill-active">
+                            <span class="badge-dot"></span>
+                            <span class="badge-text">Ativado</span>
+                          </div>
+                          <label class="waha-switch-large" title="Clique para ativar ou desativar">
+                            <input type="checkbox" id="wa-toggle-cancelled" checked onchange="updateWahaSwitchVisual(this, 'cancelled')">
+                            <span class="waha-slider-large"></span>
+                          </label>
+                        </div>
+                      </div>
+
+                      <div class="waha-tmpl-grid">
+                        <div class="waha-tmpl-left">
+                          <div class="waha-textarea-wrapper">
+                            <div class="waha-textarea-header">
+                              <label class="form-label" style="font-size:var(--text-12);font-weight:600;margin:0;">Texto da Mensagem no WhatsApp:</label>
+                              <span style="color:var(--text-muted);font-size:var(--text-11);">Suporta emojis e tags</span>
+                            </div>
+                            <textarea class="waha-textarea" id="wa-tmpl-cancelled" rows="4" placeholder="Olá {nome}, seu agendamento foi cancelado..." onfocus="window._lastWahaTextarea = this"></textarea>
+                          </div>
+                        </div>
+
+                        <div class="waha-tmpl-right">
+                          <div class="waha-rules-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            Regra de Disparo
+                          </div>
+                          <div class="waha-config-fields">
+                            <div class="form-field" style="margin-bottom:0;">
+                              <label class="form-label" style="font-size:var(--text-11);font-weight:600;">Momento do Envio:</label>
+                              <div class="waha-dispatch-info">
+                                <div style="font-weight:600;color:var(--text-dark);margin-bottom:4px;display:flex;align-items:center;gap:6px;">
+                                  <span>🚫 Cancelamento</span>
+                                  <span style="font-size:var(--text-10);background:rgba(239,68,68,0.12);color:#ef4444;padding:2px 6px;border-radius:4px;font-weight:700;">Instantâneo</span>
+                                </div>
+                                Enviada instantaneamente ao alterar o status do agendamento para Cancelado.
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- TEMPLATE 4: RETORNO / MANUTENÇÃO -->
+                    <div class="waha-tmpl-card">
+                      <div class="waha-tmpl-header">
+                        <div class="waha-tmpl-header-info">
+                          <div class="waha-tmpl-title-row">
+                            <span class="waha-step-badge">4</span>
+                            <h3 class="waha-tmpl-title">Retorno &amp; Manutenção de Unhas</h3>
+                          </div>
+                          <p class="waha-tmpl-sub">Mensagem sugerida para clientes que fizeram atendimento há algum tempo.</p>
+                        </div>
+                        <div class="waha-tmpl-controls">
+                          <div id="wa-status-pill-return" class="waha-status-badge-top pill-inactive">
+                            <span class="badge-dot"></span>
+                            <span class="badge-text">Desativado</span>
+                          </div>
+                          <label class="waha-switch-large" title="Clique para ativar ou desativar">
+                            <input type="checkbox" id="wa-toggle-return" onchange="updateWahaSwitchVisual(this, 'return')">
+                            <span class="waha-slider-large"></span>
+                          </label>
+                        </div>
+                      </div>
+
+                      <div class="waha-tmpl-grid">
+                        <div class="waha-tmpl-left">
+                          <div class="waha-textarea-wrapper">
+                            <div class="waha-textarea-header">
+                              <label class="form-label" style="font-size:var(--text-12);font-weight:600;margin:0;">Texto da Mensagem no WhatsApp:</label>
+                              <span style="color:var(--text-muted);font-size:var(--text-11);">Suporta emojis e tags</span>
+                            </div>
+                            <textarea class="waha-textarea" id="wa-tmpl-return" rows="4" placeholder="Oi {primeiro_nome}, já faz algum tempo do seu atendimento! Que tal agendar sua manutenção?..." onfocus="window._lastWahaTextarea = this"></textarea>
+                          </div>
+                        </div>
+
+                        <div class="waha-tmpl-right">
+                          <div class="waha-rules-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            Regra de Retorno &amp; Manutenção
+                          </div>
+                          <div class="waha-config-fields">
+                            <div class="form-field">
+                              <label class="form-label" style="font-size:var(--text-11);font-weight:600;">Intervalo sugerido:</label>
+                              <select class="form-input" id="wa-return-interval" style="font-size:var(--text-12);height:36px;">
+                                <option value="15">15 dias após último atendimento</option>
+                                <option value="20" selected>20 dias após atendimento (Recomendado)</option>
+                                <option value="25">25 dias após último atendimento</option>
+                                <option value="30">30 dias após último atendimento</option>
+                              </select>
+                            </div>
+                            <div class="form-field">
+                              <label class="form-label" style="font-size:var(--text-11);font-weight:600;">Horário de disparo:</label>
+                              <input type="time" class="form-input" id="wa-return-time" value="10:00" style="font-size:var(--text-12);height:36px;">
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- TEMPLATE 5: AGRADECIMENTO -->
+                    <div class="waha-tmpl-card">
+                      <div class="waha-tmpl-header">
+                        <div class="waha-tmpl-header-info">
+                          <div class="waha-tmpl-title-row">
+                            <span class="waha-step-badge">5</span>
+                            <h3 class="waha-tmpl-title">Agradecimento Pós-Atendimento</h3>
+                          </div>
+                          <p class="waha-tmpl-sub">Mensagem de carinho e fidelização enviada após o término do atendimento.</p>
+                        </div>
+                        <div class="waha-tmpl-controls">
+                          <div id="wa-status-pill-thanks" class="waha-status-badge-top pill-inactive">
+                            <span class="badge-dot"></span>
+                            <span class="badge-text">Desativado</span>
+                          </div>
+                          <label class="waha-switch-large" title="Clique para ativar ou desativar">
+                            <input type="checkbox" id="wa-toggle-thanks" onchange="updateWahaSwitchVisual(this, 'thanks')">
+                            <span class="waha-slider-large"></span>
+                          </label>
+                        </div>
+                      </div>
+
+                      <div class="waha-tmpl-grid">
+                        <div class="waha-tmpl-left">
+                          <div class="waha-textarea-wrapper">
+                            <div class="waha-textarea-header">
+                              <label class="form-label" style="font-size:var(--text-12);font-weight:600;margin:0;">Texto da Mensagem no WhatsApp:</label>
+                              <span style="color:var(--text-muted);font-size:var(--text-11);">Suporta emojis e tags</span>
+                            </div>
+                            <textarea class="waha-textarea" id="wa-tmpl-thanks" rows="4" placeholder="Oi {primeiro_nome}, foi um prazer atender você hoje! Esperamos que tenha amado..." onfocus="window._lastWahaTextarea = this"></textarea>
+                          </div>
+                        </div>
+
+                        <div class="waha-tmpl-right">
+                          <div class="waha-rules-header">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            Regra de Agradecimento
+                          </div>
+                          <div class="waha-config-fields">
+                            <div class="form-field" style="margin-bottom:0;">
+                              <label class="form-label" style="font-size:var(--text-11);font-weight:600;">Momento do envio:</label>
+                              <select class="form-input" id="wa-thanks-delay" style="font-size:var(--text-12);height:36px;">
+                                <option value="immediate" selected>Imediatamente após concluir</option>
+                                <option value="1_hour">1 hora após o atendimento</option>
+                                <option value="2_hours">2 horas após o atendimento</option>
+                                <option value="end_of_day">No final do dia (19:00)</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style="text-align:right;margin-top:10px;">
+                      <button class="btn-primary" onclick="saveWahaTemplates()" style="display:inline-flex;align-items:center;gap:6px;">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                        Salvar Modelos de Mensagem
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- INTEGRAÇÃO COM N8N (WEBHOOKS DE ESCUTA E ENVIO) -->
+                <div class="settings-section" style="margin-bottom:20px;border-top:3px solid #f97316;">
+                  <div class="settings-section-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+                    <div>
+                      <div class="settings-section-title" style="display:flex;align-items:center;gap:8px;">
+                        <span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;background:rgba(249,115,22,0.15);">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2"><circle cx="5" cy="12" r="3"/><circle cx="19" cy="6" r="3"/><circle cx="19" cy="18" r="3"/><path d="M8 12h5l3-4M13 12l3 4"/></svg>
+                        </span>
+                        Integração com n8n (Webhooks de Escuta &amp; Envio)
+                      </div>
+                      <div class="settings-section-sub">Receba mensagens de clientes no seu fluxo do n8n e envie mensagens pelo n8n via WhatsApp</div>
+                    </div>
+                    <span style="background:rgba(249,115,22,0.12);color:#ea580c;border:1px solid rgba(249,115,22,0.3);padding:3px 10px;border-radius:12px;font-size:var(--text-11);font-weight:600;">n8n Workflow Hub</span>
+                  </div>
+                  <div class="settings-body">
+
+                    <!-- CREDENCIAIS PARA O NÓ WAHA NO N8N (WAHA ACCOUNT) -->
+                    <div id="waha-n8n-credentials-section" style="background: linear-gradient(135deg, rgba(249,115,22,0.06) 0%, rgba(59,130,246,0.06) 100%); border: 1px solid rgba(249,115,22,0.28); border-radius: 12px; padding: 18px 20px; margin-bottom: 20px;">
+                      <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px; margin-bottom: 14px;">
+                        <div style="display:flex; align-items:center; gap:10px;">
+                          <div style="width:36px; height:36px; border-radius:10px; background:rgba(249,115,22,0.15); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                              <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                            </svg>
+                          </div>
+                          <div>
+                            <div style="font-size:var(--text-14); font-weight:700; color:var(--text-dark); display:flex; align-items:center; gap:8px;">
+                              Credenciais para Conectar no n8n (Nó WAHA Account)
+                              <span style="font-size:10px; background:rgba(34,197,94,0.15); color:#15803d; border:1px solid rgba(34,197,94,0.3); padding:2px 7px; border-radius:10px; font-weight:600;">Pronto para Usar</span>
+                            </div>
+                            <div style="font-size:var(--text-12); color:var(--text-secondary); margin-top:2px;">
+                              Preencha estes dados na janela <strong>"WAHA account (WAHA API)"</strong> do seu n8n para autenticar o nó do WhatsApp.
+                            </div>
+                          </div>
+                        </div>
+                        <button type="button" class="btn-outline" onclick="copyAllN8nCredentials(this)" style="font-size:var(--text-11); padding:5px 10px; display:inline-flex; align-items:center; gap:5px;">
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                          Copiar Todas as Credenciais
+                        </button>
+                      </div>
+
+                      <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(220px, 1fr)); gap:14px;">
+                        
+                        <!-- HOST URL -->
+                        <div class="form-field" style="margin:0;">
+                          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                            <label class="form-label" style="font-size:var(--text-11); font-weight:700; text-transform:uppercase; color:var(--text-muted); margin:0;">
+                              Host URL
+                            </label>
+                            <span style="font-size:10px; color:#2563eb; font-weight:600;">Para n8n no Docker</span>
+                          </div>
+                          <div style="display:flex; gap:6px;">
+                            <input class="form-input" id="waha-n8n-cred-host" readonly value="http://172.23.0.1:3000" style="font-size:var(--text-12); font-family:monospace; background:var(--bg-white);">
+                            <button type="button" class="btn-outline" onclick="copySnippet('waha-n8n-cred-host', this)" style="padding:4px 10px; font-size:var(--text-11); flex-shrink:0;">Copiar</button>
+                          </div>
+                          <span style="font-size:10px; color:var(--text-secondary); margin-top:3px; display:block;">
+                            Ou <code>http://waha:3000</code> na rede Docker. Se fora do Docker: <code>http://localhost:3000</code>.
+                          </span>
+                        </div>
+
+                        <!-- API KEY -->
+                        <div class="form-field" style="margin:0;">
+                          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                            <label class="form-label" style="font-size:var(--text-11); font-weight:700; text-transform:uppercase; color:var(--text-muted); margin:0;">
+                              API Key
+                            </label>
+                            <span style="font-size:10px; color:var(--text-muted);">Chave de Autenticação</span>
+                          </div>
+                          <div style="display:flex; gap:6px;">
+                            <input class="form-input" id="waha-n8n-cred-key" type="password" readonly value="218c0effefb845238a1ae3651c8ced5b" style="font-size:var(--text-12); font-family:monospace; background:var(--bg-white);">
+                            <button type="button" class="btn-outline" onclick="toggleN8nApiKeyVisibility(this)" title="Exibir / Ocultar Chave" style="padding:4px 8px; flex-shrink:0;">
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </button>
+                            <button type="button" class="btn-outline" onclick="copySnippet('waha-n8n-cred-key', this)" style="padding:4px 10px; font-size:var(--text-11); flex-shrink:0;">Copiar</button>
+                          </div>
+                          <span style="font-size:10px; color:var(--text-secondary); margin-top:3px; display:block;">
+                            Cole exatamente no campo <strong>API Key</strong> do n8n.
+                          </span>
+                        </div>
+
+                        <!-- SESSION NAME -->
+                        <div class="form-field" style="margin:0;">
+                          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                            <label class="form-label" style="font-size:var(--text-11); font-weight:700; text-transform:uppercase; color:var(--text-muted); margin:0;">
+                              Session (Nome da Sessão)
+                            </label>
+                            <span style="font-size:10px; color:#16a34a; font-weight:600;">Sessão Ativa</span>
+                          </div>
+                          <div style="display:flex; gap:6px;">
+                            <input class="form-input" id="waha-n8n-cred-session" readonly value="beautyflow" style="font-size:var(--text-12); font-family:monospace; background:var(--bg-white); font-weight:600; color:#15803d;">
+                            <button type="button" class="btn-outline" onclick="copySnippet('waha-n8n-cred-session', this)" style="padding:4px 10px; font-size:var(--text-11); flex-shrink:0;">Copiar</button>
+                          </div>
+                          <span style="font-size:10px; color:var(--text-secondary); margin-top:3px; display:block;">
+                            Preencha no campo <strong>Session</strong> dentro do nó de envio de mensagem.
+                          </span>
+                        </div>
+
+                        <!-- ALLOWED HTTP REQUEST DOMAINS -->
+                        <div class="form-field" style="margin:0;">
+                          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                            <label class="form-label" style="font-size:var(--text-11); font-weight:700; text-transform:uppercase; color:var(--text-muted); margin:0;">
+                              Allowed HTTP Request Domains
+                            </label>
+                            <span style="font-size:10px; color:var(--text-muted);">Configuração</span>
+                          </div>
+                          <div style="display:flex; gap:6px;">
+                            <input class="form-input" id="waha-n8n-cred-domains" readonly value="All" style="font-size:var(--text-12); font-family:monospace; background:var(--bg-white);">
+                            <button type="button" class="btn-outline" onclick="copySnippet('waha-n8n-cred-domains', this)" style="padding:4px 10px; font-size:var(--text-11); flex-shrink:0;">Copiar</button>
+                          </div>
+                          <span style="font-size:10px; color:var(--text-secondary); margin-top:3px; display:block;">
+                            Mantenha a opção <strong>All</strong> no dropdown do n8n.
+                          </span>
+                        </div>
+
+                      </div>
+
+                      <!-- GUIA RÁPIDO -->
+                      <div style="margin-top:14px; padding-top:12px; border-top:1px dashed rgba(249,115,22,0.25); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:var(--text-11); color:var(--text-secondary);">
+                        <div style="display:flex; align-items:center; gap:6px;">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+                          <span><strong>Passo a passo no n8n:</strong> Na janela <em>WAHA account</em>, preencha o <strong>Host URL</strong> e a <strong>API Key</strong> e clique em <strong>Save</strong>. No seu nó de mensagem (ex: <em>Send a text message</em>), selecione essa conta e preencha a Session como <code>beautyflow</code>.</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div class="waha-n8n-grid">
+                      
+                      <!-- PARTE 1: ESCUTA DE MENSAGENS NO N8N (WHATSAPP -> N8N) -->
+                      <div class="waha-n8n-card">
+                        <div>
+                          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                            <span class="waha-n8n-badge" style="background:rgba(37,211,102,0.15);color:#16a34a;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg> ESCUTA DE MENSAGENS</span>
+                            <span style="font-size:var(--text-12);color:var(--text-secondary);font-weight:500;">WhatsApp &rarr; n8n</span>
+                          </div>
+                          <div class="waha-n8n-title">Receber Mensagens no n8n (Webhook)</div>
+                          <div class="waha-n8n-desc">
+                            Configure a URL do nó <strong>Webhook</strong> do seu workflow n8n. Toda mensagem recebida de clientes no WhatsApp será encaminhada instantaneamente ao n8n.
+                          </div>
+
+                          <div class="form-field" style="margin-bottom:12px;">
+                            <label class="form-label" style="font-size:var(--text-12);font-weight:600;">URL do Webhook do n8n (Node Webhook)</label>
+                            <input class="form-input" id="wa-n8n-webhook-url" placeholder="https://seu-n8n.com/webhook/waha-receber" style="font-size:var(--text-13);font-family:monospace;">
+                            <span style="display:block;font-size:11px;color:var(--text-secondary);margin-top:4px;">💡 No n8n local, URLs com <code>localhost</code> são roteadas automaticamente para alcançar o host Docker (172.23.0.1).</span>
+                          </div>
+
+                          <div class="form-field" style="margin-bottom:14px;">
+                            <label class="form-label" style="font-size:var(--text-12);font-weight:600;margin-bottom:6px;">Eventos para encaminhar ao n8n:</label>
+                            <div style="display:flex;flex-direction:column;gap:8px;font-size:var(--text-12);">
+                              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                                <input type="checkbox" id="wa-n8n-ev-message" value="message" checked style="width:16px;height:16px;">
+                                <span><strong style="color:var(--text-dark);">message</strong> — Mensagens recebidas de clientes (Recomendado)</span>
+                              </label>
+                              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                                <input type="checkbox" id="wa-n8n-ev-message-any" value="message.any" style="width:16px;height:16px;">
+                                <span><strong style="color:var(--text-dark);">message.any</strong> — Todas as mensagens (recebidas e enviadas)</span>
+                              </label>
+                              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+                                <input type="checkbox" id="wa-n8n-ev-status" value="session.status" style="width:16px;height:16px;">
+                                <span><strong style="color:var(--text-dark);">session.status</strong> — Status da conexão do WhatsApp</span>
+                              </label>
+                            </div>
+                          </div>
+
+                          <!-- FEEDBACK DO TESTE N8N -->
+                          <div id="wa-n8n-test-feedback" style="display:none;margin-bottom:12px;padding:10px 12px;border-radius:8px;font-size:var(--text-12);line-height:1.45;"></div>
+                        </div>
+
+                        <div>
+                          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+                            <button type="button" class="btn-primary" onclick="saveWahaN8nWebhook()" style="font-size:var(--text-12);padding:7px 14px;display:inline-flex;align-items:center;gap:6px;">
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                              Salvar Webhook no WAHA
+                            </button>
+                            <button type="button" class="btn-outline" onclick="testWahaN8nWebhook()" style="font-size:var(--text-12);padding:7px 14px;display:inline-flex;align-items:center;gap:6px;">
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                              Testar Disparo para n8n
+                            </button>
+                          </div>
+
+                          <!-- GUIA RAPIDO N8N WEBHOOK -->
+                          <details class="waha-guide-box">
+                            <summary style="cursor:pointer;font-weight:600;color:var(--text-dark);display:flex;align-items:center;gap:6px;">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                              Como configurar o nó Webhook no n8n &amp; Exemplo JSON
+                            </summary>
+                            <div style="margin-top:10px;line-height:1.5;">
+                              <strong>Passo a passo no n8n:</strong><br>
+                              1. No seu n8n, crie ou abra um workflow e adicione o nó <strong>Webhook</strong>.<br>
+                              2. Defina <strong>HTTP Method</strong> como <code>POST</code> e o path desejado (ex: <code>waha-mensagem</code>).<br>
+                              3. Copie a <strong>Test URL</strong> (ou Production URL) do nó Webhook e cole no campo acima.<br>
+                              4. Clique em "Salvar Webhook no WAHA" e em seguida em "Testar Disparo para n8n".
+                              <div style="margin-top:10px;position:relative;">
+                                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                                  <strong style="color:var(--text-dark);font-size:var(--text-11);">Estrutura JSON enviada ao n8n:</strong>
+                                  <button type="button" class="btn-outline" onclick="copySnippet('code-sample-n8n-in', this)" style="font-size:var(--text-11);padding:2px 7px;">Copiar JSON</button>
+                                </div>
+                                <pre id="code-sample-n8n-in" style="background:#0f172a;color:#e2e8f0;padding:8px 10px;border-radius:6px;overflow-x:auto;font-size:var(--text-11);line-height:1.4;margin:0;">{
+  "event": "message",
+  "session": "DaviWhats",
+  "payload": {
+    "from": "5511999999999@c.us",
+    "fromMe": false,
+    "body": "Olá! Gostaria de agendar um horário.",
+    "timestamp": 1710000000,
+    "_data": {
+      "notifyName": "Cliente Exemplo"
+    }
+  }
+}</pre>
+                              </div>
+                            </div>
+                          </details>
+                        </div>
+                      </div>
+
+                      <!-- PARTE 2: ENVIO DE MENSAGENS PELO N8N (N8N -> WHATSAPP) -->
+                      <div class="waha-n8n-card">
+                        <div>
+                          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+                            <span class="waha-n8n-badge" style="background:rgba(59,130,246,0.15);color:#2563eb;"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg> DISPARO DE MENSAGENS</span>
+                            <span style="font-size:var(--text-12);color:var(--text-secondary);font-weight:500;">n8n &rarr; WhatsApp</span>
+                          </div>
+                          <div class="waha-n8n-title">Enviar Mensagens pelo n8n (Nó WAHA ou HTTP Request)</div>
+                          <div class="waha-n8n-desc">
+                            Você pode disparar mensagens pelo n8n de duas formas: diretamente pelo <strong>Nó WAHA</strong> (usando as credenciais no topo desta seção) ou utilizando o nó padrão <strong>HTTP Request</strong> via endpoint do BeautyFlow.
+                          </div>
+
+                          <!-- ENDPOINT BOX -->
+                          <div class="waha-endpoint-box">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                              <span style="font-size:var(--text-11);font-weight:700;text-transform:uppercase;color:var(--text-muted);">Endpoint Recomendado (BeautyFlow CRM)</span>
+                              <span style="background:rgba(34,197,94,0.12);color:#16a34a;padding:2px 6px;border-radius:4px;font-size:var(--text-10);font-weight:700;">Zero Configuração</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:6px;">
+                              <span style="background:#22c55e;color:#fff;font-size:var(--text-10);font-weight:700;padding:3px 6px;border-radius:4px;">POST</span>
+                              <code id="n8n-send-url" style="font-size:var(--text-12);color:var(--text-dark);font-family:monospace;background:var(--bg-white);padding:5px 8px;border-radius:5px;border:1px solid var(--border);flex:1;overflow-x:auto;">http://localhost:3001/api/whatsapp/send-notification</code>
+                              <button type="button" class="btn-outline" onclick="copySnippet('n8n-send-url', this)" style="font-size:var(--text-11);padding:4px 8px;flex-shrink:0;">Copiar</button>
+                            </div>
+                            <div style="font-size:var(--text-11);color:var(--text-secondary);margin-top:6px;line-height:1.4;">
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-1px;margin-right:2px;"><polyline points="20 6 9 17 4 12"/></svg> Formata telefone brasileiro automaticamente • Salva no histórico de notificações do CRM • Sem expor chaves no fluxo.
+                            </div>
+                          </div>
+
+                          <!-- PAYLOAD JSON SAMPLE -->
+                          <div style="margin-bottom:12px;position:relative;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                              <span style="font-size:var(--text-11);font-weight:700;text-transform:uppercase;color:var(--text-muted);">Body JSON (Send Body no n8n)</span>
+                              <button type="button" class="btn-outline" onclick="copySnippet('code-sample-n8n-out', this)" style="font-size:var(--text-11);padding:2px 7px;">Copiar JSON</button>
+                            </div>
+                            <pre id="code-sample-n8n-out" style="background:#0f172a;color:#e2e8f0;padding:10px 12px;border-radius:6px;overflow-x:auto;font-size:var(--text-12);line-height:1.45;margin:0;">{
+  "phone": "{{ $json.telefone }}",
+  "message": "Olá {{ $json.nome }}, seu agendamento no BeautyFlow está confirmado para {{ $json.data }} às {{ $json.horario }}!",
+  "client_name": "{{ $json.nome }}"
+}</pre>
+                          </div>
+                        </div>
+
+                        <div>
+                          <!-- GUIA DE PASSOS NO N8N -->
+                          <div class="waha-guide-box">
+                            <strong style="color:var(--text-dark);">Como configurar o nó no n8n:</strong>
+                            <ol style="margin:4px 0 0 16px;padding:0;line-height:1.5;">
+                              <li>Adicione o nó <strong>HTTP Request</strong> no seu fluxo n8n</li>
+                              <li>Defina <strong>Method</strong> como <code>POST</code> e cole a URL acima</li>
+                              <li>Em <strong>Send Body</strong>, selecione <strong>JSON</strong></li>
+                              <li>Cole o JSON usando as variáveis dinâmicas do nó anterior (ex: <code>{{ $json.telefone }}</code>)</li>
+                            </ol>
+                            <div style="margin-top:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+                              <button type="button" class="btn-outline" onclick="copySnippet('code-sample-n8n-curl', this)" style="font-size:var(--text-11);padding:3px 8px;">Copiar cURL</button>
+                              <span style="font-size:var(--text-10);color:var(--text-muted);">Serviço BeautyFlow • Disparos via WhatsApp</span>
+                              <pre id="code-sample-n8n-curl" style="display:none;">curl -X POST http://localhost:3001/api/whatsapp/send-notification -H "Content-Type: application/json" -d '{"phone": "5511999999999", "message": "Olá! Teste de disparo via n8n"}'</pre>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+
+                <!-- CONFIGURACOES DA API & MODO DE USO -->
+                <div class="settings-section" style="margin-bottom:20px;">
+                  <div class="settings-section-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+                    <div>
+                      <div class="settings-section-title">Configurações Avançadas de Conexão</div>
+                      <div class="settings-section-sub">Ajustes opcionais de conexão do serviço de WhatsApp</div>
+                    </div>
+                    <button class="btn-outline" onclick="saveWahaApiConfig()" style="display:inline-flex;align-items:center;gap:6px;">
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                      Salvar Configuração
+                    </button>
+                  </div>
+                  <div class="settings-body">
+                    <div class="form-row">
+                      <div class="form-field">
+                        <label class="form-label">Servidor do WhatsApp (Opcional)</label>
+                        <input class="form-input" id="wa-cfg-api-url" placeholder="Padrão do Sistema (Automático)">
+                      </div>
+                      <div class="form-field">
+                        <label class="form-label">Nome da Sessão</label>
+                        <input class="form-input" id="wa-cfg-session" placeholder="default ou Principal">
+                      </div>
+                    </div>
+                    <div class="form-row">
+                      <div class="form-field">
+                        <label class="form-label">Chave de API (X-Api-Key)</label>
+                        <input class="form-input" id="wa-cfg-api-key" type="password" placeholder="Chave de segurança (opcional)">
+                      </div>
+                      <div class="form-field" style="max-width:140px;">
+                        <label class="form-label">DDI Padrão</label>
+                        <input class="form-input" id="wa-cfg-country-code" placeholder="55" value="55">
+                      </div>
+                    </div>
+                    <div style="text-align:right;margin-top:10px;">
+                      <button class="btn-primary" onclick="saveWahaApiConfig()" style="display:inline-flex;align-items:center;gap:6px;">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                        Salvar Configurações
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- VISUALIZACAO DO WHATSAPP WEB (PRINT DA TELA) -->
+                <div class="settings-section">
+                  <div class="settings-section-header" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;">
+                    <div>
+                      <div class="settings-section-title" style="display:flex;align-items:center;gap:8px;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                        Visualização do WhatsApp Conectado (Captura da Sessão)
+                      </div>
+                      <div class="settings-section-sub">Captura de tela real do WhatsApp Web para conferir se a conta está conectada e pronta</div>
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                      <button class="btn-outline" onclick="loadWahaInlineScreenshot()" style="display:inline-flex;align-items:center;gap:6px;">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+                        Atualizar Print
+                      </button>
+                      <button class="btn-outline" onclick="openWahaScreenshotModal()" style="display:inline-flex;align-items:center;gap:6px;">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+                        Tela Cheia
+                      </button>
+                    </div>
+                  </div>
+                  <div class="settings-body">
+                    <div id="wa-inline-screenshot-loading" style="display:none;padding:30px 0;text-align:center;">
+                      <div class="waha-spinner"></div>
+                      <div style="margin-top:10px;color:var(--text-secondary);font-size:var(--text-13);">Capturando tela do WhatsApp Web...</div>
+                    </div>
+                    <div id="wa-inline-screenshot-container" style="border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#0f172a;text-align:center;">
+                      <img id="wa-inline-screenshot-img" src="" alt="WhatsApp Web Captura" style="max-width:100%;height:auto;display:block;margin:0 auto;max-height:480px;object-fit:contain;">
+                    </div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:var(--text-11);color:var(--text-secondary);">
+                      <span id="wa-inline-screenshot-time">Clique em "Atualizar Print" para carregar a captura mais recente.</span>
+                      <span>Motor de Mensagens Automatizadas • Conexão Segura</span>
+                    </div>
+                  </div>
+                </div>
+              <!-- FIM DO TAB-WHATSAPP-CONTENT -->
               </div>
             </div>
 
@@ -909,17 +1671,17 @@
                 <div class="settings-body">
                   <div class="font-size-grid">
                     <div class="font-size-option active" data-size="small" onclick="setFontSize('small', this)">
-                      <div class="font-size-icon">Aa</div>
+                      <div class="font-size-icon" style="font-size:14px;">Aa</div>
                       <div class="font-size-label">Pequeno</div>
                       <div class="font-size-check">✓</div>
                     </div>
                     <div class="font-size-option" data-size="medium" onclick="setFontSize('medium', this)">
-                      <div class="font-size-icon" style="font-size:18px;">Aa</div>
+                      <div class="font-size-icon" style="font-size:20px;">Aa</div>
                       <div class="font-size-label">Médio</div>
                       <div class="font-size-check">✓</div>
                     </div>
                     <div class="font-size-option" data-size="large" onclick="setFontSize('large', this)">
-                      <div class="font-size-icon" style="font-size:22px;">Aa</div>
+                      <div class="font-size-icon" style="font-size:26px;">Aa</div>
                       <div class="font-size-label">Grande</div>
                       <div class="font-size-check">✓</div>
                     </div>
@@ -1366,6 +2128,10 @@
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="15" rx="2" stroke="currentColor" stroke-width="1.3"/><path d="M2 7h16M7 2v3M13 2v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><text x="10" y="16" text-anchor="middle" font-size="7" fill="currentColor" font-weight="700">GC</text></svg>
               <span>Google Calendar</span>
             </div>
+            <div class="integ-type-option" data-type="whatsapp" id="integ-opt-whatsapp" onclick="selectIntegType('whatsapp', this)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="#25d366"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm0 18.09c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.04 8.04 0 0 1-1.23-4.32c0-4.48 3.64-8.12 8.12-8.12 2.17 0 4.21.85 5.74 2.38s2.38 3.57 2.38 5.74c0 4.49-3.64 8.13-8.12 8.13zm4.45-6.09c-.24-.12-1.45-.71-1.67-.8-.23-.08-.39-.12-.56.12-.17.24-.64.8-.79.96-.14.16-.29.18-.53.06-.24-.12-1.03-.38-1.96-1.21-.73-.65-1.22-1.45-1.36-1.69-.14-.24-.02-.37.1-.49.11-.11.24-.29.37-.43.12-.15.16-.25.24-.41.08-.17.04-.31-.02-.43s-.56-1.35-.77-1.85c-.2-.48-.41-.42-.56-.43h-.48c-.16 0-.43.06-.66.31s-.87.85-.87 2.07c0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.47-.07 1.45-.59 1.65-1.17.2-.57.2-1.07.14-1.17-.06-.11-.23-.17-.47-.29z"/></svg>
+              <span>WhatsApp (WAHA)</span>
+            </div>
           </div>
         </div>
       </div>
@@ -1377,6 +2143,210 @@
       </div>
     </div>
     <input type="hidden" id="integ-id" value="">
+  </div>
+</div>
+
+<!-- MODAL: ESCANEAR QR CODE WAHA -->
+<div class="modal-overlay" id="waha-qr-modal" onclick="closeWahaQrModal()">
+  <div class="modal-card" onclick="event.stopPropagation()" style="max-width:440px;text-align:center;">
+    <div class="modal-header">
+      <div class="modal-title" style="display:flex;align-items:center;gap:8px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="#25d366"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm0 18.09c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.04 8.04 0 0 1-1.23-4.32c0-4.48 3.64-8.12 8.12-8.12 2.17 0 4.21.85 5.74 2.38s2.38 3.57 2.38 5.74c0 4.49-3.64 8.13-8.12 8.13z"/></svg>
+        Conectar WhatsApp
+      </div>
+      <button class="modal-close" onclick="closeWahaQrModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="padding:20px;">
+      <div id="waha-qr-loading" style="padding:32px 0;">
+        <div class="waha-spinner"></div>
+        <div style="margin-top:14px;color:var(--text-secondary);font-size:13px;font-weight:500;">Conectando ao WhatsApp...</div>
+      </div>
+      <div id="waha-qr-content" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;font-size:12px;">
+          <span id="waha-qr-timer-text" style="color:var(--text-secondary);font-weight:500;display:inline-flex;align-items:center;gap:4px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Expira em: <strong id="waha-qr-seconds" style="color:var(--primary-600);font-size:13px;margin-left:2px;">35s</strong>
+          </span>
+          <button type="button" class="btn-outline" onclick="loadWahaQr(true)" style="padding:3px 8px;font-size:11px;border-radius:5px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;" title="Recarregar QR Code">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+            Atualizar Código
+          </button>
+        </div>
+        <div class="waha-qr-img-wrapper" style="display:inline-block;padding:12px;background:#ffffff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,0.08);border:1px solid var(--border);">
+          <div id="waha-qr-box" style="position:relative;display:inline-block;">
+            <img id="waha-qr-image" src="" alt="WhatsApp QR Code" style="width:230px;height:230px;display:block;border-radius:6px;transition:filter 0.25s;">
+            <div id="waha-qr-expired-overlay" style="display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(15,23,42,0.88);backdrop-filter:blur(3px);border-radius:6px;flex-direction:column;align-items:center;justify-content:center;padding:16px;text-align:center;">
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#f87171" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:8px;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <div style="font-size:13.5px;font-weight:700;color:#f87171;margin-bottom:4px;">QR Code Expirado!</div>
+              <div style="font-size:11px;color:#e2e8f0;margin-bottom:12px;line-height:1.35;">O código expirou por segurança. Clique abaixo para gerar um novo QR Code.</div>
+              <button type="button" class="btn-primary" onclick="loadWahaQr(true)" style="font-size:12px;padding:6px 14px;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+                Gerar Novo QR Code
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="waha-qr-instructions" style="margin-top:16px;text-align:left;background:var(--bg-raised, #f9fbfd);padding:14px;border-radius:8px;font-size:12px;color:var(--text-secondary);line-height:1.5;border:1px solid var(--border-lighter, #e2e8f0);">
+          <strong style="color:var(--text-dark);">Como escanear no smartphone:</strong>
+          <ol style="margin:6px 0 0 16px;padding:0;">
+            <li>Abra o <strong>WhatsApp</strong> no celular</li>
+            <li>Acesse <strong>Configurações</strong> &gt; <strong>Aparelhos conectados</strong></li>
+            <li>Toque em <strong>Conectar um aparelho</strong></li>
+            <li>Aponte a câmera para este QR Code</li>
+          </ol>
+        </div>
+        <div class="waha-qr-status" id="waha-qr-live-status" style="margin-top:14px;font-size:12.5px;color:var(--primary-600);display:flex;align-items:center;justify-content:center;gap:8px;font-weight:500;">
+          <span class="waha-pulse-dot"></span> Aguardando leitura do QR Code...
+        </div>
+      </div>
+      <div id="waha-qr-success" style="display:none;padding:26px 0;">
+        <div style="color:#25d366;margin-bottom:8px;line-height:1;display:flex;justify-content:center;">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#25d366" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="8 12 11 15 16 9"/></svg>
+        </div>
+        <div style="font-size:17px;font-weight:700;color:var(--text-dark);">WhatsApp Conectado com Sucesso!</div>
+        <div style="font-size:13px;color:var(--text-secondary);margin-top:6px;margin-bottom:18px;">O WhatsApp foi autenticado. A plataforma já está pronta para enviar notificações aos seus clientes.</div>
+        <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+          <button class="btn-primary" onclick="closeWahaQrModal(); openWahaTestModal()" style="font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;gap:6px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Testar Integração Agora
+          </button>
+          <button class="btn-outline" onclick="closeWahaQrModal(); openWahaScreenshotModal()" style="font-size:12.5px;display:inline-flex;align-items:center;gap:6px;">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            Ver Print do WhatsApp Web
+          </button>
+        </div>
+      </div>
+      <div id="waha-qr-error" style="display:none;padding:24px 0;">
+        <div style="color:var(--danger, #c05050);font-size:13px;line-height:1.5;" id="waha-qr-error-msg"></div>
+        <button class="btn-outline" onclick="loadWahaQr(true)" style="margin-top:14px;display:inline-flex;align-items:center;gap:6px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+          Tentar Novamente
+        </button>
+      </div>
+    </div>
+    <div class="modal-actions" style="justify-content:center;">
+      <button class="btn-outline" onclick="closeWahaQrModal()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: VISUALIZAR PRINT DO WHATSAPP WEB -->
+<div class="modal-overlay" id="waha-screenshot-modal" onclick="closeWahaScreenshotModal()">
+  <div class="modal-card" onclick="event.stopPropagation()" style="max-width:880px;width:95%;">
+    <div class="modal-header" style="display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div class="modal-title" style="display:flex;align-items:center;gap:8px;">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="#25d366"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm0 18.09c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.04 8.04 0 0 1-1.23-4.32c0-4.48 3.64-8.12 8.12-8.12 2.17 0 4.21.85 5.74 2.38s2.38 3.57 2.38 5.74c0 4.49-3.64 8.13-8.12 8.13z"/></svg>
+          Visualização do WhatsApp Web (Print da Sessão)
+        </div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-top:2px;">
+          Captura em tempo real da tela do navegador no WAHA para conferir se está realmente conectado.
+        </div>
+      </div>
+      <button class="modal-close" onclick="closeWahaScreenshotModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="padding:16px;">
+      <div id="waha-screenshot-loading" style="padding:40px 0;text-align:center;">
+        <div class="waha-spinner"></div>
+        <div style="margin-top:12px;color:var(--text-secondary);font-size:13px;">Capturando tela do WhatsApp Web no servidor...</div>
+      </div>
+      <div id="waha-screenshot-container" style="display:none;">
+        <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;background:#0f172a;box-shadow:0 4px 16px rgba(0,0,0,0.2);max-height:540px;overflow-y:auto;display:flex;align-items:center;justify-content:center;">
+          <img id="waha-screenshot-img" src="" alt="WhatsApp Web Screenshot" style="width:100%;height:auto;display:block;">
+        </div>
+      </div>
+      <div id="waha-screenshot-error" style="display:none;padding:24px;text-align:center;">
+        <div style="color:var(--danger,#c05050);font-size:13px;" id="waha-screenshot-error-msg"></div>
+      </div>
+    </div>
+    <div class="modal-actions" style="display:flex;justify-content:space-between;align-items:center;">
+      <span style="font-size:12px;color:var(--text-muted);" id="waha-screenshot-timestamp">WhatsApp • Sessão Conectada</span>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-outline" onclick="loadWahaScreenshot()" style="display:inline-flex;align-items:center;gap:6px;">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+          Atualizar Print
+        </button>
+        <button class="btn-primary" onclick="closeWahaScreenshotModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ENVIAR NOTIFICACAO AO CLIENTE (SEM CHAT) -->
+<div class="modal-overlay" id="waha-client-notif-modal" onclick="closeWahaClientNotifModal()">
+  <div class="modal-card" onclick="event.stopPropagation()" style="max-width:520px;">
+    <div class="modal-header">
+      <div class="modal-title" id="waha-notif-modal-title" style="display:flex;align-items:center;gap:8px;">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="#25d366"><path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm0 18.09c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.04 8.04 0 0 1-1.23-4.32c0-4.48 3.64-8.12 8.12-8.12 2.17 0 4.21.85 5.74 2.38s2.38 3.57 2.38 5.74c0 4.49-3.64 8.13-8.12 8.13z"/></svg>
+        Enviar Notificação WhatsApp
+      </div>
+      <button class="modal-close" onclick="closeWahaClientNotifModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-field">
+          <label class="form-label">Cliente</label>
+          <input class="form-input" id="waha-notif-client-name" readonly style="background:var(--bg-screen);cursor:not-allowed;">
+        </div>
+        <div class="form-field">
+          <label class="form-label">Telefone / WhatsApp *</label>
+          <input class="form-input" id="waha-notif-phone" placeholder="Ex: (11) 99999-9999">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field full">
+          <label class="form-label">Modelo Rápido</label>
+          <div class="waha-template-pills" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;">
+            <button type="button" class="pill-btn active" id="pill-tmpl-lembrete" onclick="selectWahaTemplate('lembrete')">Lembrete</button>
+            <button type="button" class="pill-btn" id="pill-tmpl-confirmacao" onclick="selectWahaTemplate('confirmacao')">Confirmação</button>
+            <button type="button" class="pill-btn" id="pill-tmpl-retorno" onclick="selectWahaTemplate('retorno')">Retorno / Manutenção</button>
+            <button type="button" class="pill-btn" id="pill-tmpl-agradecimento" onclick="selectWahaTemplate('agradecimento')">Agradecimento</button>
+            <button type="button" class="pill-btn" id="pill-tmpl-livre" onclick="selectWahaTemplate('livre')">Personalizado</button>
+          </div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-field full">
+          <label class="form-label">Mensagem *</label>
+          <textarea class="form-input" id="waha-notif-message" rows="5" style="resize:vertical;font-family:inherit;line-height:1.4;"></textarea>
+        </div>
+      </div>
+      <div style="font-size:11.5px;color:var(--text-muted);display:flex;align-items:center;gap:6px;margin-top:2px;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        Disparo individual de notificação via WhatsApp.
+      </div>
+      <div id="waha-notif-msg" class="auth-msg" style="margin-top:10px;"></div>
+      <div class="modal-actions">
+        <button class="btn-outline" onclick="closeWahaClientNotifModal()">Cancelar</button>
+        <button class="btn-primary" onclick="submitWahaClientNotification()" id="btn-submit-waha-notif">Enviar Notificação</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: TESTAR NOTIFICACAO WHATSAPP -->
+<div class="modal-overlay" id="waha-test-modal" onclick="closeWahaTestModal()">
+  <div class="modal-card" onclick="event.stopPropagation()" style="max-width:420px;">
+    <div class="modal-header">
+      <div class="modal-title">Testar Envio via WhatsApp</div>
+      <button class="modal-close" onclick="closeWahaTestModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <div class="form-field full">
+          <label class="form-label">Número de Telefone com DDD *</label>
+          <input class="form-input" id="waha-test-phone" placeholder="Ex: (11) 99999-9999">
+        </div>
+      </div>
+      <div style="font-size:12px;color:var(--text-secondary);margin-top:6px;line-height:1.4;">
+        Uma mensagem de teste do BeautyFlow será enviada para este número via WhatsApp.
+      </div>
+      <div id="waha-test-msg" class="auth-msg" style="margin-top:10px;"></div>
+      <div class="modal-actions">
+        <button class="btn-outline" onclick="closeWahaTestModal()">Cancelar</button>
+        <button class="btn-primary" onclick="submitWahaTest()" id="btn-submit-waha-test">Enviar Teste</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1588,7 +2558,7 @@
   display: flex; align-items: center; justify-content: space-between;
   padding: 18px 22px; border-bottom: 1px solid var(--border, #eef2f6);
 }
-.modal-title { font-family: var(--font-sans); font-size: 17px; font-weight: 600; color: var(--text-primary, #0f2340); letter-spacing: -0.2px; }
+.modal-title { font-family: var(--font-sans); font-size: var(--text-17, 17px); font-weight: 600; color: var(--text-primary, #0f2340); letter-spacing: -0.2px; }
 .modal-close {
   font-family: var(--font-sans);
   background: none; border: none; font-size: 24px;
@@ -1733,6 +2703,6 @@
 </div>
 
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-<script src="js/app.js"></script>
+<script src="js/app.js?v=2.4"></script>
 </body>
 </html>

@@ -19,7 +19,8 @@ if %errorlevel% neq 0 (
     )
 )
 
-%COMPOSE_CMD% stop
+%COMPOSE_CMD% --profile waha stop 2>nul || %COMPOSE_CMD% stop
+docker stop beautyflow-waha >nul 2>&1
 
 echo.
 echo ==================================================================

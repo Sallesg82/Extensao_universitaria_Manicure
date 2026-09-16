@@ -13,7 +13,20 @@ echo "=================================================="
 if command -v pg_ctl >/dev/null 2>&1; then
     if ! pg_ctl -D "$HOME/.pg_local/data" status >/dev/null 2>&1; then
         echo "🗄️  Iniciando PostgreSQL local..."
-        pg_ctl -D "$HOME/.pg_local/data" -l "$HOME/.pg_local/logfile" start
+        if ! pg_ctl -D "$HOME/.pg_local/data" -l "$HOME/.pg_local/logfile" start; then
+            echo ""
+            echo "❌ Erro ao iniciar o PostgreSQL local!"
+            if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}} ({{.Ports}})' | grep -q '5432'; then
+                echo "⚠️  Detectado contêiner Docker ocupando a porta 5432:"
+                docker ps --filter "publish=5432" --format "   - {{.Names}} ({{.Image}})"
+                echo "💡 Para parar o contêiner em conflito, execute:"
+                echo "   docker stop \$(docker ps -q --filter \"publish=5432\")"
+            fi
+            echo ""
+            echo "📄 Últimas linhas do log ($HOME/.pg_local/logfile):"
+            tail -n 10 "$HOME/.pg_local/logfile" 2>/dev/null || true
+            exit 1
+        fi
     else
         echo "🗄️  PostgreSQL já está em execução."
     fi

@@ -147,6 +147,51 @@ def _fire_n8n(a, action='create'):
         pass
 
 
+def _send_whatsapp_notif(a, action='create'):
+    try:
+        from routes.whatsapp import send_whatsapp_async, render_whatsapp_template, DEFAULT_TEMPLATES
+        s = get_settings()
+        phone = a.get('client_phone')
+        if not phone:
+            return
+        client_name = a.get('client_name') or 'Cliente'
+        first_name = client_name.split()[0] if client_name else 'Cliente'
+        service = a.get('service') or 'Atendimento'
+        date = a.get('appointment_date') or ''
+        date_fmt = date
+        if '-' in date and len(date) == 10:
+            parts = date.split('-')
+            date_fmt = f"{parts[2]}/{parts[1]}/{parts[0]}"
+        time = (a.get('appointment_time') or '')[:5]
+        price_val = f"{float(a.get('price', 0)):.2f}".replace('.', ',')
+        empresa = s.get('company_name') or s.get('studio_name') or 'BeautyFlow'
+
+        context = {
+            'nome': client_name,
+            'primeiro_nome': first_name,
+            'servico': service,
+            'data': date_fmt,
+            'horario': time,
+            'valor': price_val,
+            'empresa': empresa,
+        }
+
+        if action == 'create':
+            if s.get('whatsapp_auto_notify_created', 'true') != 'true':
+                return
+            tmpl = s.get('whatsapp_template_created') or DEFAULT_TEMPLATES['whatsapp_template_created']
+            msg = render_whatsapp_template(tmpl, context)
+            send_whatsapp_async(phone, msg, client_name=client_name, appointment_id=a.get('id'))
+        elif action == 'cancelled':
+            if s.get('whatsapp_auto_notify_cancelled', 'true') != 'true':
+                return
+            tmpl = s.get('whatsapp_template_cancelled') or DEFAULT_TEMPLATES['whatsapp_template_cancelled']
+            msg = render_whatsapp_template(tmpl, context)
+            send_whatsapp_async(phone, msg, client_name=client_name, appointment_id=a.get('id'))
+    except Exception:
+        pass
+
+
 @appointments_bp.route('/', methods=['GET'])
 def list_appointments():
     supabase = get_db()
@@ -232,6 +277,7 @@ def create_appointment():
     a['google_html_link'] = ''
     _fire_n8n(a)
     _sync_google(a, 'create')
+    _send_whatsapp_notif(a, 'create')
     if _notif_enabled('notify_confirmacao_de_agendamento'):
         create_notification(
             'appointment_created',
@@ -288,6 +334,7 @@ def update_appointment(appt_id):
         if a.get('google_event_id'):
             _sync_google(a, 'delete')
         _fire_n8n(a, 'delete')
+        _send_whatsapp_notif(a, 'cancelled')
         if _notif_enabled('notify_confirmacao_de_agendamento'):
             create_notification(
                 'appointment_cancelled',

@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# ==============================================================================
+# BeautyFlow Platform — Inicializador Rapido (start.sh)
+# ==============================================================================
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -21,11 +24,45 @@ else
     exit 1
 fi
 
-echo "[*] Iniciando plataforma BeautyFlow..."
-$COMPOSE_CMD up -d
+# Liberar porta 5432 se ocupada por PostgreSQL local
+if ss -tlpn 2>/dev/null | grep -qE ":5432[[:space:]]"; then
+    if ! docker ps --format '{{.Ports}}' 2>/dev/null | grep -qE ":5432->"; then
+        echo "[*] Detectado PostgreSQL local ocupando a porta 5432. Pausando servico local..."
+        if [ -x "$HOME/.local/bin/pg_ctl" ]; then
+            "$HOME/.local/bin/pg_ctl" -D "$HOME/.pg_local/data" stop 2>/dev/null || true
+        elif [ -x "$HOME/.pg_bin/usr/bin/pg_ctl" ]; then
+            "$HOME/.pg_bin/usr/bin/pg_ctl" -D "$HOME/.pg_local/data" stop 2>/dev/null || true
+        elif [ -d "$HOME/.pg_local/data" ] && command -v pg_ctl &>/dev/null; then
+            pg_ctl -D "$HOME/.pg_local/data" stop 2>/dev/null || true
+        fi
+        sudo systemctl stop postgresql 2>/dev/null || true
+        sleep 1
+    fi
+fi
 
-echo "[*] Aguardando servicos inicializarem..."
-for i in $(seq 1 30); do
+# Liberar porta 3001 se ocupada por processo local
+if ss -tlpn 2>/dev/null | grep -qE ":3001[[:space:]]"; then
+    if ! docker ps --format '{{.Ports}}' 2>/dev/null | grep -qE ":3001->"; then
+        echo "[*] Detectado processo local ocupando a porta 3001. Encerrando processo..."
+        if command -v fuser &>/dev/null; then
+            fuser -k -n tcp 3001 2>/dev/null || true
+        elif command -v lsof &>/dev/null; then
+            lsof -ti :3001 -sTCP:LISTEN 2>/dev/null | xargs -r kill -9 2>/dev/null || true
+        fi
+        sleep 1
+    fi
+fi
+
+echo "[*] Iniciando plataforma BeautyFlow..."
+PROF_ARG=""
+if [ -f "$SCRIPT_DIR/.env" ] && grep -q "INSTALL_WAHA=true" "$SCRIPT_DIR/.env"; then
+    PROF_ARG="--profile waha"
+fi
+
+$COMPOSE_CMD $PROF_ARG up -d
+
+echo "[*] Aguardando servicos inicializarem e passarem no healthcheck..."
+for i in $(seq 1 35); do
     all_ok=1
     unhealthy=""
     while IFS='=' read -r svc state health; do
@@ -35,19 +72,27 @@ for i in $(seq 1 30); do
             if [ "$health" = "unhealthy" ]; then unhealthy="$unhealthy $svc"; fi
         fi
     done < <($COMPOSE_CMD ps --format '{{.Service}}={{.State}}={{.Health}}' 2>/dev/null)
+    
     if [ -n "$unhealthy" ]; then
         echo "[ERRO] Servico(s) com problema:${unhealthy}"
-        echo "Executar para diagnostico: $COMPOSE_CMD logs --tail=100 <servico>"
+        echo "Executar para diagnostico: $COMPOSE_CMD logs --tail=50"
         exit 1
     fi
     if [ "$all_ok" -eq 1 ]; then
         break
     fi
-    sleep 3
+    sleep 2
 done
 
 echo ""
-echo "[OK] Servicos ativos:"
-echo "  • CRM BeautyFlow (Painel):   http://localhost:3001 (admin / admin)"
+echo "=================================================================="
+echo " [OK] Plataforma BeautyFlow iniciada com sucesso!"
+echo "=================================================================="
+echo "  • CRM BeautyFlow (Gestao):   http://localhost:3001 (admin / admin)"
 echo "  • Portal de Agendamento:     http://localhost:5173"
 echo "  • Banco de Dados PostgreSQL: localhost:5432"
+if docker ps --format '{{.Names}}' 2>/dev/null | grep -qE '^(beautyflow-waha|waha)$'; then
+    echo "  • WhatsApp WAHA (Porta 3000): http://localhost:3000"
+    echo "  • Dashboard / QR Code:        http://localhost:3000/dashboard"
+fi
+echo "=================================================================="

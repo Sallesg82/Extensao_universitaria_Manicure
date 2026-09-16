@@ -101,18 +101,21 @@ API REST quanto o frontend SPA em HTML/CSS/JS puro — sem necessidade de build.
   - CRUD: nome, duração (min), buffer/intervalo, preço (R$), cor hexadecimal
   - Cor do serviço refletida nos cards da agenda
 
+[Estoque]
+  - Catálogo de insumos e produtos com controle de estoque
+  - Filtros: Todos, Estoque Baixo e Em Falta
+  - Painéis laterais de reposição e alertas de nível mínimo
+  - Cadastro, edição e exclusão de itens
+
 [Módulo Financeiro]
   - KPIs: Receita Mensal, Despesas, Lucro Líquido, Margem %
-  - Gráfico diário comparativo Receitas x Despesas
-  - Gráfico Donut SVG de receita por serviço
+  - Gráfico comparativo de Receitas x Despesas (semanal e diário)
+  - Gráfico de receita por serviço
+  - Saídas por Categoria com cadastro dinâmico
+  - Acompanhamento e ajuste de Meta Mensal com barra de progresso
   - Lançamentos manuais (Pix, Dinheiro, Cartão Crédito/Débito)
   - Snapshot imutável de receita (nome do cliente preservado se excluído)
-  - Extrato completo de transações
-
-[Controle de Despesas]
-  - Métricas: Total, Maior Despesa, Categoria mais custosa, Média
-  - Gráfico horizontal por categoria (Aluguel, Produtos, Energia, Marketing, Salários, Outros)
-  - Categorias de despesa customizáveis
+  - Extrato completo de lançamentos
 
 [Relatórios e Exportação PDF]
   - Gráfico SVG de tendência de receita com comparativo
@@ -120,11 +123,6 @@ API REST quanto o frontend SPA em HTML/CSS/JS puro — sem necessidade de build.
   - Mapa de calor de horários
   - Exportação em PDF profissional com cabeçalho oficial (Razão Social, CNPJ)
   - Seletor de período (7, 30, 90 dias, Ano)
-
-[Metas]
-  - Meta mensal customizável (padrão R$ 7.000)
-  - Barra de progresso em tempo real
-  - Notificação automática ao atingir
 
 [Gestão de Usuários]
   - CRUD de operadores/administradores

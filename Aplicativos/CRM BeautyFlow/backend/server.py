@@ -17,6 +17,7 @@ from routes.integrations import integrations_bp
 from routes.transactions import transactions_bp
 from routes.products import products_bp
 from routes.metas import metas_bp
+from routes.whatsapp import whatsapp_bp
 
 load_dotenv()
 
@@ -37,6 +38,7 @@ app.register_blueprint(integrations_bp, url_prefix='/api/integrations')
 app.register_blueprint(transactions_bp, url_prefix='/api/transactions')
 app.register_blueprint(products_bp, url_prefix='/api/products')
 app.register_blueprint(metas_bp, url_prefix='/api/metas')
+app.register_blueprint(whatsapp_bp, url_prefix='/api/whatsapp')
 
 
 @app.after_request
