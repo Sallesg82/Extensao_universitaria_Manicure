@@ -1,5 +1,21 @@
 const API = window.location.origin + '/api'
 
+function escapeHtml(text) {
+  if (text === null || text === undefined) return '';
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+const _escapeHtml = escapeHtml;
+
+function _fmtMoney(val) {
+  const num = Number(val) || 0;
+  return num.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
 async function apiFetch(endpoint, options = {}) {
   const url = endpoint.startsWith('http')
     ? endpoint
@@ -74,7 +90,17 @@ function connectSocket() {
   _socket.on('user:created', () => _requestPageRefresh('user'))
   _socket.on('user:updated', () => _requestPageRefresh('user'))
   _socket.on('user:deleted', () => _requestPageRefresh('user'))
+  _socket.on('product:changed', () => _requestPageRefresh('product'))
+  _socket.on('product:created', () => _requestPageRefresh('product'))
+  _socket.on('product:updated', () => _requestPageRefresh('product'))
+  _socket.on('product:deleted', () => _requestPageRefresh('product'))
   _socket.on('notification:created', () => loadNotifDot())
+  _socket.on('whatsapp:new_message', (data) => {
+    if (typeof handleIncomingWaChatMessage === 'function') handleIncomingWaChatMessage(data)
+  })
+  _socket.on('whatsapp:message_ack', (data) => {
+    if (typeof handleWaMessageAck === 'function') handleWaMessageAck(data)
+  })
   _socket.on('dev:reload', () => {
     console.log('[Dev] Código alterado, atualizando página...')
     window.location.reload()
@@ -356,7 +382,7 @@ function showPage(pageId, navEl) {
   const cfg = pageConfig[pageId] || pageConfig.dashboard
   document.getElementById('page-title').textContent = cfg.title
   if (pageId === 'estoque') {
-    document.getElementById('page-sub').textContent = (estoqueProducts && estoqueProducts.length) ? `${estoqueProducts.length} produtos cadastrados` : '10 produtos cadastrados'
+    document.getElementById('page-sub').textContent = (estoqueProducts && estoqueProducts.length) ? `${estoqueProducts.length} produtos cadastrados` : 'Controle de materiais e suprimentos'
   } else {
     document.getElementById('page-sub').textContent = cfg.sub
   }
@@ -1058,8 +1084,9 @@ function updateWhatsappButtonsVisibility() {
   const isIntegrated = hasWhatsappIntegration()
   const btnDirect = document.getElementById('btn-cd-whatsapp-direct')
   const btnNotify = document.getElementById('btn-waha-notify-client')
+  const hasPhone = !!(window._selectedClientData && window._selectedClientData.phone)
   if (btnDirect) {
-    btnDirect.style.display = isIntegrated ? '' : 'none'
+    btnDirect.style.display = hasPhone ? '' : 'none'
   }
   if (btnNotify) {
     btnNotify.style.display = isIntegrated ? '' : 'none'
@@ -1072,19 +1099,23 @@ function agendarParaClienteAtual() {
 }
 
 function abrirWhatsAppCliente() {
-  if (!window._selectedClientData || !window._selectedClientData.phone) {
+  const cData = window._selectedClientData
+  let phone = cData?.phone
+  let name = cData?.name
+  let id = selectedClientId
+
+  if (!phone) {
+    const rawPhone = document.getElementById('cd-phone')?.textContent || ''
+    phone = rawPhone.split('·')[0].trim()
+    name = document.getElementById('cd-name')?.textContent || 'Cliente'
+  }
+
+  if (!phone) {
     showToast('Cliente não possui telefone cadastrado.')
     return
   }
-  let digits = String(window._selectedClientData.phone).replace(/\D/g, '')
-  if (!digits) {
-    showToast('Número de telefone inválido.')
-    return
-  }
-  if (digits.length <= 11 && !digits.startsWith('55')) {
-    digits = '55' + digits
-  }
-  window.open(`https://wa.me/${digits}`, '_blank')
+
+  openWhatsAppChatModal(phone, name, id)
 }
 
 async function loadClients() {
@@ -3540,13 +3571,36 @@ function showToast(msg, type) {
   }
   const el = document.createElement('div')
   el.className = 'toast'
-  if (type === 'success') el.classList.add('toast-success')
-  else if (type === 'info') el.classList.add('toast-info')
-  el.textContent = msg
+
+  if (!type) {
+    const lower = String(msg || '').toLowerCase()
+    if (lower.includes('erro') || lower.includes('falha') || lower.includes('inválido') || lower.includes('não foi') || lower.includes('não possui')) {
+      type = 'error'
+    } else if (lower.includes('sucesso') || lower.includes('concluíd') || lower.includes('salv') || lower.includes('sincronizad') || lower.includes('enviad')) {
+      type = 'success'
+    } else {
+      type = 'info'
+    }
+  }
+
+  if (type === 'success') {
+    el.classList.add('toast-success')
+    el.innerHTML = `<span>✓</span> <span>${escapeHtml(msg)}</span>`
+  } else if (type === 'error') {
+    el.classList.add('toast-error')
+    el.innerHTML = `<span>⚠️</span> <span>${escapeHtml(msg)}</span>`
+  } else if (type === 'info') {
+    el.classList.add('toast-info')
+    el.innerHTML = `<span>ℹ️</span> <span>${escapeHtml(msg)}</span>`
+  } else {
+    el.textContent = msg
+  }
+
   el.onclick = () => { el.style.animation = 'none'; el.remove() }
   container.appendChild(el)
-  setTimeout(() => { if (el.parentNode) el.remove() }, 5000)
+  setTimeout(() => { if (el.parentNode) el.remove() }, 4500)
 }
+
 
 // ── CLIENT EDIT / DELETE ───────────────────────────
 
@@ -6235,29 +6289,38 @@ document.querySelectorAll('.btn-primary, .btn-outline').forEach(btn => {
     this.style.setProperty('--ripple-y', y + '%')
   })
 })
-// ESTOQUE - LÓGICA E GERENCIAMENTO DE PRODUTOS
+// ════════════════════════════════════════════════════════════════════════════
+// ESTOQUE - LÓGICA E GERENCIAMENTO DE SUPRIMENTOS (PROFESSIONAL OVERHAUL)
 // ════════════════════════════════════════════════════════════════════════════
 let estoqueProducts = [];
-let estoqueFilter = 'todos';
+let estoqueFilter = 'todos'; // 'todos', 'baixo', 'falta'
+let estoqueCategoryFilter = 'todos';
+let _estoqueSearchDebounceTimer = null;
 
-const _dotColors = {
-  pink: '#ef7fa8',
-  amber: '#c58a12',
-  blue: '#2f5fdc',
-  purple: '#8b6fe0'
+const ESTOQUE_CATEGORIES = {
+  esmaltes: { label: 'Esmaltes & Géis', icon: '💅', dot: '#ec4899', badgeCls: 'cat-badge-esmaltes' },
+  cuidados: { label: 'Cuidados & Cutículas', icon: '🧴', dot: '#d97706', badgeCls: 'cat-badge-cuidados' },
+  descartaveis: { label: 'Descartáveis & Higiene', icon: '🧤', dot: '#2563eb', badgeCls: 'cat-badge-descartaveis' },
+  equipamentos: { label: 'Alicates & Equip.', icon: '✂️', dot: '#7c3aed', badgeCls: 'cat-badge-equipamentos' },
+  quimicos: { label: 'Químicos & Solventes', icon: '🧪', dot: '#16a34a', badgeCls: 'cat-badge-quimicos' },
+  // Compatibilidade retroativa
+  pink: { label: 'Esmaltes & Géis', icon: '💅', dot: '#ec4899', badgeCls: 'cat-badge-esmaltes' },
+  amber: { label: 'Cuidados & Cutículas', icon: '🧴', dot: '#d97706', badgeCls: 'cat-badge-cuidados' },
+  blue: { label: 'Descartáveis & Higiene', icon: '🧤', dot: '#2563eb', badgeCls: 'cat-badge-descartaveis' },
+  purple: { label: 'Químicos & Solventes', icon: '🧪', dot: '#16a34a', badgeCls: 'cat-badge-quimicos' }
 };
 
 const DEFAULT_INITIAL_PRODUCTS = [
-  {id: 1, name: "Esmalte OPI", category: "pink", qty: 12, price: 8, missing: false, min_qty: 5},
-  {id: 2, name: "Óleo de Cutícula", category: "amber", qty: 2, price: 15, missing: false, min_qty: 5},
-  {id: 3, name: "Luvas Descartáveis (cx)", category: "blue", qty: 3, price: 25, missing: false, min_qty: 2},
-  {id: 4, name: "Algodão", category: "pink", qty: 0, price: 4, missing: true, min_qty: 8},
-  {id: 5, name: "Removedor de Esmalte", category: "purple", qty: 5, price: 12, missing: false, min_qty: 3},
-  {id: 6, name: "Cera Depilatória", category: "amber", qty: 0, price: 45, missing: true, min_qty: 2},
-  {id: 7, name: "Henna para Sobrancelha", category: "amber", qty: 2, price: 20, missing: false, min_qty: 4},
-  {id: 8, name: "Toalhas Descartáveis", category: "blue", qty: 8, price: 18, missing: false, min_qty: 4},
-  {id: 9, name: "Álcool 70%", category: "purple", qty: 6, price: 10, missing: false, min_qty: 3},
-  {id: 10, name: "Palito de Laranjeira", category: "pink", qty: 15, price: 3, missing: false, min_qty: 6}
+  {id: 1, name: "Esmalte Risqué Cremoso", category: "esmaltes", qty: 24, price: 5.50, missing: false, min_qty: 10},
+  {id: 2, name: "Gel Construtor Vòlia Classic", category: "esmaltes", qty: 6, price: 65.00, missing: false, min_qty: 3},
+  {id: 3, name: "Óleo Nutritivo de Cutícula", category: "cuidados", qty: 4, price: 18.00, missing: false, min_qty: 5},
+  {id: 4, name: "Luvas Nitrílicas Rosa (cx 100un)", category: "descartaveis", qty: 2, price: 38.00, missing: false, min_qty: 4},
+  {id: 5, name: "Algodão Hidrófilo Rolete", category: "descartaveis", qty: 0, price: 8.50, missing: true, min_qty: 5},
+  {id: 6, name: "Removedor Sem Acetona 500ml", category: "quimicos", qty: 8, price: 16.00, missing: false, min_qty: 4},
+  {id: 7, name: "Álcool Isopropílico 70% 1L", category: "quimicos", qty: 3, price: 22.00, missing: false, min_qty: 3},
+  {id: 8, name: "Alicate de Cutícula Mundial 777", category: "equipamentos", qty: 7, price: 42.00, missing: false, min_qty: 3},
+  {id: 9, name: "Lixas Bloco Fecha Poros (pct 10)", category: "equipamentos", qty: 0, price: 14.00, missing: true, min_qty: 4},
+  {id: 10, name: "Toalhas Descartáveis Manicure (pct 50)", category: "descartaveis", qty: 12, price: 28.00, missing: false, min_qty: 5}
 ];
 
 async function loadEstoque() {
@@ -6265,22 +6328,77 @@ async function loadEstoque() {
     const res = await apiFetch('/api/products/');
     if (Array.isArray(res) && res.length > 0) {
       estoqueProducts = res;
-    } else if (estoqueProducts.length === 0) {
+    } else if (!estoqueProducts || estoqueProducts.length === 0) {
       estoqueProducts = JSON.parse(JSON.stringify(DEFAULT_INITIAL_PRODUCTS));
     }
   } catch (err) {
-    console.warn("API /api/products error, fallbacking to local array", err);
-    if (estoqueProducts.length === 0) {
+    console.warn("[Estoque] Erro ao carregar /api/products/, usando estado local:", err);
+    if (!estoqueProducts || estoqueProducts.length === 0) {
       estoqueProducts = JSON.parse(JSON.stringify(DEFAULT_INITIAL_PRODUCTS));
     }
   }
+
   renderEstoque();
+  loadEstoqueMetrics();
+}
+
+async function loadEstoqueMetrics() {
+  try {
+    const stats = await apiFetch('/api/products/stats');
+    if (stats && typeof stats.total_products !== 'undefined') {
+      _applyEstoqueMetricsUI(stats);
+      return;
+    }
+  } catch (e) {
+    // Falha silenciosa no backend para fallback local
+  }
+
+  let totalUnits = 0;
+  let totalValue = 0;
+  let outCount = 0;
+  let lowCount = 0;
+
+  (estoqueProducts || []).forEach(p => {
+    const qty = parseInt(p.qty) || 0;
+    const price = parseFloat(p.price) || 0;
+    const min = p.min_qty !== undefined ? parseInt(p.min_qty) : 5;
+    totalUnits += qty;
+    totalValue += (qty * price);
+    if (p.missing || qty === 0) {
+      outCount++;
+    } else if (qty <= min) {
+      lowCount++;
+    }
+  });
+
+  _applyEstoqueMetricsUI({
+    total_products: (estoqueProducts || []).length,
+    total_units: totalUnits,
+    total_value: totalValue,
+    out_of_stock_count: outCount,
+    low_stock_count: lowCount
+  });
+}
+
+function _applyEstoqueMetricsUI(stats) {
+  const totalEl = document.getElementById('estoque-kpi-total');
+  const unitsEl = document.getElementById('estoque-kpi-units');
+  const valEl = document.getElementById('estoque-kpi-valor');
+  const baixoEl = document.getElementById('estoque-kpi-baixo');
+  const faltaEl = document.getElementById('estoque-kpi-falta');
+
+  if (totalEl) totalEl.textContent = stats.total_products || 0;
+  if (unitsEl) unitsEl.textContent = `${stats.total_units || 0} unidades em estoque`;
+  if (valEl) valEl.textContent = 'R$ ' + _fmtMoney(stats.total_value || 0);
+  if (baixoEl) baixoEl.textContent = stats.low_stock_count || 0;
+  if (faltaEl) faltaEl.textContent = stats.out_of_stock_count || 0;
 }
 
 function getEstoqueProductStatus(p) {
-  const min = p.min_qty !== undefined ? p.min_qty : (p.min || 5);
-  if (p.missing) return { cls: 'pill-out', txt: 'Em falta' };
-  if (p.qty <= min) return { cls: 'pill-low', txt: 'Estoque baixo' };
+  const qty = parseInt(p.qty) || 0;
+  const min = p.min_qty !== undefined ? parseInt(p.min_qty) : 5;
+  if (p.missing || qty === 0) return { cls: 'pill-out', txt: 'Em falta' };
+  if (qty <= min) return { cls: 'pill-low', txt: 'Estoque baixo' };
   return { cls: 'pill-ok', txt: 'Em estoque' };
 }
 
@@ -6294,57 +6412,108 @@ function setEstoqueFilter(f, el) {
   renderEstoque();
 }
 
+function onEstoqueSearchInput() {
+  if (_estoqueSearchDebounceTimer) clearTimeout(_estoqueSearchDebounceTimer);
+  _estoqueSearchDebounceTimer = setTimeout(() => {
+    renderEstoque();
+  }, 150);
+}
+
+function onEstoqueCategoryFilterChange() {
+  const select = document.getElementById('estoque-category-filter');
+  if (select) {
+    estoqueCategoryFilter = select.value;
+  }
+  renderEstoque();
+}
+
 function renderEstoque() {
   const tbody = document.getElementById('estoque-tbody');
   if (!tbody) return;
 
+  try {
+
   const searchInput = document.getElementById('estoque-search');
   const query = searchInput ? searchInput.value.toLowerCase().trim() : '';
 
-  let filtered = estoqueProducts.filter(p => {
-    const min = p.min_qty !== undefined ? p.min_qty : (p.min || 5);
-    if (estoqueFilter === 'falta' && !p.missing) return false;
-    if (estoqueFilter === 'baixo' && (p.missing || p.qty > min)) return false;
-    if (query && !p.name.toLowerCase().includes(query)) return false;
+  let filtered = (estoqueProducts || []).filter(p => {
+    const qty = parseInt(p.qty) || 0;
+    const min = p.min_qty !== undefined ? parseInt(p.min_qty) : 5;
+    const isOut = p.missing || qty === 0;
+    const isLow = !isOut && qty <= min;
+
+    if (estoqueFilter === 'falta' && !isOut) return false;
+    if (estoqueFilter === 'baixo' && !isLow) return false;
+
+    if (estoqueCategoryFilter && estoqueCategoryFilter !== 'todos') {
+      const catKey = (p.category || 'esmaltes').toLowerCase();
+      const normCat = catKey === 'pink' ? 'esmaltes' : (catKey === 'amber' ? 'cuidados' : (catKey === 'blue' ? 'descartaveis' : (catKey === 'purple' ? 'quimicos' : catKey)));
+      if (normCat !== estoqueCategoryFilter) return false;
+    }
+
+    if (query && !(p.name || '').toLowerCase().includes(query)) return false;
     return true;
   });
 
   tbody.innerHTML = '';
   if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:36px;color:var(--text-secondary);font-size:13px;">Nenhum produto encontrado</td></tr>`;
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="7" style="text-align:center;padding:48px 20px;color:var(--text-secondary);font-size:13.5px;">
+          <div style="font-size:24px;margin-bottom:8px;">🔍</div>
+          Nenhum produto encontrado com os filtros selecionados
+        </td>
+      </tr>
+    `;
   } else {
     filtered.forEach(p => {
-      const min = p.min_qty !== undefined ? p.min_qty : (p.min || 5);
+      const qty = parseInt(p.qty) || 0;
+      const min = p.min_qty !== undefined ? parseInt(p.min_qty) : 5;
+      const price = parseFloat(p.price) || 0;
+      const total = qty * price;
       const st = getEstoqueProductStatus(p);
-      const total = (p.qty || 0) * (p.price || 0);
-      const dotColor = _dotColors[p.category] || '#ef7fa8';
-      const formattedTotal = (total % 1 === 0) ? 'R$ ' + Math.round(total) : 'R$ ' + _fmtMoney(total);
-      const formattedPrice = (p.price % 1 === 0) ? 'R$ ' + Math.round(p.price) : 'R$ ' + _fmtMoney(p.price);
+      const catKey = String(p.category || 'esmaltes').trim().toLowerCase();
+      const catConfig = ESTOQUE_CATEGORIES[catKey] || ESTOQUE_CATEGORIES.esmaltes;
+      const formattedTotal = 'R$ ' + _fmtMoney(total);
+      const formattedPrice = 'R$ ' + _fmtMoney(price);
 
       const tr = document.createElement('tr');
-      if (p.missing) tr.classList.add('is-missing');
+      if (p.missing || qty === 0) tr.classList.add('is-missing');
 
       tr.innerHTML = `
         <td>
           <div class="prod-cell" onclick="openEstoqueModalById(${p.id})" title="Clique para editar este produto">
-            <span class="prod-dot" style="background:${dotColor};"></span>
+            <span class="prod-dot" style="background:${catConfig.dot};"></span>
             <div>
               <div class="prod-title">${_escapeHtml(p.name)}</div>
               <div class="prod-sub">${formattedPrice} / un.</div>
             </div>
           </div>
         </td>
-        <td><span class="estoque-qty">${p.qty} un.</span></td>
+        <td>
+          <span class="cat-badge ${catConfig.badgeCls}">
+            <span>${catConfig.icon}</span>
+            <span>${catConfig.label}</span>
+          </span>
+        </td>
+        <td>
+          <div class="qty-stepper" onclick="event.stopPropagation()">
+            <button type="button" class="qty-btn" onclick="adjustEstoqueQty(${p.id}, -1, event)" title="Diminuir 1 un.">−</button>
+            <span class="qty-num">${qty}</span>
+            <button type="button" class="qty-btn" onclick="adjustEstoqueQty(${p.id}, 1, event)" title="Aumentar 1 un.">+</button>
+          </div>
+        </td>
+        <td><span class="estoque-min-val">${min} un.</span></td>
         <td><span class="estoque-total-price">${formattedTotal}</span></td>
         <td><span class="pill ${st.cls}">${st.txt}</span></td>
-        <td>
-          <div class="missing-toggle ${p.missing ? 'checked' : ''}" onclick="toggleEstoqueMissing(${p.id})" title="Alternar situação em falta">
-            <div class="sq">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
-            </div>
-            <span class="lbl">Produto em falta</span>
+        <td style="text-align:right;">
+          <div class="estoque-row-actions">
+            <button type="button" class="estoque-action-btn" onclick="openEstoqueModalById(${p.id})" title="Editar produto">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </button>
+            <button type="button" class="estoque-action-btn btn-delete" onclick="deleteEstoqueProduct(${p.id})" title="Excluir produto">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
           </div>
         </td>
       `;
@@ -6352,33 +6521,34 @@ function renderEstoque() {
     });
   }
 
-  // Update topbar subtitle if on estoque page
+  // Subtítulo da topbar
   const pageEstoque = document.getElementById('page-estoque');
   if (pageEstoque && pageEstoque.classList.contains('active')) {
     const pageSub = document.getElementById('page-sub');
-    if (pageSub) pageSub.textContent = `${estoqueProducts.length} produtos cadastrados`;
+    if (pageSub) pageSub.textContent = `${(estoqueProducts || []).length} produtos cadastrados`;
   }
 
-  const missingList = estoqueProducts.filter(p => p.missing);
-  const lowList = estoqueProducts.filter(p => {
-    const min = p.min_qty !== undefined ? p.min_qty : (p.min || 5);
-    return !p.missing && p.qty <= min;
+  const missingList = (estoqueProducts || []).filter(p => p.missing || (parseInt(p.qty) || 0) === 0);
+  const lowList = (estoqueProducts || []).filter(p => {
+    const qty = parseInt(p.qty) || 0;
+    const min = p.min_qty !== undefined ? parseInt(p.min_qty) : 5;
+    return !p.missing && qty > 0 && qty <= min;
   });
 
-  // Update counts
+  // Atualizar contadores
   const cntTodos = document.getElementById('cnt-todos');
   const cntFalta = document.getElementById('cnt-falta');
   const cntBaixo = document.getElementById('cnt-baixo');
   const badgeFalta = document.getElementById('badgeFalta');
   const badgeBaixo = document.getElementById('badgeBaixo');
 
-  if (cntTodos) cntTodos.textContent = estoqueProducts.length;
+  if (cntTodos) cntTodos.textContent = (estoqueProducts || []).length;
   if (cntFalta) cntFalta.textContent = missingList.length;
   if (cntBaixo) cntBaixo.textContent = lowList.length;
   if (badgeFalta) badgeFalta.textContent = missingList.length;
   if (badgeBaixo) badgeBaixo.textContent = lowList.length;
 
-  // Side List: Em Falta
+  // Painel lateral: Reposição Urgente
   const listFalta = document.getElementById('listFalta');
   if (listFalta) {
     if (missingList.length > 0) {
@@ -6386,9 +6556,9 @@ function renderEstoque() {
         <div class="side-item-row" onclick="openEstoqueModalById(${p.id})" style="cursor:pointer;" title="Clique para editar este produto">
           <div>
             <span class="side-item-name">${_escapeHtml(p.name)}</span>
-            <span class="side-item-sub">Última compra: ${p.qty || 0} un.</span>
+            <span class="side-item-sub">Necessário: ${(p.min_qty || 5)} un.</span>
           </div>
-          <span class="pill pill-out">${p.qty || 0} un.</span>
+          <button type="button" class="side-repor-btn" onclick="adjustEstoqueQty(${p.id}, 1, event)" title="Adicionar 1 unidade rapidamente">+ Repor</button>
         </div>
       `).join('');
     } else {
@@ -6396,19 +6566,19 @@ function renderEstoque() {
     }
   }
 
-  // Side List: Estoque Baixo
+  // Painel lateral: Estoque Baixo
   const listBaixo = document.getElementById('listBaixo');
   if (listBaixo) {
     if (lowList.length > 0) {
       listBaixo.innerHTML = lowList.map(p => {
-        const min = p.min_qty !== undefined ? p.min_qty : (p.min || 5);
+        const min = p.min_qty !== undefined ? p.min_qty : 5;
         return `
           <div class="side-item-row" onclick="openEstoqueModalById(${p.id})" style="cursor:pointer;" title="Clique para editar este produto">
             <div>
               <span class="side-item-name">${_escapeHtml(p.name)}</span>
-              <span class="side-item-sub">Mínimo recomendado: ${min} un.</span>
+              <span class="side-item-sub">Mínimo sugerido: ${min} un.</span>
             </div>
-            <span class="pill pill-low">${p.qty} un.</span>
+            <span class="pill pill-low">${p.qty || 0} un.</span>
           </div>
         `;
       }).join('');
@@ -6416,30 +6586,37 @@ function renderEstoque() {
       listBaixo.innerHTML = `<div class="side-empty">Nenhum produto com estoque baixo</div>`;
     }
   }
+} catch (err) {
+  console.error("[Estoque] Erro ao renderizar produtos:", err);
+}
 }
 
-async function toggleEstoqueMissing(id) {
-  const p = estoqueProducts.find(x => x.id === id);
+async function adjustEstoqueQty(id, delta, e) {
+  if (e && e.stopPropagation) e.stopPropagation();
+  const p = (estoqueProducts || []).find(x => x.id === id);
   if (!p) return;
-  const newMissing = !p.missing;
-  
-  if (newMissing) {
-    p._lastQty = p.qty;
-    p.qty = 0;
-  } else {
-    p.qty = p._lastQty && p._lastQty > 0 ? p._lastQty : (p.min_qty || 5);
-  }
-  p.missing = newMissing;
+
+  const oldQty = parseInt(p.qty) || 0;
+  const newQty = Math.max(0, oldQty + delta);
+  p.qty = newQty;
+  p.missing = (newQty === 0);
+
   renderEstoque();
+  loadEstoqueMetrics();
 
   try {
-    await apiFetch(`/api/products/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify({ missing: newMissing, qty: p.qty })
+    const updated = await apiFetch(`/api/products/${id}/stock`, {
+      method: 'PATCH',
+      body: JSON.stringify({ delta })
     });
-    showToast(newMissing ? `Produto "${p.name}" marcado como em falta` : `Produto "${p.name}" atualizado`);
+    if (updated && typeof updated.qty !== 'undefined') {
+      p.qty = updated.qty;
+      p.missing = updated.missing;
+    }
+    showToast(`Estoque de "${p.name}": ${newQty} un.`);
   } catch (err) {
-    console.warn("Toggle missing error:", err);
+    console.warn("[Estoque] Erro ao ajustar estoque no backend:", err);
+    loadEstoque();
   }
 }
 
@@ -6450,24 +6627,30 @@ function openEstoqueModal(product = null) {
   const deleteBtn = document.getElementById('estoque-delete-btn');
 
   if (!modal || !form) return;
-
   form.reset();
 
   if (product) {
     title.textContent = 'Editar Produto';
     if (deleteBtn) deleteBtn.style.display = '';
     document.getElementById('estoque-id').value = product.id;
-    document.getElementById('estoque-name').value = product.name;
-    document.getElementById('estoque-cat').value = product.category || 'pink';
-    document.getElementById('estoque-price').value = product.price;
-    document.getElementById('estoque-qty').value = product.qty;
+    document.getElementById('estoque-name').value = product.name || '';
+    
+    let catVal = (product.category || 'esmaltes').toLowerCase();
+    if (catVal === 'pink') catVal = 'esmaltes';
+    else if (catVal === 'amber') catVal = 'cuidados';
+    else if (catVal === 'blue') catVal = 'descartaveis';
+    else if (catVal === 'purple') catVal = 'quimicos';
+    
+    document.getElementById('estoque-cat').value = catVal;
+    document.getElementById('estoque-price').value = product.price !== undefined ? product.price : '';
+    document.getElementById('estoque-qty').value = product.qty !== undefined ? product.qty : 0;
     document.getElementById('estoque-min').value = product.min_qty !== undefined ? product.min_qty : (product.min || 5);
-    document.getElementById('estoque-missing').checked = !!product.missing;
+    document.getElementById('estoque-missing').checked = !!product.missing || (product.qty === 0);
   } else {
     title.textContent = 'Novo Produto';
     if (deleteBtn) deleteBtn.style.display = 'none';
     document.getElementById('estoque-id').value = '';
-    document.getElementById('estoque-cat').value = 'pink';
+    document.getElementById('estoque-cat').value = 'esmaltes';
     document.getElementById('estoque-price').value = '';
     document.getElementById('estoque-qty').value = '';
     document.getElementById('estoque-min').value = '5';
@@ -6486,7 +6669,7 @@ function onDeleteCurrentEstoqueProduct() {
 }
 
 function openEstoqueModalById(id) {
-  const p = estoqueProducts.find(x => x.id === id);
+  const p = (estoqueProducts || []).find(x => x.id === id);
   openEstoqueModal(p || null);
 }
 
@@ -6509,9 +6692,11 @@ async function saveEstoqueProduct(e) {
   const name = document.getElementById('estoque-name').value.trim();
   const category = document.getElementById('estoque-cat').value;
   const price = parseFloat(document.getElementById('estoque-price').value) || 0;
-  const qty = parseInt(document.getElementById('estoque-qty').value) || 0;
+  let qty = parseInt(document.getElementById('estoque-qty').value) || 0;
   const min_qty = parseInt(document.getElementById('estoque-min').value) || 5;
   const missing = document.getElementById('estoque-missing').checked;
+
+  if (missing) qty = 0;
 
   if (!name) {
     showToast("Informe o nome do produto");
@@ -6522,9 +6707,9 @@ async function saveEstoqueProduct(e) {
     name,
     category,
     price,
-    qty: missing ? 0 : qty,
+    qty,
     min_qty,
-    missing
+    missing: missing || (qty === 0)
   };
 
   try {
@@ -6533,7 +6718,7 @@ async function saveEstoqueProduct(e) {
         method: 'PUT',
         body: JSON.stringify(payload)
       });
-      const idx = estoqueProducts.findIndex(x => x.id == id);
+      const idx = (estoqueProducts || []).findIndex(x => x.id == id);
       if (idx !== -1) estoqueProducts[idx] = updated;
       showToast(`Produto "${name}" atualizado com sucesso!`);
     } else {
@@ -6542,39 +6727,499 @@ async function saveEstoqueProduct(e) {
         body: JSON.stringify(payload)
       });
       estoqueProducts.push(created);
-      showToast(`Produto "${name}" adicionado ao estoque!`);
+      showToast(`Produto "${name}" cadastrado com sucesso!`);
     }
   } catch (err) {
-    console.warn("Save product error, updating local state", err);
+    console.warn("[Estoque] Erro ao salvar produto, mantendo localmente:", err);
     if (id) {
-      const idx = estoqueProducts.findIndex(x => x.id == id);
-      if (idx !== -1) {
-        estoqueProducts[idx] = { ...estoqueProducts[idx], ...payload };
-      }
+      const idx = (estoqueProducts || []).findIndex(x => x.id == id);
+      if (idx !== -1) estoqueProducts[idx] = { ...estoqueProducts[idx], ...payload };
     } else {
-      const newId = Date.now();
-      estoqueProducts.push({ id: newId, ...payload });
+      estoqueProducts.push({ id: Date.now(), ...payload });
     }
     showToast(`Produto "${name}" salvo!`);
   }
 
   closeEstoqueModal();
   renderEstoque();
+  loadEstoqueMetrics();
 }
 
 async function deleteEstoqueProduct(id) {
-  const p = estoqueProducts.find(x => x.id === id);
+  const p = (estoqueProducts || []).find(x => x.id === id);
   if (!p) return;
   if (!confirm(`Tem certeza que deseja remover o produto "${p.name}"?`)) return;
 
   try {
     await apiFetch(`/api/products/${id}`, { method: 'DELETE' });
-    showToast(`Produto "${p.name}" removido`);
+    showToast(`Produto "${p.name}" removido com sucesso`);
   } catch (err) {
-    console.warn("Delete product error:", err);
+    console.warn("[Estoque] Erro ao excluir produto:", err);
   }
 
-  estoqueProducts = estoqueProducts.filter(x => x.id !== id);
+  estoqueProducts = (estoqueProducts || []).filter(x => x.id !== id);
   renderEstoque();
+  loadEstoqueMetrics();
+}
+
+/* ═════════════════════════════════════════════════════════════════════
+   GERENCIADOR DE CHAT DO WHATSAPP (CHATWOOT STYLE + WAHA INTEGRATION)
+   ═════════════════════════════════════════════════════════════════════ */
+
+let _currentWaChatPhone = null;
+let _currentWaChatName = null;
+let _currentWaChatClientId = null;
+let _waChatPollTimer = null;
+let _waCannedResponsesCache = null;
+
+function formatPhoneWhatsApp(raw) {
+  if (!raw) return '';
+  let d = String(raw).replace(/\D/g, '');
+  if (d.startsWith('55') && (d.length === 12 || d.length === 13)) {
+    d = d.slice(2);
+  }
+  if (d.length === 11) {
+    return `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}`;
+  }
+  if (d.length === 10) {
+    return `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}`;
+  }
+  return raw;
+}
+
+function cleanDigitsPhone(raw) {
+  if (!raw) return '';
+  let d = String(raw).replace(/\D/g, '');
+  if (d.length <= 11 && !d.startsWith('55')) {
+    d = '55' + d;
+  }
+  return d;
+}
+
+async function openWhatsAppChatModal(phone, name, clientId) {
+  if (!phone) {
+    showToast('Número de telefone não informado.');
+    return;
+  }
+  _currentWaChatPhone = cleanDigitsPhone(phone);
+  _currentWaChatName = name || 'Cliente';
+  _currentWaChatClientId = clientId || null;
+
+  const modal = document.getElementById('whatsapp-chat-modal');
+  if (!modal) return;
+
+  const nameEl = document.getElementById('wa-chat-name');
+  const phoneEl = document.getElementById('wa-chat-phone');
+  const avEl = document.getElementById('wa-chat-avatar');
+  const externalLink = document.getElementById('btn-wa-external');
+
+  if (nameEl) nameEl.textContent = _currentWaChatName;
+  if (phoneEl) phoneEl.textContent = formatPhoneWhatsApp(_currentWaChatPhone);
+  if (avEl) {
+    const initials = _currentWaChatName.split(' ').filter(Boolean).map(n => n[0]).slice(0, 2).join('').toUpperCase() || 'C';
+    avEl.textContent = initials;
+  }
+  if (externalLink) {
+    externalLink.href = `https://wa.me/${_currentWaChatPhone}`;
+  }
+
+  const inputEl = document.getElementById('wa-chat-input');
+  if (inputEl) {
+    inputEl.value = '';
+    inputEl.style.height = 'auto';
+  }
+
+  modal.style.display = 'flex';
+  modal.classList.add('open');
+
+  loadWaCannedResponses();
+  await loadWhatsAppChatHistory(true);
+
+  clearInterval(_waChatPollTimer);
+  _waChatPollTimer = setInterval(() => {
+    if (modal.style.display !== 'none') {
+      loadWhatsAppChatHistory(false);
+    } else {
+      clearInterval(_waChatPollTimer);
+    }
+  }, 4000);
+
+  setTimeout(() => inputEl?.focus(), 150);
+}
+
+function closeWhatsAppChatModal() {
+  const modal = document.getElementById('whatsapp-chat-modal');
+  if (modal) {
+    modal.style.display = 'none';
+    modal.classList.remove('open');
+  }
+  clearInterval(_waChatPollTimer);
+  _waChatPollTimer = null;
+  _currentWaChatPhone = null;
+}
+
+async function loadWhatsAppChatHistory(showLoadingSpinner = true) {
+  if (!_currentWaChatPhone) return;
+
+  const loadingEl = document.getElementById('wa-chat-loading');
+  const feedEl = document.getElementById('wa-chat-messages-feed');
+  const emptyEl = document.getElementById('wa-chat-empty');
+  const statusBadge = document.getElementById('wa-chat-status-badge');
+  const statusText = document.getElementById('wa-chat-status-text');
+  const alertBanner = document.getElementById('wa-chat-disconnected-banner');
+
+  if (showLoadingSpinner) {
+    if (loadingEl) loadingEl.style.display = 'flex';
+    if (feedEl) feedEl.style.display = 'none';
+    if (emptyEl) emptyEl.style.display = 'none';
+  }
+
+  try {
+    const res = await fetch(`${API}/whatsapp/chat/messages?phone=${encodeURIComponent(_currentWaChatPhone)}&client_name=${encodeURIComponent(_currentWaChatName || '')}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+
+    if (statusBadge && statusText) {
+      if (data.waha_connected) {
+        statusBadge.className = 'wa-status-badge wa-status-online';
+        statusText.textContent = `Online • ${data.waha_session || 'default'}`;
+        if (alertBanner) alertBanner.style.display = 'none';
+      } else {
+        statusBadge.className = 'wa-status-badge wa-status-offline';
+        statusText.textContent = 'WhatsApp Desconectado';
+        if (alertBanner) alertBanner.style.display = 'flex';
+      }
+    }
+
+    if (loadingEl) loadingEl.style.display = 'none';
+
+    const messages = data.messages || [];
+    const visibleMessages = messages.filter(msg => {
+      const text = (msg.content || '').trim();
+      if (text) return true;
+      if (msg.media_url || msg.media_type) return true;
+      return false;
+    });
+
+    if (visibleMessages.length === 0) {
+      if (feedEl) feedEl.style.display = 'none';
+      if (emptyEl) emptyEl.style.display = 'flex';
+    } else {
+      if (emptyEl) emptyEl.style.display = 'none';
+      if (feedEl) {
+        feedEl.style.display = 'block';
+        renderWhatsAppChatFeed(visibleMessages);
+      }
+    }
+  } catch (err) {
+    console.error('Erro ao carregar mensagens do WhatsApp:', err);
+    if (loadingEl) loadingEl.style.display = 'none';
+  }
+}
+
+function renderWhatsAppChatFeed(messages) {
+  const feedEl = document.getElementById('wa-chat-messages-feed');
+  const container = document.getElementById('wa-chat-messages-container');
+  if (!feedEl) return;
+
+  let html = '';
+  let lastDateStr = null;
+
+  messages.forEach(msg => {
+    let dt;
+    if (msg.timestamp && msg.timestamp > 0) {
+      dt = new Date(msg.timestamp > 10000000000 ? msg.timestamp : msg.timestamp * 1000);
+    } else if (msg.created_at) {
+      dt = new Date(msg.created_at.replace(' ', 'T'));
+    } else {
+      dt = new Date();
+    }
+    if (isNaN(dt.getTime())) dt = new Date();
+
+    const todayStr = new Date().toLocaleDateString('pt-BR');
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toLocaleDateString('pt-BR');
+    const msgDateStr = dt.toLocaleDateString('pt-BR');
+
+    let displayDate = msgDateStr;
+    if (msgDateStr === todayStr) displayDate = 'Hoje';
+    else if (msgDateStr === yesterdayStr) displayDate = 'Ontem';
+
+    if (displayDate !== lastDateStr) {
+      html += `<div class="wa-date-pill">${displayDate}</div>`;
+      lastDateStr = displayDate;
+    }
+
+    const isOutgoing = !!(msg.from_me || msg.message_type === 'outgoing');
+    const rowClass = isOutgoing ? 'outgoing' : 'incoming';
+    const bubbleClass = isOutgoing ? 'wa-bubble-outgoing' : 'wa-bubble-incoming';
+    const timeStr = dt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+    let checkIcon = '';
+    if (isOutgoing) {
+      if (msg.status === 'read') {
+        checkIcon = '<span class="wa-check-icon read" title="Lida">✓✓</span>';
+      } else if (msg.status === 'delivered') {
+        checkIcon = '<span class="wa-check-icon" title="Entregue">✓✓</span>';
+      } else if (msg.status === 'pending') {
+        checkIcon = '<span class="wa-check-icon" title="Enviando...">⏱</span>';
+      } else {
+        checkIcon = '<span class="wa-check-icon" title="Enviada">✓</span>';
+      }
+    }
+
+    let contentHtml = '';
+    const rawText = (msg.content || '').trim();
+    if (rawText) {
+      contentHtml = escapeHtml(rawText)
+        .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
+        .replace(/_(.*?)_/g, '<em>$1</em>')
+        .replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:underline;">$1</a>');
+    } else if (msg.media_type || msg.media_url) {
+      const mType = (msg.media_type || '').toLowerCase();
+      let icon = '📎 Arquivo / Anexo';
+      if (mType.includes('image')) icon = '📷 Imagem';
+      else if (mType.includes('video')) icon = '🎥 Vídeo';
+      else if (mType.includes('audio') || mType.includes('ptt')) icon = '🎵 Mensagem de Áudio';
+      else if (mType.includes('sticker')) icon = '✨ Figurinha';
+      else if (mType.includes('document')) icon = '📄 Documento';
+
+      if (msg.media_url) {
+        contentHtml = `<a href="${escapeHtml(msg.media_url)}" target="_blank" rel="noopener noreferrer" style="color:inherit;text-decoration:underline;">${icon}</a>`;
+      } else {
+        contentHtml = `<em>${icon}</em>`;
+      }
+    } else {
+      return;
+    }
+
+    html += `
+      <div class="wa-message-row ${rowClass}" id="wa-msg-${msg.id || msg.waha_message_id}">
+        <div class="wa-bubble ${bubbleClass}">
+          <div class="wa-bubble-text">${contentHtml}</div>
+          <div class="wa-bubble-meta">
+            <span>${timeStr}</span>
+            ${checkIcon}
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  const isScrolledNearBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 150;
+  feedEl.innerHTML = html;
+
+  if (isScrolledNearBottom || container.scrollTop === 0) {
+    container.scrollTop = container.scrollHeight;
+  }
+}
+
+async function sendWhatsAppChatMessage() {
+  const input = document.getElementById('wa-chat-input');
+  const sendBtn = document.getElementById('wa-chat-send-btn');
+  if (!input || !sendBtn) return;
+
+  const text = input.value.trim();
+  if (!text) return;
+  if (!_currentWaChatPhone) {
+    showToast('Nenhuma conversa selecionada.');
+    return;
+  }
+
+  sendBtn.disabled = true;
+  const originalHtml = sendBtn.innerHTML;
+  sendBtn.innerHTML = '<div class="wa-spinner" style="width:16px;height:16px;border-width:2px;border-top-color:#fff;"></div>';
+
+  try {
+    const res = await fetch(`${API}/whatsapp/chat/send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone: _currentWaChatPhone,
+        message: text,
+        client_name: _currentWaChatName
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      showToast(data.error || 'Erro ao enviar mensagem pelo WhatsApp');
+      return;
+    }
+
+    input.value = '';
+    input.style.height = 'auto';
+
+    await loadWhatsAppChatHistory(false);
+    const container = document.getElementById('wa-chat-messages-container');
+    if (container) container.scrollTop = container.scrollHeight;
+  } catch (err) {
+    console.error('Erro ao enviar mensagem:', err);
+    showToast('Falha na conexão com o servidor.');
+  } finally {
+    sendBtn.disabled = false;
+    sendBtn.innerHTML = originalHtml;
+    input.focus();
+  }
+}
+
+async function syncWhatsAppChat() {
+  if (!_currentWaChatPhone) return;
+  const icon = document.getElementById('wa-sync-icon');
+  if (icon) icon.classList.add('spinning');
+
+  try {
+    const res = await fetch(`${API}/whatsapp/chat/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone: _currentWaChatPhone,
+        client_name: _currentWaChatName
+      })
+    });
+    const data = await res.json();
+    if (data.success) {
+      if (data.synced_count > 0) {
+        showToast(`Sincronização concluída (${data.synced_count} nova${data.synced_count > 1 ? 's' : ''} mensagem${data.synced_count > 1 ? 'ens' : ''})!`, 'success');
+      } else {
+        showToast('Sincronização concluída! Nenhuma mensagem nova.', 'success');
+      }
+      await loadWhatsAppChatHistory(false);
+    } else {
+      showToast(data.error || 'Erro ao sincronizar mensagens.', 'error');
+    }
+  } catch (err) {
+    console.error('Erro ao sincronizar chat:', err);
+    showToast('Falha na conexão ao sincronizar com o WhatsApp.', 'error');
+  } finally {
+    if (icon) icon.classList.remove('spinning');
+  }
+}
+
+async function loadWaCannedResponses() {
+  const container = document.getElementById('wa-quick-replies-container');
+  if (!container) return;
+
+  if (_waCannedResponsesCache && _waCannedResponsesCache.length > 0) {
+    renderWaCannedResponses(_waCannedResponsesCache);
+    return;
+  }
+
+  try {
+    const res = await fetch(`${API}/whatsapp/chat/canned-responses`);
+    if (res.ok) {
+      _waCannedResponsesCache = await res.json();
+      renderWaCannedResponses(_waCannedResponsesCache);
+    }
+  } catch (err) {
+    console.error('Erro ao carregar respostas rápidas:', err);
+  }
+}
+
+function renderWaCannedResponses(list) {
+  const container = document.getElementById('wa-quick-replies-container');
+  if (!container) return;
+  if (!list || list.length === 0) {
+    container.innerHTML = '<span style="font-size:11px;color:var(--text-muted);padding:4px 8px;">Nenhum modelo cadastrado</span>';
+    return;
+  }
+
+  const iconsMap = {
+    '/confirmar': '🌸',
+    '/lembrete': '⏰',
+    '/obrigado': '💖',
+    '/retorno': '💅',
+    '/atraso': '⏳'
+  };
+
+  container.innerHTML = list.map((item, idx) => {
+    const icon = iconsMap[item.short_code] || '💬';
+    const code = item.short_code || '';
+    const cleanPreview = (item.content || '').replace(/\s+/g, ' ').slice(0, 110) + '...';
+
+    return `
+      <button
+        type="button"
+        class="wa-quick-chip"
+        onclick="applyWaCannedResponse(${idx})"
+        title="${escapeHtml(cleanPreview)}"
+      >
+        <span class="wa-chip-icon">${icon}</span>
+        <span class="wa-chip-title">${escapeHtml(item.title)}</span>
+        ${code ? `<span class="wa-chip-code">${escapeHtml(code)}</span>` : ''}
+      </button>
+    `;
+  }).join('');
+}
+
+function applyWaCannedResponse(index) {
+  if (!_waCannedResponsesCache || !_waCannedResponsesCache[index]) return;
+  const item = _waCannedResponsesCache[index];
+  const input = document.getElementById('wa-chat-input');
+  if (!input) return;
+
+  let text = item.content || '';
+  const fullName = _currentWaChatName || 'Cliente';
+  const firstName = fullName.split(' ')[0] || 'Cliente';
+
+  text = text.replace(/{nome}/g, firstName);
+  text = text.replace(/{empresa}/g, 'BeautyFlow Studio');
+  text = text.replace(/{servico}/g, 'Manicure');
+  text = text.replace(/{data}/g, 'amanhã');
+  text = text.replace(/{horario}/g, '14:00');
+
+  input.value = text;
+  autoResizeWaInput(input);
+  input.focus();
+
+  input.style.transition = 'box-shadow 0.25s ease';
+  input.style.boxShadow = '0 0 0 3px rgba(37, 211, 102, 0.35)';
+  setTimeout(() => {
+    input.style.boxShadow = '';
+  }, 450);
+}
+
+
+function autoResizeWaInput(textarea) {
+  if (!textarea) return;
+  textarea.style.height = 'auto';
+  const newH = Math.min(textarea.scrollHeight, 110);
+  textarea.style.height = (newH > 38 ? newH : 38) + 'px';
+}
+
+function handleWaInputKeydown(event) {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    event.preventDefault();
+    sendWhatsAppChatMessage();
+  }
+}
+
+function handleIncomingWaChatMessage(msg) {
+  if (!msg || !_currentWaChatPhone) return;
+  const modal = document.getElementById('whatsapp-chat-modal');
+  if (!modal || modal.style.display === 'none') return;
+
+  const cleanIncoming = cleanDigitsPhone(msg.chat_id || msg.phone);
+  if (cleanIncoming === _currentWaChatPhone) {
+    loadWhatsAppChatHistory(false);
+  }
+}
+
+function handleWaMessageAck(ackData) {
+  if (!ackData || !ackData.id) return;
+  const el = document.getElementById(`wa-msg-${ackData.id}`);
+  if (el) {
+    const iconEl = el.querySelector('.wa-check-icon');
+    if (iconEl) {
+      if (ackData.status === 'read') {
+        iconEl.className = 'wa-check-icon read';
+        iconEl.textContent = '✓✓';
+      } else if (ackData.status === 'delivered') {
+        iconEl.className = 'wa-check-icon';
+        iconEl.textContent = '✓✓';
+      }
+    }
+  }
 }
 

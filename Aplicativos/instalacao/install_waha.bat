@@ -96,6 +96,9 @@ for /l %%i in (1,1,30) do (
 if "%WAHA_READY%"=="1" (
     echo [OK] WAHA online! Inicializando sessao '%USER_SESS%'...
     powershell -NoProfile -Command "try { Invoke-RestMethod -Uri 'http://localhost:3000/api/sessions' -Method Post -Headers @{'X-Api-Key'='%USER_KEY%'} -ContentType 'application/json' -Body '{\"name\":\"%USER_SESS%\",\"start\":true}' } catch {}" >nul 2>&1
+    echo [*] Inicializando banco de dados dedicado de mensagens (whatsapp_chat.db)...
+    python -c "import sys; sys.path.insert(0, '%CRM_DIR%\backend'); from db.whatsapp_chat_db import init_chat_db; init_chat_db()" >nul 2>&1
+    powershell -NoProfile -Command "try { Invoke-RestMethod -Uri 'http://localhost:3000/api/sessions/%USER_SESS%' -Method Put -Headers @{'X-Api-Key'='%USER_KEY%'} -ContentType 'application/json' -Body '{\"config\":{\"webhooks\":[{\"url\":\"http://beautyflow-crm:3001/api/whatsapp/webhook\",\"events\":[\"message\",\"message.any\",\"message.ack\"]}]}}' } catch {}" >nul 2>&1
     echo.
     echo ==================================================================
     echo  [OK] WhatsApp WAHA instalado e configurado com sucesso!
@@ -104,6 +107,7 @@ if "%WAHA_READY%"=="1" (
     echo   • Painel / QR Code:      http://localhost:3000/dashboard
     echo   • Sessao Ativa:          %USER_SESS%
     echo   • Chave de API:          %USER_KEY%
+    echo   • Gerenciador de Chat:   Ativo com Banco Dedicado (whatsapp_chat.db)
     echo ==================================================================
     echo.
     echo   Para conectar seu WhatsApp:

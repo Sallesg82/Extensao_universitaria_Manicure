@@ -18,8 +18,13 @@ from routes.transactions import transactions_bp
 from routes.products import products_bp
 from routes.metas import metas_bp
 from routes.whatsapp import whatsapp_bp
+from db.whatsapp_chat_db import init_chat_db
 
 load_dotenv()
+try:
+    init_chat_db()
+except Exception as e:
+    print(f"[WhatsApp Chat DB] Aviso na inicialização: {e}")
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'src')
 
@@ -106,6 +111,7 @@ def start_postgres_listener():
         'business_hours': 'business_hours',
         'notifications': 'notification',
         'users': 'user',
+        'products': 'product',
     }
 
     def _pg_listener():

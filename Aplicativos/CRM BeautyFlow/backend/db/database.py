@@ -81,6 +81,7 @@ TABLE_NOTIFICATIONS = 'notifications'
 TABLE_INTEGRATIONS = 'integrations'
 TABLE_BUSINESS_HOURS = 'business_hours'
 TABLE_METAS = 'metas'
+TABLE_PRODUCTS = 'products'
 
 # Receita financeira só conta após o atendimento ser concluído
 REVENUE_APPOINTMENT_STATUS = 'done'
@@ -815,6 +816,13 @@ def init_realtime_triggers():
         DROP TRIGGER IF EXISTS trg_realtime_metas ON metas;
         CREATE TRIGGER trg_realtime_metas
           AFTER INSERT OR UPDATE OR DELETE ON metas
+          FOR EACH ROW EXECUTE FUNCTION notify_pgevents();
+      END IF;
+
+      IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'products') THEN
+        DROP TRIGGER IF EXISTS trg_realtime_products ON products;
+        CREATE TRIGGER trg_realtime_products
+          AFTER INSERT OR UPDATE OR DELETE ON products
           FOR EACH ROW EXECUTE FUNCTION notify_pgevents();
       END IF;
     END $$;

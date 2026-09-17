@@ -9,6 +9,17 @@ from db.database import (
     get_db, get_settings, update_setting, create_notification,
     delete_integrations_by_type, is_type_integrated
 )
+from db.whatsapp_chat_db import (
+    init_chat_db, clean_phone as db_clean_phone, to_chat_id,
+    get_or_create_conversation, save_message as db_save_message,
+    get_conversation_messages, mark_conversation_as_read,
+    get_canned_responses, get_recent_conversations
+)
+
+try:
+    from ws import socketio
+except Exception:
+    socketio = None
 
 logger = logging.getLogger(__name__)
 
@@ -698,6 +709,24 @@ def send_notification():
         r = requests.post(f"{waha_url}/api/sendText", json=payload, headers=headers, timeout=10.0)
         if r.status_code in (200, 201):
             try:
+                res_data = r.json() if r.content else {}
+                waha_id = res_data.get('id') if isinstance(res_data, dict) else None
+                if isinstance(waha_id, dict):
+                    waha_id = waha_id.get('_serialized') or waha_id.get('id')
+                db_save_message(
+                    chat_id_or_phone=clean_phone,
+                    content=message,
+                    from_me=True,
+                    waha_message_id=str(waha_id) if waha_id else None,
+                    status='sent',
+                    sender_type='agent',
+                    message_type='template',
+                    contact_name=client_name
+                )
+            except Exception as e_db:
+                logger.warning(f"Aviso: Não foi possível salvar mensagem no banco de chat: {e_db}")
+
+            try:
                 create_notification(
                     'whatsapp_notification',
                     'Notificação WhatsApp Enviada',
@@ -993,7 +1022,26 @@ def send_whatsapp_async(phone, message, client_name='', appointment_id=None):
                 'chatId': f"{clean_phone}@c.us",
                 'text': message
             }
-            requests.post(f"{waha_url}/api/sendText", json=payload, headers=headers, timeout=8.0)
+            r_post = requests.post(f"{waha_url}/api/sendText", json=payload, headers=headers, timeout=8.0)
+            if r_post.status_code in (200, 201):
+                try:
+                    res_data = r_post.json() if r_post.content else {}
+                    waha_id = res_data.get('id') if isinstance(res_data, dict) else None
+                    if isinstance(waha_id, dict):
+                        waha_id = waha_id.get('_serialized') or waha_id.get('id')
+                    db_save_message(
+                        chat_id_or_phone=clean_phone,
+                        content=message,
+                        from_me=True,
+                        waha_message_id=str(waha_id) if waha_id else None,
+                        status='sent',
+                        sender_type='agent',
+                        message_type='template',
+                        contact_name=client_name
+                    )
+                except Exception:
+                    pass
+
             create_notification(
                 'whatsapp_notification',
                 'Notificação WhatsApp Enviada',
@@ -1005,6 +1053,352 @@ def send_whatsapp_async(phone, message, client_name='', appointment_id=None):
             logger.warning(f"Falha no envio automatico de WhatsApp para {phone}: {e}")
 
     threading.Thread(target=_run, daemon=True).start()
+
+
+# ------------------------------------------------------------------------------
+# GERENCIADOR DE CHAT DO WHATSAPP (ESTILO CHATWOOT + SINCRONIZAÇÃO WAHA)
+# ------------------------------------------------------------------------------
+
+def sync_waha_messages_for_chat(phone_or_chat_id, client_name=None, limit=50):
+    """Sincroniza histórico de mensagens reais do WAHA diretamente para o banco dedicado."""
+    waha_url = get_working_waha_url()
+    if not waha_url:
+        return 0
+    clean_p = clean_phone_number(phone_or_chat_id)
+    chat_id = to_chat_id(clean_p)
+    if not chat_id:
+        return 0
+
+    session_name = get_session_name(waha_url)
+    headers = _get_headers()
+
+    # Variações do número (com/sem 9º dígito no Brasil)
+    phones_to_check = [clean_p]
+    if clean_p.startswith('55') and len(clean_p) == 13 and clean_p[4] == '9':
+        phones_to_check.append(clean_p[:4] + clean_p[5:])
+    elif clean_p.startswith('55') and len(clean_p) == 12:
+        phones_to_check.append(clean_p[:4] + '9' + clean_p[4:])
+
+    # Coleta IDs de chat para tentar no WAHA (incluindo possíveis LIDs)
+    chat_ids_to_try = [chat_id]
+    for p in phones_to_check:
+        cid = to_chat_id(p)
+        if cid and cid not in chat_ids_to_try:
+            chat_ids_to_try.append(cid)
+        # Consulta check-exists do WAHA que retorna o chatId real/LID
+        try:
+            r_chk = requests.get(f"{waha_url}/api/contacts/check-exists?session={session_name}&phone={p}", headers=headers, timeout=2.5)
+            if r_chk.status_code == 200:
+                resolved = r_chk.json().get('chatId')
+                if resolved and resolved not in chat_ids_to_try:
+                    chat_ids_to_try.append(resolved)
+        except Exception:
+            pass
+
+    raw_messages = []
+    for c_id in chat_ids_to_try:
+        endpoints = [
+            f"{waha_url}/api/{session_name}/chats/{c_id}/messages?limit={limit}&downloadMedia=false",
+            f"{waha_url}/api/messages?session={session_name}&chatId={c_id}&limit={limit}",
+            f"{waha_url}/api/{session_name}/messages?chatId={c_id}&limit={limit}",
+            f"{waha_url}/api/chats/{c_id}/messages?session={session_name}&limit={limit}"
+        ]
+        for ep in endpoints:
+            try:
+                r = requests.get(ep, headers=headers, timeout=4.0)
+                if r.status_code == 200:
+                    data = r.json()
+                    if isinstance(data, list) and len(data) > 0:
+                        raw_messages = data
+                        break
+            except Exception:
+                continue
+        if raw_messages:
+            break
+
+    count = 0
+    for m in raw_messages:
+        try:
+            m_id = m.get('id')
+            if isinstance(m_id, dict):
+                m_id = m_id.get('_serialized') or m_id.get('id')
+            m_id = str(m_id or '')
+            body = (m.get('body') or m.get('text') or m.get('caption') or '').strip()
+            from_me = bool(m.get('fromMe') or (m.get('id', {}).get('fromMe') if isinstance(m.get('id'), dict) else False))
+            ts = m.get('timestamp')
+            ack = m.get('ack')
+            status = 'read' if ack == 3 else ('delivered' if ack == 2 else 'sent')
+            has_media = bool(m.get('hasMedia') or m.get('media'))
+            media_url = m.get('mediaUrl') or (m.get('media', {}).get('url') if isinstance(m.get('media'), dict) else None)
+            media_type = m.get('type') if has_media else None
+            m_type = str(m.get('type') or '').lower()
+
+            # Descarta eventos e notificações de criptografia sem conteúdo textual nem mídia
+            if not body and not has_media and m_type in ('e2e_notification', 'notification_template', 'protocol', 'gp2', 'revoked'):
+                continue
+
+            # Se for mídia sem legenda, rotula amigavelmente
+            if not body and has_media:
+                if 'image' in m_type:
+                    body = '[Imagem]'
+                elif 'video' in m_type:
+                    body = '[Vídeo]'
+                elif 'audio' in m_type or 'ptt' in m_type:
+                    body = '[Áudio]'
+                elif 'sticker' in m_type:
+                    body = '[Figurinha]'
+                elif 'document' in m_type:
+                    body = '[Documento]'
+                else:
+                    body = '[Mídia]'
+
+            if not body and not has_media:
+                continue
+
+            saved = db_save_message(
+                chat_id_or_phone=chat_id,
+                content=body,
+                from_me=from_me,
+                waha_message_id=m_id,
+                timestamp=ts,
+                status=status,
+                media_url=media_url,
+                media_type=media_type,
+                contact_name=client_name
+            )
+            if saved and saved.get('_is_new'):
+                count += 1
+        except Exception as e:
+            logger.warning(f"Falha ao salvar mensagem sincronizada do WAHA: {e}")
+
+    return count
+
+
+
+
+@whatsapp_bp.route('/chat/messages', methods=['GET'])
+def get_chat_messages():
+    """Retorna o histórico completo do chat com cliente, auto-sincronizando com o WAHA."""
+    raw_phone = request.args.get('phone') or request.args.get('chatId') or ''
+    client_name = request.args.get('client_name') or ''
+    do_sync = request.args.get('sync', 'true').lower() in ('true', '1', 'yes')
+
+    clean_p = clean_phone_number(raw_phone)
+    if not clean_p or len(clean_p) < 10:
+        return jsonify({'error': 'Número de telefone inválido'}), 400
+
+    chat_id = to_chat_id(clean_p)
+    waha_url = get_working_waha_url()
+    session_name = get_session_name(waha_url) if waha_url else 'default'
+    waha_connected = False
+
+    if waha_url:
+        try:
+            r_sess = requests.get(f"{waha_url}/api/sessions/{session_name}", headers=_get_headers(), timeout=2.0)
+            if r_sess.status_code == 200 and r_sess.json().get('status') == 'WORKING':
+                waha_connected = True
+        except Exception:
+            pass
+
+    if do_sync and waha_connected:
+        try:
+            sync_waha_messages_for_chat(clean_p, client_name=client_name)
+        except Exception as e:
+            logger.warning(f"Erro na sincronização com WAHA: {e}")
+
+    mark_conversation_as_read(clean_p)
+    messages = get_conversation_messages(clean_p, limit=150)
+    conv = get_or_create_conversation(clean_p, contact_name=client_name)
+
+    return jsonify({
+        'chat_id': chat_id,
+        'phone': clean_p,
+        'client_name': conv.get('contact_name') if conv else client_name,
+        'messages': messages,
+        'waha_connected': waha_connected,
+        'waha_session': session_name
+    })
+
+
+@whatsapp_bp.route('/chat/send', methods=['POST'])
+def send_chat_message():
+    """Envia uma mensagem direta via WAHA e salva no banco de dados dedicado."""
+    data = request.get_json(silent=True) or {}
+    raw_phone = data.get('phone') or data.get('chatId') or ''
+    content = (data.get('message') or data.get('text') or '').strip()
+    client_name = data.get('client_name') or ''
+
+    if not raw_phone:
+        return jsonify({'error': 'Número de telefone é obrigatório'}), 400
+    if not content:
+        return jsonify({'error': 'Texto da mensagem é obrigatório'}), 400
+
+    clean_p = clean_phone_number(raw_phone)
+    if not clean_p or len(clean_p) < 10:
+        return jsonify({'error': 'Número de telefone inválido'}), 400
+
+    chat_id = to_chat_id(clean_p)
+    waha_url = get_working_waha_url()
+    if not waha_url:
+        return jsonify({'error': 'O serviço WAHA não está disponível ou não foi instalado.'}), 503
+
+    session_name = get_session_name(waha_url)
+    headers = _get_headers()
+
+    # Verifica conexão com WAHA
+    try:
+        r_sess = requests.get(f"{waha_url}/api/sessions/{session_name}", headers=headers, timeout=2.5)
+        if r_sess.status_code != 200 or r_sess.json().get('status') != 'WORKING':
+            return jsonify({'error': 'WhatsApp não está conectado. Conecte lendo o QR Code nas configurações antes de enviar mensagens.'}), 400
+    except Exception as e:
+        return jsonify({'error': f'Falha ao verificar status do WhatsApp: {str(e)}'}), 500
+
+    payload = {
+        'session': session_name,
+        'chatId': chat_id,
+        'text': content
+    }
+
+    try:
+        r = requests.post(f"{waha_url}/api/sendText", json=payload, headers=headers, timeout=12.0)
+        if r.status_code in (200, 201):
+            res_data = r.json() if r.content else {}
+            waha_id = res_data.get('id') if isinstance(res_data, dict) else None
+            if isinstance(waha_id, dict):
+                waha_id = waha_id.get('_serialized') or waha_id.get('id')
+
+            saved_msg = db_save_message(
+                chat_id_or_phone=chat_id,
+                content=content,
+                from_me=True,
+                waha_message_id=str(waha_id) if waha_id else None,
+                status='sent',
+                sender_type='agent',
+                message_type='outgoing',
+                contact_name=client_name
+            )
+
+            if socketio and saved_msg:
+                try:
+                    socketio.emit('whatsapp:new_message', saved_msg)
+                except Exception:
+                    pass
+
+            return jsonify({
+                'success': True,
+                'message': saved_msg
+            })
+        else:
+            err_detail = r.text
+            return jsonify({'error': f'Falha no envio pelo WAHA (status {r.status_code}): {err_detail}'}), 502
+    except Exception as e:
+        return jsonify({'error': f'Erro de rede ao enviar mensagem: {str(e)}'}), 500
+
+
+@whatsapp_bp.route('/chat/sync', methods=['POST'])
+def sync_chat():
+    """Força sincronização imediata de mensagens com o WAHA."""
+    data = request.get_json(silent=True) or {}
+    raw_phone = data.get('phone') or data.get('chatId') or ''
+    client_name = data.get('client_name') or ''
+    clean_p = clean_phone_number(raw_phone)
+    if not clean_p:
+        return jsonify({'error': 'Telefone inválido'}), 400
+
+    synced_count = sync_waha_messages_for_chat(clean_p, client_name=client_name, limit=100)
+    messages = get_conversation_messages(clean_p, limit=100)
+    return jsonify({
+        'success': True,
+        'synced_count': synced_count,
+        'messages': messages
+    })
+
+
+@whatsapp_bp.route('/chat/canned-responses', methods=['GET'])
+def list_canned_responses():
+    """Retorna respostas rápidas predefinidas."""
+    return jsonify(get_canned_responses())
+
+
+@whatsapp_bp.route('/chat/conversations', methods=['GET'])
+def list_recent_chats():
+    """Retorna as conversas recentes de WhatsApp."""
+    return jsonify(get_recent_conversations(limit=30))
+
+
+@whatsapp_bp.route('/webhook', methods=['POST'])
+def waha_webhook_receiver():
+    """
+    Webhook para receber mensagens em tempo real diretamente do WAHA.
+    Salva no banco SQLite dedicado e emite via Socket.IO para a tela do atendente.
+    """
+    data = request.get_json(silent=True) or {}
+    event_type = data.get('event') or ''
+    payload = data.get('payload') or {}
+
+    logger.info(f"[WAHA Webhook] Recebido evento: {event_type}")
+
+    if event_type in ('message', 'message.any'):
+        try:
+            m_id = payload.get('id')
+            if isinstance(m_id, dict):
+                m_id = m_id.get('_serialized') or m_id.get('id')
+            m_id = str(m_id or '')
+
+            from_me = bool(payload.get('fromMe') or (payload.get('id', {}).get('fromMe') if isinstance(payload.get('id'), dict) else False))
+            chat_id = payload.get('to') if from_me else payload.get('from')
+            body = payload.get('body') or payload.get('text') or payload.get('caption') or ''
+            ts = payload.get('timestamp')
+            has_media = bool(payload.get('hasMedia'))
+            media_url = payload.get('mediaUrl') or (payload.get('media', {}).get('url') if isinstance(payload.get('media'), dict) else None)
+            media_type = payload.get('type') if has_media else None
+
+            if chat_id and (body or has_media):
+                saved = db_save_message(
+                    chat_id_or_phone=chat_id,
+                    content=body,
+                    from_me=from_me,
+                    waha_message_id=m_id,
+                    timestamp=ts,
+                    status='delivered' if not from_me else 'sent',
+                    media_url=media_url,
+                    media_type=media_type,
+                    sender_type='agent' if from_me else 'client',
+                    message_type='outgoing' if from_me else 'incoming'
+                )
+                if socketio and saved:
+                    try:
+                        socketio.emit('whatsapp:new_message', saved)
+                    except Exception:
+                        pass
+        except Exception as e:
+            logger.warning(f"Erro ao processar mensagem recebida no webhook: {e}")
+
+    elif event_type == 'message.ack':
+        try:
+            m_id = payload.get('id')
+            if isinstance(m_id, dict):
+                m_id = m_id.get('_serialized') or m_id.get('id')
+            ack = payload.get('ack')
+            status = 'read' if ack == 3 else ('delivered' if ack == 2 else 'sent')
+            if m_id and socketio:
+                socketio.emit('whatsapp:message_ack', {'id': str(m_id), 'status': status})
+        except Exception as e:
+            logger.warning(f"Erro ao processar ack de mensagem: {e}")
+
+    # Encaminha para o n8n se webhook do n8n estiver configurado
+    s = get_settings()
+    n8n_url = (s.get('n8n_whatsapp_webhook_url') or '').strip()
+    if n8n_url:
+        import threading
+        def _forward_n8n():
+            try:
+                requests.post(n8n_url, json=data, timeout=5.0)
+            except Exception as e:
+                logger.warning(f"Falha ao repassar evento do WhatsApp para n8n: {e}")
+        threading.Thread(target=_forward_n8n, daemon=True).start()
+
+    return jsonify({'status': 'ok'}), 200
 
 
 def start_whatsapp_reminder_scheduler():

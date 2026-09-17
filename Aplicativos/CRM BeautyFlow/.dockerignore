@@ -5,5 +5,4 @@ __pycache__
 .env
 .git
 node_modules
-WhaTicket
 .DS_Store

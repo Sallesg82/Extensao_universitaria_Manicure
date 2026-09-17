@@ -313,12 +313,10 @@ CRM BeautyFlow/
 │   ├── requirements.txt        # Dependências Python
 │   ├── .env                    # Variáveis de ambiente
 │   ├── db/
-│   │   ├── connection.py       # Pool de conexões PostgreSQL
-│   │   ├── database.py         # Queries e operações de banco
-│   │   ├── repository.py       # Camada de repositório
+│   │   ├── database.py         # Queries, pool e operações de banco
 │   │   ├── schema.sql          # Schema principal
 │   │   ├── supabase_schema.sql # Schema alternativo (Supabase)
-│   │   └── migrations/         # 11 migrations ordenadas
+│   │   └── migrations/         # Migrations ordenadas
 │   ├── routes/
 │   │   ├── clients.py
 │   │   ├── appointments.py
@@ -601,6 +599,7 @@ VITE_API_URL=http://<IP_OU_HOST>:3001/api
 | `docs/ux(Mirian Original).html` | Protótipo HTML/CSS original da interface de referência |
 | `Aplicativos/instalacao/tutorial.md` | Guia completo de deploy em servidor Ubuntu (Nginx, SSL, systemd, firewall, backup) |
 | `diagrama_beautyflow.svg` | Diagrama vetorial da arquitetura geral |
+| [Miro Board](https://miro.com/app/board/uXjVG6aAwHw=/) | Board de planejamento e prototipação no Miro (Senha: `senhasegura`) |
 
 ---
 

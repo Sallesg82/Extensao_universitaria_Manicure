@@ -1835,37 +1835,91 @@
            PAGE: ESTOQUE
       ══════════════════════════════════ -->
       <section class="page" id="page-estoque">
-        <div class="estoque-toolbar">
-          <div class="search-input-wrap estoque-search-wrap">
-            <svg class="search-icon" width="15" height="15" viewBox="0 0 16 16" fill="none">
-              <circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/>
-              <path d="M10.5 10.5L13.5 13.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            </svg>
-            <input class="search-input" id="estoque-search" placeholder="Buscar produto por nome..." oninput="renderEstoque()">
+
+        <!-- METRICS / KPIS -->
+        <div class="metrics estoque-metrics">
+          <div class="metric-card c1">
+            <div class="metric-label">Total de Itens</div>
+            <div class="metric-value" id="estoque-kpi-total">—</div>
+            <div class="metric-change neutral" id="estoque-kpi-units">0 unidades em estoque</div>
           </div>
-          <div class="filter-tabs" id="estoque-filter-chips">
-            <div class="filter-tab active" data-f="todos" onclick="setEstoqueFilter('todos', this)">
-              <span>Todos</span> <span class="count-badge" id="cnt-todos">0</span>
-            </div>
-            <div class="filter-tab" data-f="baixo" onclick="setEstoqueFilter('baixo', this)">
-              <span>Estoque Baixo</span> <span class="count-badge" id="cnt-baixo">0</span>
-            </div>
-            <div class="filter-tab danger-tab" data-f="falta" onclick="setEstoqueFilter('falta', this)">
-              <svg class="tab-warn-icon" width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M8 1.5l6.5 12H1.5L8 1.5zM8 6a.75.75 0 0 0-.75.75v3a.75.75 0 0 0 1.5 0v-3A.75.75 0 0 0 8 6zm0 5.5a.85.85 0 1 0 0 1.7.85.85 0 0 0 0-1.7z"/>
-              </svg>
-              <span>Produtos em Falta</span> <span class="count-badge" id="cnt-falta">0</span>
-            </div>
+          <div class="metric-card cg">
+            <div class="metric-label">Valor em Estoque</div>
+            <div class="metric-value" id="estoque-kpi-valor">—</div>
+            <div class="metric-change up" id="estoque-kpi-valor-sub">Patrimônio em mercadorias</div>
+          </div>
+          <div class="metric-card cw">
+            <div class="metric-label">Estoque Baixo</div>
+            <div class="metric-value" id="estoque-kpi-baixo">—</div>
+            <div class="metric-change" id="estoque-kpi-baixo-sub" style="color:var(--warning,#d97706);">Próximos do ponto de pedido</div>
+          </div>
+          <div class="metric-card cr">
+            <div class="metric-label">Produtos em Falta</div>
+            <div class="metric-value" id="estoque-kpi-falta">—</div>
+            <div class="metric-change down" id="estoque-kpi-falta-sub">Itens zerados (0 un.)</div>
           </div>
         </div>
 
+        <!-- TOOLBAR -->
+        <div class="estoque-toolbar">
+          <div class="estoque-toolbar-left">
+            <div class="search-input-wrap estoque-search-wrap">
+              <svg class="search-icon" width="15" height="15" viewBox="0 0 16 16" fill="none">
+                <circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M10.5 10.5L13.5 13.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+              <input class="search-input" id="estoque-search" placeholder="Buscar por nome do produto..." oninput="onEstoqueSearchInput()">
+            </div>
+
+            <div class="filter-tabs" id="estoque-filter-chips">
+              <div class="filter-tab active" data-f="todos" onclick="setEstoqueFilter('todos', this)">
+                <span>Todos</span> <span class="count-badge" id="cnt-todos">0</span>
+              </div>
+              <div class="filter-tab" data-f="baixo" onclick="setEstoqueFilter('baixo', this)">
+                <span>Estoque Baixo</span> <span class="count-badge count-badge-warning" id="cnt-baixo">0</span>
+              </div>
+              <div class="filter-tab danger-tab" data-f="falta" onclick="setEstoqueFilter('falta', this)">
+                <svg class="tab-warn-icon" width="13" height="13" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M8 1.5l6.5 12H1.5L8 1.5zM8 6a.75.75 0 0 0-.75.75v3a.75.75 0 0 0 1.5 0v-3A.75.75 0 0 0 8 6zm0 5.5a.85.85 0 1 0 0 1.7.85.85 0 0 0 0-1.7z"/>
+                </svg>
+                <span>Em Falta</span> <span class="count-badge count-badge-danger" id="cnt-falta">0</span>
+              </div>
+            </div>
+
+            <div class="estoque-cat-filter-wrap">
+              <select class="form-input estoque-cat-select" id="estoque-category-filter" onchange="onEstoqueCategoryFilterChange()">
+                <option value="todos">Todas as Categorias</option>
+                <option value="esmaltes">💅 Esmaltes & Géis</option>
+                <option value="cuidados">🧴 Cuidados & Cutículas</option>
+                <option value="descartaveis">🧤 Descartáveis & Higiene</option>
+                <option value="equipamentos">✂️ Alicates & Equipamentos</option>
+                <option value="quimicos">🧪 Químicos & Solventes</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="estoque-toolbar-right">
+            <button type="button" class="btn-primary estoque-new-btn" onclick="openEstoqueModal()">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 2v12M2 8h12"/></svg>
+              <span>Novo Produto</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- MAIN LAYOUT -->
         <div class="estoque-layout">
           <!-- Main Catalog Card -->
           <div class="panel estoque-main-panel">
             <div class="panel-header estoque-panel-header">
               <div>
-                <div class="panel-title">Catálogo de Estoque</div>
-                <div class="panel-subtitle">Produtos comprados via nota fiscal ou leitura de código de barras</div>
+                <div class="panel-title">Catálogo de Produtos</div>
+                <div class="panel-subtitle">Gerenciamento de estoque, suprimentos e controle de reposição em tempo real</div>
+              </div>
+              <div class="estoque-panel-actions">
+                <button class="btn-outline btn-sm" onclick="loadEstoque()" title="Atualizar dados do estoque" style="display:inline-flex;align-items:center;gap:6px;">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+                  <span>Atualizar</span>
+                </button>
               </div>
             </div>
 
@@ -1873,15 +1927,17 @@
               <table class="estoque-table">
                 <thead>
                   <tr>
-                    <th style="width:32%;">PRODUTO</th>
-                    <th style="width:17%;">QTD. COMPRADA</th>
-                    <th style="width:17%;">PREÇO TOTAL</th>
-                    <th style="width:16%;">SITUAÇÃO</th>
-                    <th style="width:18%;">PRODUTO EM FALTA?</th>
+                    <th style="width:28%;">PRODUTO</th>
+                    <th style="width:16%;">CATEGORIA</th>
+                    <th style="width:18%;">QUANTIDADE</th>
+                    <th style="width:11%;">ESTOQUE MÍN.</th>
+                    <th style="width:13%;">VALOR TOTAL</th>
+                    <th style="width:14%;">SITUAÇÃO</th>
+                    <th style="width:10%;text-align:right;">AÇÕES</th>
                   </tr>
                 </thead>
                 <tbody id="estoque-tbody">
-                  <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-secondary);">Carregando estoque...</td></tr>
+                  <tr><td colspan="7" style="text-align:center;padding:36px;color:var(--text-secondary);">Carregando estoque...</td></tr>
                 </tbody>
               </table>
             </div>
@@ -1892,10 +1948,10 @@
             <div class="panel side-card side-card-falta">
               <div class="panel-header">
                 <div class="panel-title" style="display:flex;align-items:center;gap:6px;">
-                  <svg class="side-warn-icon" width="14" height="14" viewBox="0 0 16 16" fill="currentColor" style="color:inherit;">
+                  <svg class="side-warn-icon" width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
                     <path d="M8 1.5l6.5 12H1.5L8 1.5zM8 6a.75.75 0 0 0-.75.75v3a.75.75 0 0 0 1.5 0v-3A.75.75 0 0 0 8 6zm0 5.5a.85.85 0 1 0 0 1.7.85.85 0 0 0 0-1.7z"/>
                   </svg>
-                  <span>Produtos em Falta</span>
+                  <span>Reposição Urgente</span>
                 </div>
                 <span class="badge-num badge-num-danger" id="badgeFalta">0</span>
               </div>
@@ -1907,7 +1963,8 @@
             <div class="panel side-card low side-card-baixo">
               <div class="panel-header">
                 <div class="panel-title" style="display:flex;align-items:center;gap:6px;">
-                  <span>Estoque Baixo</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--warning,#d97706);"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                  <span>Atenção: Estoque Baixo</span>
                 </div>
                 <span class="badge-num badge-num-warning" id="badgeBaixo">0</span>
               </div>
@@ -2346,6 +2403,104 @@
   </div>
 </div>
 
+<!-- MODAL: GERENCIADOR DE CHAT DO WHATSAPP (CHATWOOT STYLE + SINCRONIZAÇÃO WAHA) -->
+<div class="modal-overlay" id="whatsapp-chat-modal" onclick="closeWhatsAppChatModal()" style="display:none;">
+  <div class="modal-card whatsapp-chat-card" onclick="event.stopPropagation()">
+    <!-- Header do Chat (Estilo Chatwoot) -->
+    <div class="whatsapp-chat-header">
+      <div class="wa-header-left">
+        <div class="wa-header-avatar" id="wa-chat-avatar">C</div>
+        <div class="wa-header-info">
+          <div class="wa-header-name-row">
+            <span class="wa-header-name" id="wa-chat-name">Cliente</span>
+            <span class="wa-status-badge" id="wa-chat-status-badge">
+              <span class="wa-status-dot"></span> <span id="wa-chat-status-text">Verificando...</span>
+            </span>
+          </div>
+          <div class="wa-header-sub" id="wa-chat-phone">+55 11 99999-9999</div>
+        </div>
+      </div>
+      <div class="wa-header-actions">
+        <button class="wa-btn-icon" id="btn-wa-sync" onclick="syncWhatsAppChat()" title="Sincronizar histórico com o WhatsApp (WAHA)">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" id="wa-sync-icon">
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+          <span class="wa-btn-icon-text">Sincronizar</span>
+        </button>
+        <a class="wa-btn-icon" id="btn-wa-external" href="#" target="_blank" title="Abrir conversa no WhatsApp Web externo">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+            <polyline points="15 3 21 3 21 9"></polyline>
+            <line x1="10" y1="14" x2="21" y2="3"></line>
+          </svg>
+        </a>
+        <button class="modal-close" onclick="closeWhatsAppChatModal()" title="Fechar Chat">&times;</button>
+      </div>
+    </div>
+
+    <!-- Banner de Alerta se WAHA estiver desconectado -->
+    <div id="wa-chat-disconnected-banner" style="display:none;" class="wa-alert-banner">
+      <span>⚠️ O WhatsApp não está conectado no momento.</span>
+      <button class="btn-outline btn-sm" onclick="closeWhatsAppChatModal(); openWahaQrModal();">Conectar QR Code</button>
+    </div>
+
+    <!-- Área de Mensagens (Timeline com Wallpaper e Bolhas Estilo Chatwoot) -->
+    <div class="whatsapp-chat-messages" id="wa-chat-messages-container">
+      <div class="wa-loading-state" id="wa-chat-loading">
+        <div class="wa-spinner"></div>
+        <span>Carregando histórico do WhatsApp...</span>
+      </div>
+      <div id="wa-chat-messages-feed" style="display:none;"></div>
+      <div class="wa-empty-state" id="wa-chat-empty" style="display:none;">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="#25d366" opacity="0.6">
+          <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.816 9.816 0 0 0 12.04 2zm0 18.09c-1.48 0-2.93-.4-4.2-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.04 8.04 0 0 1-1.23-4.32c0-4.48 3.64-8.12 8.12-8.12 2.17 0 4.21.85 5.74 2.38s2.38 3.57 2.38 5.74c0 4.49-3.64 8.13-8.12 8.13z"/>
+        </svg>
+        <div class="wa-empty-title">Nenhuma mensagem anterior encontrada</div>
+        <div class="wa-empty-sub">Inicie a conversa enviando uma mensagem abaixo ou use os modelos rápidos!</div>
+      </div>
+    </div>
+
+    <!-- Barra de Respostas Rápidas / Modelos (Estilo Chatwoot + WhatsApp) -->
+    <div class="wa-quick-replies-bar" id="wa-quick-replies-bar">
+      <div class="wa-quick-replies-header">
+        <div class="wa-quick-replies-title">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="wa-lightning-icon">
+            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+          </svg>
+          <span>Modelos Rápidos</span>
+        </div>
+        <span class="wa-quick-replies-hint">Clique no modelo para preencher a mensagem</span>
+      </div>
+      <div class="wa-quick-replies-list" id="wa-quick-replies-container">
+        <!-- Injetado dinamicamente via JS -->
+      </div>
+    </div>
+
+
+    <!-- Barra de Input e Envio de Mensagem -->
+    <div class="whatsapp-chat-footer">
+      <div class="wa-input-box">
+        <textarea
+          id="wa-chat-input"
+          class="wa-input-textarea"
+          placeholder="Digite uma mensagem... (Enter envia, Shift+Enter quebra linha)"
+          rows="1"
+          oninput="autoResizeWaInput(this)"
+          onkeydown="handleWaInputKeydown(event)"
+        ></textarea>
+        <button class="wa-send-btn" id="wa-chat-send-btn" onclick="sendWhatsAppChatMessage()" title="Enviar Mensagem (Enter)">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: TESTAR NOTIFICACAO WHATSAPP -->
 <div class="modal-overlay" id="waha-test-modal" onclick="closeWahaTestModal()">
   <div class="modal-card" onclick="event.stopPropagation()" style="max-width:420px;">
@@ -2540,16 +2695,19 @@
 .toast {
   pointer-events: auto;
   font-family: var(--font-sans);
-  background: #d32f2f; color: #fff;
-  padding: 14px 22px; border-radius: 10px;
-  font-size: 14px; font-weight: 500;
-  box-shadow: 0 6px 20px rgba(0,0,0,.25);
+  background: #1e293b; color: #f8fafc;
+  padding: 12px 20px; border-radius: 10px;
+  font-size: 13.5px; font-weight: 500;
+  box-shadow: 0 8px 24px rgba(0,0,0,.25);
   cursor: pointer;
   animation: toast-in .3s ease, toast-out .3s ease 4.7s forwards;
-  text-align: center; max-width: 420px;
+  text-align: center; max-width: 440px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  border: 1px solid rgba(255,255,255,.12);
 }
-.toast.toast-success { background: #2e7d32; }
-.toast.toast-info { background: #1565c0; }
+.toast.toast-success { background: #15803d !important; border-color: #16a34a !important; color: #ffffff !important; }
+.toast.toast-error { background: #dc2626 !important; border-color: #ef4444 !important; color: #ffffff !important; }
+.toast.toast-info { background: #1d4ed8 !important; border-color: #2563eb !important; color: #ffffff !important; }
 @keyframes toast-in {
   from { opacity: 0; transform: translateY(-16px) scale(.95); }
   to { opacity: 1; transform: translateY(0) scale(1); }
@@ -2677,43 +2835,49 @@
     <div class="modal-body">
       <form id="estoque-form" onsubmit="saveEstoqueProduct(event)">
         <input type="hidden" id="estoque-id">
-        <div class="form-field" style="margin-bottom:14px;">
-          <label class="form-label" style="display:block;margin-bottom:4px;font-size:12px;font-weight:600;color:var(--text-secondary);">Nome do Produto *</label>
-          <input class="form-input" id="estoque-name" placeholder="Ex: Esmalte OPI, Luvas Descartáveis..." required style="width:100%;">
+        
+        <div class="form-field full" style="margin-bottom:14px;">
+          <label class="form-label">Nome do Produto *</label>
+          <input class="form-input" id="estoque-name" placeholder="Ex: Esmalte Risqué Cremoso, Alicate Mundial 777..." required>
         </div>
-        <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+
+        <div class="form-row">
           <div class="form-field">
-            <label class="form-label" style="display:block;margin-bottom:4px;font-size:12px;font-weight:600;color:var(--text-secondary);">Marcação / Cor</label>
-            <select class="form-input" id="estoque-cat" style="width:100%;">
-              <option value="pink">Rosa (Esmaltes / Estética)</option>
-              <option value="amber">Amarelo (Cuidados / Depilação)</option>
-              <option value="blue">Azul (Descartáveis / Higiene)</option>
-              <option value="purple">Roxo (Químicos / Solventes)</option>
+            <label class="form-label">Categoria / Departamento *</label>
+            <select class="form-input" id="estoque-cat" required>
+              <option value="esmaltes">💅 Esmaltes & Géis</option>
+              <option value="cuidados">🧴 Cuidados & Cutículas</option>
+              <option value="descartaveis">🧤 Descartáveis & Higiene</option>
+              <option value="equipamentos">✂️ Alicates & Equipamentos</option>
+              <option value="quimicos">🧪 Químicos & Solventes</option>
             </select>
           </div>
           <div class="form-field">
-            <label class="form-label" style="display:block;margin-bottom:4px;font-size:12px;font-weight:600;color:var(--text-secondary);">Preço Unitário (R$) *</label>
-            <input type="number" step="0.01" min="0" class="form-input" id="estoque-price" placeholder="0.00" required style="width:100%;">
+            <label class="form-label">Preço Unitário de Custo (R$) *</label>
+            <input type="number" step="0.01" min="0" class="form-input" id="estoque-price" placeholder="0.00" required>
           </div>
         </div>
-        <div class="form-row" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">
+
+        <div class="form-row">
           <div class="form-field">
-            <label class="form-label" style="display:block;margin-bottom:4px;font-size:12px;font-weight:600;color:var(--text-secondary);">Qtd. em Estoque *</label>
-            <input type="number" min="0" class="form-input" id="estoque-qty" placeholder="0" required style="width:100%;">
+            <label class="form-label">Qtd. Atual em Estoque *</label>
+            <input type="number" min="0" class="form-input" id="estoque-qty" placeholder="0" required>
           </div>
           <div class="form-field">
-            <label class="form-label" style="display:block;margin-bottom:4px;font-size:12px;font-weight:600;color:var(--text-secondary);">Estoque Mínimo para Alerta</label>
-            <input type="number" min="0" class="form-input" id="estoque-min" value="5" placeholder="5" style="width:100%;">
+            <label class="form-label">Estoque Mínimo para Alerta *</label>
+            <input type="number" min="0" class="form-input" id="estoque-min" value="5" placeholder="5" required>
           </div>
         </div>
-        <div class="form-field" style="margin-top:10px;">
+
+        <div class="form-field full" style="margin-top:8px;">
           <label class="checkbox-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;">
             <input type="checkbox" id="estoque-missing" style="width:16px;height:16px;cursor:pointer;" onchange="onEstoqueMissingCheckboxChange()">
-            <span style="font-weight:600;">Produto em falta (Sem estoque)</span>
+            <span>Marcar produto como em falta (quantidade zerada)</span>
           </label>
         </div>
-        <div class="modal-actions" style="display:flex;gap:10px;justify-content:space-between;align-items:center;margin-top:18px;padding-top:16px;border-top:1px solid var(--border,#eef2f6);">
-          <button type="button" class="btn-outline btn-danger" id="estoque-delete-btn" onclick="onDeleteCurrentEstoqueProduct()" style="display:none;color:#dc2626;border-color:#fca5a5;">Excluir Produto</button>
+
+        <div class="modal-actions" style="margin-top:20px;">
+          <button type="button" class="btn-outline btn-danger" id="estoque-delete-btn" onclick="onDeleteCurrentEstoqueProduct()" style="display:none;">Excluir Produto</button>
           <div style="display:flex;gap:10px;margin-left:auto;">
             <button type="button" class="btn-outline" onclick="closeEstoqueModal()">Cancelar</button>
             <button type="submit" class="btn-primary" id="estoque-submit-btn">Salvar Produto</button>
@@ -2725,6 +2889,6 @@
 </div>
 
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-<script src="js/app.js?v=2.4"></script>
+<script src="js/app.js?v=2.5"></script>
 </body>
 </html>

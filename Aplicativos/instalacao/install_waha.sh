@@ -173,6 +173,20 @@ if [ "$waha_ready" -eq 1 ]; then
         -H "X-Api-Key: $USER_KEY" \
         -d "{\"name\":\"$USER_SESS\",\"start\":true}" >/dev/null 2>&1 || true
 
+    echo -e "      Inicializando banco de dados dedicado de mensagens do WhatsApp..."
+    if command -v python3 &>/dev/null; then
+        python3 -c "import sys; sys.path.insert(0, '$CRM_DIR/backend'); from db.whatsapp_chat_db import init_chat_db; init_chat_db()" >/dev/null 2>&1 || true
+    elif command -v python &>/dev/null; then
+        python -c "import sys; sys.path.insert(0, '$CRM_DIR/backend'); from db.whatsapp_chat_db import init_chat_db; init_chat_db()" >/dev/null 2>&1 || true
+    fi
+    echo -e "      ${C_B_GREEN}[OK] Banco de dados do Chat WhatsApp configurado (db/whatsapp_chat.db).${C_RESET}"
+
+    echo -e "      Configurando sincronizacao de mensagens em tempo real no WAHA..."
+    curl -s -X PUT "http://localhost:3000/api/sessions/$USER_SESS" \
+        -H "Content-Type: application/json" \
+        -H "X-Api-Key: $USER_KEY" \
+        -d "{\"config\":{\"webhooks\":[{\"url\":\"http://beautyflow-crm:3001/api/whatsapp/webhook\",\"events\":[\"message\",\"message.any\",\"message.ack\"]}]}}" >/dev/null 2>&1 || true
+
     echo ""
     echo -e "${C_B_GREEN}==================================================================${C_RESET}"
     echo -e "  ${C_BOLD}${C_WHITE}✔ INSTALACAO DO WHATSAPP WAHA CONCLUIDA COM SUCESSO!${C_RESET}"
@@ -181,6 +195,7 @@ if [ "$waha_ready" -eq 1 ]; then
     echo -e "  • Painel QR Code:         ${C_B_CYAN}http://localhost:3000/dashboard${C_RESET}"
     echo -e "  • Sessao Ativa:           ${C_WHITE}$USER_SESS${C_RESET}"
     echo -e "  • Chave de API:           ${C_WHITE}$USER_KEY${C_RESET}"
+    echo -e "  • Gerenciador de Chat:    ${C_B_GREEN}Ativo com Banco Dedicado (whatsapp_chat.db)${C_RESET}"
     echo -e "${C_B_GREEN}==================================================================${C_RESET}"
     echo ""
     echo -e "${C_BOLD}📲 Como conectar seu WhatsApp:${C_RESET}"
