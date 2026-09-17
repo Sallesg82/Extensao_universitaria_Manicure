@@ -176,11 +176,11 @@ if "!USER_IP!"=="" set "USER_IP=!LOCAL_IP!"
 ) > "%CRM_DIR%\backend\.env"
 
 (
-  echo VITE_API_URL=http://!USER_IP!:3001/api
+  echo VITE_API_URL=/api
 ) > "%AGENDA_DIR%\.env"
 
 (
-  echo VITE_API_URL=http://!USER_IP!:3001/api
+  echo VITE_API_URL=/api
   echo COMPOSE_PROFILES=
   echo INSTALL_WAHA=false
   echo WAHA_API_KEY=218c0effefb845238a1ae3651c8ced5b
@@ -447,20 +447,29 @@ for /f "tokens=*" %%i in ('powershell -NoProfile -Command "(Get-NetIPAddress -Ad
 )
 
 echo IP detectado na rede local: !LOCAL_IP!
-set /p "NEW_IP=Digite o novo endereco IP ou Dominio [!LOCAL_IP!]: "
-if "!NEW_IP!"=="" set "NEW_IP=!LOCAL_IP!"
+echo.
+echo Arquitetura com Proxy Reverso Ativo:
+echo O portal de agendamento utiliza a rota relativa (/api).
+echo Celulares no mesmo Wi-Fi acessam diretamente por:
+echo http://!LOCAL_IP!:5173 (sem necessidade de abrir porta 3001)
+echo.
+set /p "CUSTOM_API=Deseja manter o padrao (/api) ou informar URL externa? [/api]: "
+if "!CUSTOM_API!"=="" set "CUSTOM_API=/api"
 
 (
-  echo VITE_API_URL=http://!NEW_IP!:3001/api
+  echo VITE_API_URL=!CUSTOM_API!
 ) > "%AGENDA_DIR%\.env"
 
 (
   findstr /v /i "VITE_API_URL" .env 2>nul
-  echo VITE_API_URL=http://!NEW_IP!:3001/api
+  echo VITE_API_URL=!CUSTOM_API!
 ) > .env.tmp && move /y .env.tmp .env >nul 2>&1
 
 echo.
-echo [OK] Endereco atualizado para http://!NEW_IP!:3001/api
+echo [OK] Configuracao de API atualizada para: !CUSTOM_API!
+echo  - Acesso local:              http://localhost:5173
+echo  - Acesso no Wi-Fi (Mobile):  http://!LOCAL_IP!:5173
+echo.
 set /p "REBLD=Deseja reconstruir o portal de agendamento agora? [S/n]: "
 if "!REBLD!"=="" set "REBLD=S"
 if /i "!REBLD!"=="S" (

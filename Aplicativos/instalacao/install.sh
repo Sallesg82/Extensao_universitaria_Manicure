@@ -430,11 +430,11 @@ INSTALL_WAHA=false
 ENV_CRM
 
     cat <<ENV_AGD > "$AGENDA_DIR/.env"
-VITE_API_URL=http://$USER_IP:3001/api
+VITE_API_URL=/api
 ENV_AGD
 
     cat <<ENV_ROOT > "$SCRIPT_DIR/.env"
-VITE_API_URL=http://$USER_IP:3001/api
+VITE_API_URL=/api
 COMPOSE_PROFILES=
 INSTALL_WAHA=false
 WAHA_API_KEY=218c0effefb845238a1ae3651c8ced5b
@@ -757,27 +757,35 @@ action_network_config() {
     show_header
     echo -e "${C_BOLD}${C_MAGENTA}--- [7] CONFIGURACAO DE REDE & IP DE ACESSO ---${C_RESET}\n"
     
-    local CURRENT_API="localhost"
+    local CURRENT_API="/api"
     if [ -f "$SCRIPT_DIR/.env" ]; then
-        CURRENT_API=$(grep VITE_API_URL "$SCRIPT_DIR/.env" | cut -d'=' -f2 || echo "http://localhost:3001/api")
+        CURRENT_API=$(grep VITE_API_URL "$SCRIPT_DIR/.env" | cut -d'=' -f2 || echo "/api")
     fi
-    echo -e "URL da API configurada atualmente: ${C_B_CYAN}$CURRENT_API${C_RESET}"
+    echo -e "Configuracao de API atual:         ${C_B_CYAN}$CURRENT_API${C_RESET}"
     
     local DETECTED_IP
     DETECTED_IP=$(detect_local_ip)
     echo -e "IP detectado na rede local:        ${C_WHITE}${C_BOLD}$DETECTED_IP${C_RESET}"
     echo ""
-    read -rp "Digite o novo IP ou Dominio (ou ENTER para manter [$DETECTED_IP]): " NEW_IP
-    NEW_IP=${NEW_IP:-$DETECTED_IP}
+    echo -e "  ${C_B_GREEN}ℹ️ Arquitetura com Proxy Reverso Ativo:${C_RESET}"
+    echo -e "  O portal de agendamento se comunica via rota relativa (/api)."
+    echo -e "  Smartphones no mesmo Wi-Fi acessam diretamente por:"
+    echo -e "  ${C_B_CYAN}http://$DETECTED_IP:5173${C_RESET} (sem necessidade de abrir a porta 3001)\n"
+
+    read -rp "Deseja manter o padrao recomendado (/api) ou informar URL externa? [/api]: " NEW_API
+    NEW_API=${NEW_API:-/api}
 
     cat <<ENV_AGD > "$AGENDA_DIR/.env"
-VITE_API_URL=http://$NEW_IP:3001/api
+VITE_API_URL=$NEW_API
 ENV_AGD
     sed -i '/VITE_API_URL/d' "$SCRIPT_DIR/.env" 2>/dev/null || true
-    echo "VITE_API_URL=http://$NEW_IP:3001/api" >> "$SCRIPT_DIR/.env"
+    echo "VITE_API_URL=$NEW_API" >> "$SCRIPT_DIR/.env"
 
-    echo -e "\n${C_B_GREEN}[OK] Configuracoes de rede atualizadas para: http://$NEW_IP:3001/api${C_RESET}"
-    read -rp "Deseja recompilar o portal de agendamento agora para aplicar o novo endereco? [S/n]: " REC
+    echo -e "\n${C_B_GREEN}[OK] Configuracoes salvas: VITE_API_URL=$NEW_API${C_RESET}"
+    echo -e "  • Acesso local:              http://localhost:5173"
+    echo -e "  • Acesso no Wi-Fi (Mobile):  http://$DETECTED_IP:5173"
+    echo ""
+    read -rp "Deseja recompilar o portal de agendamento agora para garantir aplicacao? [S/n]: " REC
     REC=${REC:-S}
     if [[ "$REC" =~ ^[Ss]$ ]]; then
         $COMPOSE_CMD up -d --build agendamento-app

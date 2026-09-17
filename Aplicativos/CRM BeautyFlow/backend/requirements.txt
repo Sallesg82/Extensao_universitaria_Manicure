@@ -11,3 +11,5 @@ google-auth==2.32.0
 google-auth-oauthlib==1.2.1
 google-api-python-client==2.133.0
 requests-oauthlib==2.0.0
+simple-websocket>=1.1.0
+tzdata>=2024.1

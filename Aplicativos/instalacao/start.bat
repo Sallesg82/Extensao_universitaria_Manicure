@@ -36,6 +36,13 @@ echo [OK] Plataforma BeautyFlow iniciada com sucesso!
 echo ==================================================================
 echo  • CRM BeautyFlow (Gestao):   http://localhost:3001
 echo  • Portal de Agendamento:     http://localhost:5173
+set "LOCAL_IP="
+for /f "tokens=*" %%i in ('powershell -NoProfile -Command "(Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notlike '*Loopback*' -and $_.IPAddress -notlike '169.254*' } | Select-Object -First 1).IPAddress" 2^>nul') do (
+    if not "%%i"=="" set "LOCAL_IP=%%i"
+)
+if defined LOCAL_IP (
+    echo  • Acesso Mobile (mesmo Wi-Fi): http://!LOCAL_IP!:5173
+)
 echo  • PostgreSQL DB:             localhost:5432
 docker ps --format "{{.Names}}" 2>nul | findstr /i "beautyflow-waha waha" >nul 2>&1
 if !errorlevel! equ 0 (

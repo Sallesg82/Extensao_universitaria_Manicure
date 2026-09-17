@@ -7,6 +7,10 @@ from decimal import Decimal
 from psycopg_pool import ConnectionPool
 from psycopg.rows import dict_row
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 raw_url = os.environ.get('DATABASE_URL',
                           'postgresql://postgres:beautyflow_pass@localhost:5432/beautyflow')
 
@@ -723,7 +727,7 @@ def ensure_default_data():
                 ('Cera Depilatória', 'amber', 0, 45.0, 2, true),
                 ('Henna para Sobrancelha', 'amber', 2, 20.0, 4, false),
                 ('Toalhas Descartáveis', 'blue', 8, 18.0, 4, false),
-                ('Álcool 70%', 'purple', 6, 10.0, 3, false),
+                ('Álcool 70%%', 'purple', 6, 10.0, 3, false),
                 ('Palito de Laranjeira', 'pink', 15, 3.0, 6, false)
             ON CONFLICT DO NOTHING;
         """)
@@ -983,9 +987,10 @@ def _counts_as_revenue(appt):
 
 def all_clients():
     sql = (
-        'SELECT c.*, COUNT(a.id) AS visits, '
-        'COALESCE(SUM(a.price) FILTER (WHERE a.status = %s), 0) AS total_spent, '
-        'MAX(a.appointment_date) AS last_visit '
+        'SELECT c.*, '
+        'COUNT(a.id) FILTER (WHERE a.status != \'cancelled\') AS visits, '
+        'COALESCE(SUM(a.price) FILTER (WHERE a.status = %s OR a.payment_status = \'paid\'), 0) AS total_spent, '
+        'MAX(a.appointment_date) FILTER (WHERE a.status != \'cancelled\') AS last_visit '
         'FROM clients c LEFT JOIN appointments a ON a.client_id = c.id '
         'GROUP BY c.id ORDER BY c.name'
     )
@@ -997,16 +1002,17 @@ def get_client(client_id):
     c = r.data
     a = get_db().table(TABLE_APPOINTMENTS).select('*').eq('client_id', client_id).order('appointment_date', desc=True).order('appointment_time', desc=True).execute()
     appts = a.data or []
-    c['visits'] = len(appts)
-    c['total_spent'] = sum(float(row.get('price', 0) or 0) for row in appts if counts_as_revenue(row.get('status')))
-    c['last_visit'] = appts[0]['appointment_date'] if appts else None
+    valid_appts = [row for row in appts if row.get('status') != 'cancelled']
+    c['visits'] = len(valid_appts)
+    c['total_spent'] = sum(float(row.get('price', 0) or 0) for row in appts if counts_as_revenue(row.get('status')) or row.get('payment_status') == 'paid')
+    c['last_visit'] = valid_appts[0]['appointment_date'] if valid_appts else None
     c['appointments'] = [
         {**row, 'appointment_time': row['appointment_time'][:5] if row.get('appointment_time') and len(row['appointment_time']) >= 5 else (row.get('appointment_time') or '')}
         for row in appts
     ]
     svc_usage = {}
     for row in appts:
-        if counts_as_revenue(row.get('status')):
+        if row.get('status') in ('done', 'confirmed'):
             svc = row.get('service') or 'Outros'
             svc_usage[svc] = svc_usage.get(svc, 0) + 1
     c['service_usage'] = sorted(
@@ -1558,7 +1564,28 @@ def _criar_tabela_business_hours():
     if _BH_ALERTADO:
         return
     _BH_ALERTADO = True
-    print("[DB] Tabela 'business_hours' não encontrada — o schema será inicializado automaticamente.")
+    try:
+        _run("""
+            CREATE TABLE IF NOT EXISTS public.business_hours (
+                id SERIAL PRIMARY KEY,
+                day text NOT NULL,
+                open text DEFAULT '08:00'::text NOT NULL,
+                close text DEFAULT '18:00'::text NOT NULL,
+                closed boolean DEFAULT false NOT NULL,
+                created_at timestamp with time zone DEFAULT now(),
+                updated_at timestamp with time zone DEFAULT now(),
+                CONSTRAINT business_hours_day_unique UNIQUE (day)
+            );
+        """)
+        for d, h in DEFAULT_HOURS.items():
+            _run("""
+                INSERT INTO public.business_hours (day, open, close, closed)
+                VALUES (%s, %s, %s, %s)
+                ON CONFLICT (day) DO NOTHING;
+            """, (d, h['open'], h['close'], h['closed']))
+        print("[DB] Tabela 'business_hours' verificada/criada com sucesso.")
+    except Exception as e:
+        print(f"[DB] Erro ao criar tabela 'business_hours': {e}")
 
 
 def _migrate_business_hours():

@@ -96,8 +96,9 @@ install.bat
 * **[6] Resetar Banco (Limpar e recriar estrutura)**: Exige digitação da palavra `RESET` e recria o banco limpo com dados padrão e catálogo inicial.
 
 ### [7] Configurar IP de Rede & URL da API
-* Permite alterar o endereço de rede acessível por clientes externos ou dispositivos na mesma rede Wi-Fi.
-* Atualiza os arquivos de configuração e oferece recompilação imediata do frontend de agendamento.
+* O sistema opera com proxy reverso integrado (Nginx), roteando `/api/` e `/socket.io/` diretamente para o CRM backend.
+* Dispositivos e smartphones no mesmo Wi-Fi acessam diretamente pelo endereço `http://<IP_DA_MAQUINA>:5173`, sem necessidade de liberar portas extras no roteador ou recompilar ao trocar de rede.
+* Esta opção permite visualizar o IP local detectado ou configurar uma URL externa customizada caso o sistema seja publicado em domínio público.
 
 ### [8] Ver Logs em Tempo Real
 * Streaming contínuo de logs:

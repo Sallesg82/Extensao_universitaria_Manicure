@@ -1,12 +1,67 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { io } from "socket.io-client";
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:3001/api";
-const SOCKET = io(API.replace(/\/api\/?$/, ""), {
-  transports: ["websocket", "polling"],
+function resolveApiUrl() {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl && envUrl.trim() && !envUrl.includes("192.168.2.61")) {
+    return envUrl.replace(/\/+$/, "");
+  }
+  return "/api";
+}
+
+let activeApi = resolveApiUrl();
+
+function getSocketUrl(apiUrl) {
+  if (apiUrl.startsWith("http://") || apiUrl.startsWith("https://")) {
+    return apiUrl.replace(/\/api\/?$/, "");
+  }
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+  return "http://localhost:3001";
+}
+
+const SOCKET = io(getSocketUrl(activeApi), {
+  transports: ["polling", "websocket"],
   reconnection: true,
   reconnectionDelay: 2000,
 });
+
+async function apiFetch(path, options = {}) {
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  const tryUrl = (base) => `${base.replace(/\/+$/, "")}${cleanPath}`;
+
+  try {
+    const res = await fetch(tryUrl(activeApi), options);
+    const contentType = res.headers.get("content-type") || "";
+    if (contentType.includes("text/html") && activeApi === "/api") {
+      throw new Error("Proxy retornou HTML em vez de JSON");
+    }
+    return res;
+  } catch (err) {
+    if (activeApi === "/api" && typeof window !== "undefined") {
+      const fallbackHost = window.location.hostname || "localhost";
+      const fallbackBase = `http://${fallbackHost}:3001/api`;
+      try {
+        const fallbackRes = await fetch(tryUrl(fallbackBase), options);
+        activeApi = fallbackBase;
+        return fallbackRes;
+      } catch {
+        throw err;
+      }
+    }
+    throw err;
+  }
+}
+
+const FALLBACK_SERVICES = [
+  { id: 1, nome: "Manicure Tradicional", preco: 45.0, duracao: 45, buffer: 15 },
+  { id: 2, nome: "Pedicure Tradicional", preco: 50.0, duracao: 45, buffer: 15 },
+  { id: 3, nome: "Combo Manicure + Pedicure", preco: 85.0, duracao: 80, buffer: 15 },
+  { id: 4, nome: "Alongamento em Gel", preco: 150.0, duracao: 120, buffer: 15 },
+  { id: 5, nome: "Spa dos Pés", preco: 70.0, duracao: 60, buffer: 15 },
+  { id: 6, nome: "Esmaltação em Gel", preco: 65.0, duracao: 60, buffer: 15 },
+];
 
 const CheckIcon = () => (
   <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
@@ -57,7 +112,7 @@ function StudioHeader({ etapa, onBack }) {
         <div className="studio-logo-icon">🌸</div>
         <div>
           <div className="studio-logo-text">Beatriz Gomes Studio</div>
-          <div className="studio-logo-sub">Extensão de Cílios</div>
+          <div className="studio-logo-sub">Extensão de Cílios & Beleza</div>
         </div>
       </div>
       <div className="progress-bar-wrap" aria-label={`Etapa ${etapa} de 2`}>
@@ -99,6 +154,18 @@ function formatPriceParts(price) {
   return { inteiro, cents };
 }
 
+function formatDuracao(min) {
+  if (!min) return "30min";
+  if (typeof min === "string" && (min.includes("min") || min.includes("h"))) return min;
+  const num = Number(min) || 30;
+  if (num >= 60) {
+    const h = Math.floor(num / 60);
+    const m = num % 60;
+    return m ? `${h}h${m}` : `${h}h`;
+  }
+  return `${num}min`;
+}
+
 function ServiceCard({ item, selected, onClick }) {
   const { inteiro, cents } = formatPriceParts(item.preco);
 
@@ -135,21 +202,12 @@ function ServiceCard({ item, selected, onClick }) {
         </div>
         <div className="service-duration">
           <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}>
-            <ClockIcon /> {item.duracao}
+            <ClockIcon /> {formatDuracao(item.duracao)}
           </span>
         </div>
       </div>
     </div>
   );
-}
-
-function formatDuracao(min) {
-  if (min >= 60) {
-    const h = Math.floor(min / 60);
-    const m = min % 60;
-    return m ? `${h}h${m}` : `${h}h`;
-  }
-  return `${min}min`;
 }
 
 function getLocalDateString(d = new Date()) {
@@ -204,7 +262,7 @@ function SuccessModal({ data, onClose }) {
         </div>
 
         <h2 className="modal-title">Agendamento Confirmado!</h2>
-        <p className="modal-sub">Seu horário foi reservado com sucesso</p>
+        <p className="modal-sub">Seu horário foi reservado com sucesso no sistema</p>
 
         <div className="modal-details">
           <div className="modal-row">
@@ -226,7 +284,7 @@ function SuccessModal({ data, onClose }) {
         </div>
 
         <button className="btn-primary" onClick={onClose} style={{ marginTop: "24px" }}>
-          <span className="btn-icon">Perfeito! ✨</span>
+          <span className="btn-icon">Fazer Novo Agendamento ✨</span>
         </button>
       </div>
     </div>
@@ -251,6 +309,7 @@ export default function App() {
   const [servicos, setServicos] = useState([]);
   const [loadingServicos, setLoadingServicos] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
+  const [servicosError, setServicosError] = useState("");
 
   const servicoRef = useRef(servicoSelecionado);
   const dateRef = useRef(date);
@@ -264,13 +323,18 @@ export default function App() {
   }, [date]);
 
   const carregarServicos = useCallback(() => {
-    fetch(API + "/services/")
+    Promise.resolve().then(() => {
+      setLoadingServicos(true);
+      setServicosError("");
+    });
+
+    apiFetch("/services/")
       .then((r) => {
-        if (!r.ok) throw new Error("Erro ao consultar serviços");
+        if (!r.ok) throw new Error(`Erro ao consultar serviços (HTTP ${r.status})`);
         return r.json();
       })
       .then((data) => {
-        if (Array.isArray(data)) {
+        if (Array.isArray(data) && data.length > 0) {
           setServicos(
             data.map((s) => ({
               id: s.id,
@@ -281,12 +345,13 @@ export default function App() {
             }))
           );
         } else {
-          setServicos([]);
+          setServicos(FALLBACK_SERVICES);
         }
       })
       .catch((err) => {
         console.error("Erro ao carregar serviços:", err);
-        setServicos([]);
+        setServicos((prev) => (prev.length > 0 ? prev : FALLBACK_SERVICES));
+        setServicosError("Não foi possível carregar serviços do banco de dados. Exibindo catálogo padrão.");
       })
       .finally(() => setLoadingServicos(false));
   }, []);
@@ -299,8 +364,12 @@ export default function App() {
     if (!svc || !dataEscolhida) return;
     const dur = svc.duracao;
     const buf = svc.buffer || 0;
+    Promise.resolve().then(() => {
+      setLoadingSlots(true);
+      setSlotsError("");
+    });
 
-    fetch(`${API}/available-slots?date=${dataEscolhida}&duration=${dur}&buffer=${buf}`)
+    apiFetch(`/available-slots?date=${dataEscolhida}&duration=${dur}&buffer=${buf}`)
       .then((r) => {
         if (!r.ok) throw new Error("Erro ao buscar horários");
         return r.json();
@@ -340,7 +409,6 @@ export default function App() {
       if (data?.type === "service") {
         carregarServicos();
       } else if (data?.type === "appointment" && servicoRef.current && dateRef.current) {
-        setLoadingSlots(true);
         buscarHorarios(servicoRef.current, dateRef.current);
       }
     };
@@ -348,7 +416,6 @@ export default function App() {
     const onApptCreated = (data) => {
       console.log("[App Agendamento] Novo agendamento:", data);
       if (servicoRef.current && dateRef.current) {
-        setLoadingSlots(true);
         buscarHorarios(servicoRef.current, dateRef.current);
       }
     };
@@ -370,6 +437,9 @@ export default function App() {
     setNome(nomeInput.trim());
     setEtapa(2);
     setErrorMsg("");
+    if (servicos.length === 0) {
+      carregarServicos();
+    }
   }
 
   function voltarParaIdentificacao() {
@@ -377,26 +447,19 @@ export default function App() {
     setErrorMsg("");
   }
 
-  async function buscarCliente(clientNome, clientPhone) {
+  async function buscarCliente(clientPhone) {
     try {
-      const res = await fetch(`${API}/clients/`);
+      const res = await apiFetch("/clients/");
       if (!res.ok) return null;
       const clients = await res.json();
       if (!Array.isArray(clients)) return null;
 
-      const cleanPhone = clientPhone.replace(/\D/g, "");
-      const cleanName = clientNome.trim().toLowerCase();
-
-      if (cleanPhone) {
-        const matchByPhone = clients.find(
-          (c) => (c.phone || "").replace(/\D/g, "") === cleanPhone
-        );
-        if (matchByPhone) return matchByPhone;
-      }
+      const cleanPhone = (clientPhone || "").replace(/\D/g, "");
+      if (!cleanPhone) return null;
 
       return clients.find(
-        (c) => (c.name || "").trim().toLowerCase() === cleanName
-      );
+        (c) => (c.phone || "").replace(/\D/g, "") === cleanPhone
+      ) || null;
     } catch {
       return null;
     }
@@ -411,10 +474,10 @@ export default function App() {
       const cleanNome = nome.trim();
       const cleanPhone = phone.trim();
 
-      let client = await buscarCliente(cleanNome, cleanPhone);
+      let client = await buscarCliente(cleanPhone);
 
       if (!client) {
-        const clientRes = await fetch(`${API}/clients/`, {
+        const clientRes = await apiFetch("/clients/", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name: cleanNome, phone: cleanPhone }),
@@ -429,7 +492,7 @@ export default function App() {
         client = await clientRes.json();
       }
 
-      const apptRes = await fetch(`${API}/appointments/`, {
+      const apptRes = await apiFetch("/appointments/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -498,6 +561,7 @@ export default function App() {
       <StudioHeader etapa={etapa} onBack={voltarParaIdentificacao} />
 
       <main className="app-container">
+        {/* ETAPA 1: IDENTIFICAÇÃO / CADASTRO DO CLIENTE */}
         {etapa === 1 && (
           <div>
             <div className="chat-wrap">
@@ -561,6 +625,7 @@ export default function App() {
           </div>
         )}
 
+        {/* ETAPA 2: SERVIÇOS E ESCOLHA DE DATA/HORÁRIO */}
         {etapa === 2 && (
           <div>
             <div className="chat-wrap">
@@ -588,15 +653,23 @@ export default function App() {
               <div className="section-eyebrow">Serviços disponíveis</div>
               <div className="section-title">O que você procura?</div>
 
-              {loadingServicos ? (
+              {servicosError && servicos.length === 0 ? (
+                <div className="slots-empty">
+                  <span style={{ fontSize: "32px" }}>⚠️</span>
+                  <p>{servicosError}</p>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={carregarServicos}
+                    style={{ marginTop: "12px", width: "auto", padding: "8px 20px" }}
+                  >
+                    <span className="btn-icon">Tentar novamente 🔄</span>
+                  </button>
+                </div>
+              ) : loadingServicos && servicos.length === 0 ? (
                 <div className="slots-loading">
                   <span className="loading-dots"><span /><span /><span /></span>
-                  <span style={{ marginLeft: "8px", color: "var(--text-muted)" }}>Carregando serviços...</span>
-                </div>
-              ) : servicos.length === 0 ? (
-                <div className="slots-empty">
-                  <span style={{ fontSize: "32px" }}>💅</span>
-                  <p>Nenhum serviço disponível no momento.</p>
+                  <span style={{ marginLeft: "8px", color: "var(--text-muted)" }}>Carregando serviços do banco de dados...</span>
                 </div>
               ) : (
                 <div className="services-scroll">
@@ -607,7 +680,7 @@ export default function App() {
                       className="fadeUp"
                     >
                       <ServiceCard
-                        item={{ ...item, duracao: formatDuracao(item.duracao) }}
+                        item={item}
                         selected={servicoSelecionado?.id === item.id}
                         onClick={() => {
                           setServicoSelecionado(item);
@@ -616,7 +689,11 @@ export default function App() {
                           setDataInfo(null);
                           setSlotsError("");
                           setErrorMsg("");
-                          if (date) setLoadingSlots(true);
+                          const targetDate = date || todayStr;
+                          if (!date) {
+                            setDate(targetDate);
+                          }
+                          buscarHorarios(item, targetDate);
                         }}
                       />
                     </div>
@@ -636,8 +713,10 @@ export default function App() {
                     <div className="divider-text">escolha a data</div>
                   </div>
 
-                  <div style={{ marginBottom: "16px" }}>
-                    <label htmlFor="input-date" className="form-label">📅 Data do agendamento</label>
+                  <div style={{ marginBottom: "20px" }}>
+                    <label htmlFor="input-date" className="form-label" style={{ marginBottom: "8px", fontWeight: 600, display: "flex", alignItems: "center", gap: "6px" }}>
+                      <span>📅</span> Data do agendamento
+                    </label>
                     <input
                       id="input-date"
                       type="date"
@@ -650,7 +729,9 @@ export default function App() {
                         setDataInfo(null);
                         setSlotsError("");
                         setErrorMsg("");
-                        if (val) setLoadingSlots(true);
+                        if (val && servicoSelecionado) {
+                          buscarHorarios(servicoSelecionado, val);
+                        }
                       }}
                       className="input-field"
                       min={todayStr}
@@ -736,42 +817,68 @@ export default function App() {
 
               {servicoSelecionado && date && time && (
                 <div className="summary-card" style={{ animationDelay: "0.1s" }}>
-                  <div className="deco-line" />
-                  <div style={{ marginBottom: "16px" }}>
-                    <div className="section-eyebrow">Resumo do agendamento</div>
+                  <div className="summary-header">
+                    <div className="summary-badge">
+                      <SparkleIcon /> Resumo do Agendamento
+                    </div>
+                    <div className="summary-title">Tudo pronto para o seu momento ✨</div>
                   </div>
-                  <div className="summary-row">
-                    <span className="summary-label">Cliente</span>
-                    <span className="summary-value">{nome} ({phone})</span>
+
+                  {/* Destaque do Serviço e Valor */}
+                  <div className="summary-hero">
+                    <div className="summary-hero-left">
+                      <div className="summary-hero-icon">💅</div>
+                      <div>
+                        <div className="summary-hero-name">{servicoSelecionado.nome}</div>
+                        <div className="summary-hero-duration">
+                          <ClockIcon /> {formatDuracao(servicoSelecionado.duracao)}
+                          {servicoSelecionado.buffer > 0 && (
+                            <span className="summary-buffer-tag">+{servicoSelecionado.buffer}min intervalo</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="summary-hero-price">
+                      <span className="summary-currency">R$</span>
+                      <span className="summary-amount">
+                        {Number(servicoSelecionado.preco).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
                   </div>
-                  <div className="summary-row">
-                    <span className="summary-label">Serviço</span>
-                    <span className="summary-value">{servicoSelecionado.nome}</span>
+
+                  {/* Grid com Informações Amigáveis */}
+                  <div className="summary-grid">
+                    {/* Bloco Data & Horário */}
+                    <div className="summary-box summary-box-time">
+                      <div className="summary-box-label">
+                        <span>📅</span> Data & Horário
+                      </div>
+                      <div className="summary-box-value-highlight">
+                        {formattedDate}
+                      </div>
+                      <div className="summary-time-pill">
+                        ⏰ às {time}
+                      </div>
+                    </div>
+
+                    {/* Bloco Cliente */}
+                    <div className="summary-box summary-box-client">
+                      <div className="summary-box-label">
+                        <span>👤</span> Cliente
+                      </div>
+                      <div className="summary-box-value">
+                        {nome}
+                      </div>
+                      <div className="summary-phone-sub">
+                        📱 {phone}
+                      </div>
+                    </div>
                   </div>
-                  <div className="summary-row">
-                    <span className="summary-label">Valor</span>
-                    <span className="summary-value">
-                      R$ {Number(servicoSelecionado.preco).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                    </span>
-                  </div>
-                  <div className="summary-row">
-                    <span className="summary-label">Data</span>
-                    <span className="summary-value">{formattedDate}</span>
-                  </div>
-                  <div className="summary-row">
-                    <span className="summary-label">Horário</span>
-                    <span className="summary-value">{time}</span>
-                  </div>
-                  <div className="summary-row">
-                    <span className="summary-label">Duração estimada</span>
-                    <span className="summary-value">
-                      {formatDuracao(servicoSelecionado.duracao)}
-                      {servicoSelecionado.buffer > 0 && (
-                        <span style={{ fontSize: "12px", color: "var(--text-muted)", marginLeft: "4px" }}>
-                          (+{servicoSelecionado.buffer}min de intervalo)
-                        </span>
-                      )}
-                    </span>
+
+                  {/* Rodapé Amigável */}
+                  <div className="summary-footer">
+                    <span>✨</span>
+                    <span>Horário exclusivo reservado para você no Beatriz Gomes Studio.</span>
                   </div>
                 </div>
               )}

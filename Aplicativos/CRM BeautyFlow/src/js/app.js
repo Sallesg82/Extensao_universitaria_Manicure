@@ -114,6 +114,7 @@ window.addEventListener('focus', () => {
 document.addEventListener('DOMContentLoaded', () => {
   const saved = localStorage.getItem('bf_user')
   if (saved) connectSocket()
+  checkWahaStatus().then(updateWhatsappButtonsVisibility).catch(() => {})
 })
 
 function renderLoginForm() {
@@ -1037,16 +1038,72 @@ async function syncDetailToGoogle() {
 let clientsCache = []
 let selectedClientId = null
 
+function formatPhone(phone) {
+  if (!phone) return ''
+  const digits = String(phone).replace(/\D/g, '')
+  if (digits.length === 11) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`
+  }
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`
+  }
+  return phone
+}
+
+function hasWhatsappIntegration() {
+  return !!(window._wahaStatus && window._wahaStatus.installed && window._wahaStatus.is_integrated)
+}
+
+function updateWhatsappButtonsVisibility() {
+  const isIntegrated = hasWhatsappIntegration()
+  const btnDirect = document.getElementById('btn-cd-whatsapp-direct')
+  const btnNotify = document.getElementById('btn-waha-notify-client')
+  if (btnDirect) {
+    btnDirect.style.display = isIntegrated ? '' : 'none'
+  }
+  if (btnNotify) {
+    btnNotify.style.display = isIntegrated ? '' : 'none'
+  }
+}
+
+function agendarParaClienteAtual() {
+  if (!selectedClientId) return
+  openAppointmentModal(null, null, selectedClientId)
+}
+
+function abrirWhatsAppCliente() {
+  if (!window._selectedClientData || !window._selectedClientData.phone) {
+    showToast('Cliente não possui telefone cadastrado.')
+    return
+  }
+  let digits = String(window._selectedClientData.phone).replace(/\D/g, '')
+  if (!digits) {
+    showToast('Número de telefone inválido.')
+    return
+  }
+  if (digits.length <= 11 && !digits.startsWith('55')) {
+    digits = '55' + digits
+  }
+  window.open(`https://wa.me/${digits}`, '_blank')
+}
+
 async function loadClients() {
   try {
+    if (window._wahaStatus === undefined) {
+      checkWahaStatus().then(updateWhatsappButtonsVisibility).catch(() => {})
+    } else {
+      updateWhatsappButtonsVisibility()
+    }
+
     const res = await fetch(API + '/clients/')
     const clients = await res.json()
-    clientsCache = clients
-    const activeTab = document.querySelector('.filter-tab.active')
+    clientsCache = clients || []
+    const activeTab = document.querySelector('#page-clientes .filter-tab.active')
     const filter = activeTab?.getAttribute('data-filter') || 'all'
     filterClients(filter)
-    pageConfig.clientes.sub = clients.length + ' clientes cadastrados'
-    document.getElementById('page-sub').textContent = pageConfig.clientes.sub
+    pageConfig.clientes.sub = clientsCache.length + ' clientes cadastrados'
+    const subEl = document.getElementById('page-sub')
+    if (subEl) subEl.textContent = pageConfig.clientes.sub
   } catch (e) {
     console.error('Erro ao carregar clientes:', e)
   }
@@ -1056,39 +1113,57 @@ function renderClientList(clients) {
   const list = document.getElementById('client-list')
   if (!list) return
 
-  if (clients.length === 0) {
-    list.innerHTML = ''
+  if (!clients || clients.length === 0) {
+    list.innerHTML = `
+      <div class="clients-empty-state">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#8aaccb" stroke-width="1.5">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+        <div class="empty-title">Nenhum cliente encontrado</div>
+        <div class="empty-sub">Tente ajustar a busca ou os filtros aplicados</div>
+        <button class="btn-primary" style="margin-top:12px;" onclick="openClientModal()">+ Nova Cliente</button>
+      </div>`
     clearClientDetail()
     return
   }
 
-  list.innerHTML = clients.map((c, i) => {
+  const statusMap = { frequente: 'Frequente', regular: 'Regular', novo: 'Novo', inativo: 'Inativo', inadimplente: 'Inadimplente' }
+  const statusClassMap = { frequente: 'status-done', regular: 'status-confirmed', novo: 'status-pending', inativo: 'status-pending', inadimplente: 'status-cancelled' }
+
+  list.innerHTML = clients.map((c) => {
+    const isSelected = selectedClientId === c.id
     const lastDate = c.last_visit ? c.last_visit.split('T')[0].split('-').reverse().join('/') : '—'
-    const statusMap = { frequente: 'Frequente', regular: 'Regular', novo: 'Novo', inativo: 'Inativo', inadimplente: 'Inadimplente' }
-    const statusClassMap = { frequente: 'status-done', regular: 'status-confirmed', novo: 'status-pending', inativo: 'status-pending', inadimplente: 'status-cancelled' }
     const label = statusMap[c.status] || c.status
     const cls = statusClassMap[c.status] || 'status-pending'
-    const spent = 'R$ ' + Number(c.total_spent).toLocaleString('pt-BR', {minimumFractionDigits: 0})
+    const spent = 'R$ ' + Number(c.total_spent || 0).toLocaleString('pt-BR', {minimumFractionDigits: 0})
     const caloteiroIcon = c.status === 'inadimplente' ? '<span style="color:#c05050;font-size:13px;margin-right:4px;" title="Inadimplente">⚠</span>' : ''
+    const phoneFormatted = formatPhone(c.phone)
+
     return `
-      <div class="client-row${i === 0 ? ' selected' : ''}" onclick="selectClient(this, ${c.id})">
+      <div class="client-row${isSelected ? ' selected' : ''}" data-id="${c.id}" onclick="selectClient(this, ${c.id})">
         <div class="client-info-cell">
           <div class="client-av" style="background:${c.avatar_bg};color:${c.avatar_color};">${c.avatar_initials}</div>
           <div>
             <div class="client-name-cell">${caloteiroIcon}${c.name}</div>
-            <div class="client-phone">${c.phone}</div>
+            <div class="client-phone">${phoneFormatted}</div>
           </div>
         </div>
         <div class="td">${lastDate}</div>
-        <div class="td">${c.visits}</div>
+        <div class="td">${c.visits || 0}</div>
         <div class="td money">${spent}</div>
         <span class="appt-status ${cls}">${label}</span>
       </div>`
   }).join('')
 
   if (clients.length > 0) {
-    const firstRow = document.querySelector('.client-row')
-    if (firstRow) selectClient(firstRow, clients[0].id)
+    const targetId = (selectedClientId && clients.some(c => c.id === selectedClientId))
+      ? selectedClientId
+      : clients[0].id
+    const rowEl = document.querySelector(`.client-row[data-id="${targetId}"]`) || document.querySelector('.client-row')
+    if (rowEl) selectClient(rowEl, targetId)
   }
 }
 
@@ -1096,26 +1171,36 @@ async function selectClient(row, clientId) {
   selectedClientId = clientId
   const detail = document.getElementById('client-detail')
   if (detail) detail.style.display = ''
+  updateWhatsappButtonsVisibility()
   document.querySelectorAll('.client-row').forEach(r => r.classList.remove('selected'))
-  if (row) row.classList.add('selected')
+  if (row) {
+    row.classList.add('selected')
+  } else {
+    const targetRow = document.querySelector(`.client-row[data-id="${clientId}"]`)
+    if (targetRow) targetRow.classList.add('selected')
+  }
 
   try {
     const res = await fetch(API + '/clients/' + clientId)
     const c = await res.json()
     window._selectedClientData = c
 
-    document.getElementById('cd-av').textContent = c.avatar_initials
-    document.getElementById('cd-av').style.background = c.avatar_bg
-    document.getElementById('cd-av').style.color = c.avatar_color
-    document.getElementById('cd-name').textContent = c.name
-    const since = c.created_at ? c.created_at.split('T')[0] : ''
+    document.getElementById('cd-av').textContent = c.avatar_initials || '—'
+    document.getElementById('cd-av').style.background = c.avatar_bg || '#daeaf8'
+    document.getElementById('cd-av').style.color = c.avatar_color || '#1a5fab'
+    document.getElementById('cd-name').textContent = c.name || 'Cliente'
+    const since = c.created_at ? c.created_at.split('T')[0].split('-').reverse().join('/') : ''
     const cpfStr = c.cpf ? ' · CPF: ' + c.cpf.replace(/^(\d{3})\d{3}(\d{3}\d{2})$/, '$1.***.***.**-$2') : ''
-    document.getElementById('cd-phone').textContent = c.phone + cpfStr + (since ? ' · Cliente desde ' + since : '')
-    document.getElementById('cd-visits').textContent = c.visits
-    document.getElementById('cd-total').textContent = 'R$ ' + Number(c.total_spent).toLocaleString('pt-BR', {minimumFractionDigits:0})
-    const avg = c.visits > 0 ? c.total_spent / c.visits : 0
+    const emailStr = c.email ? ' · ' + c.email : ''
+    document.getElementById('cd-phone').textContent = formatPhone(c.phone) + cpfStr + emailStr + (since ? ' · Desde ' + since : '')
+    
+    document.getElementById('cd-visits').textContent = c.visits || 0
+    document.getElementById('cd-total').textContent = 'R$ ' + Number(c.total_spent || 0).toLocaleString('pt-BR', {minimumFractionDigits: 0})
+    const avg = (c.visits && c.visits > 0) ? (c.total_spent / c.visits) : 0
     document.getElementById('cd-ticket').textContent = 'R$ ' + avg.toFixed(0)
-    document.getElementById('cd-last').textContent = c.last_visit || '—'
+    
+    const lastDate = c.last_visit ? c.last_visit.split('T')[0].split('-').reverse().join('/') : '—'
+    document.getElementById('cd-last').textContent = lastDate
 
     const btnCal = document.getElementById('btn-caloteiro')
     const btnText = document.getElementById('btn-caloteiro-text')
@@ -1131,20 +1216,60 @@ async function selectClient(row, clientId) {
       }
     }
 
+    const notesEl = document.getElementById('cd-notes')
+    if (notesEl) {
+      if (c.notes && c.notes.trim()) {
+        notesEl.textContent = c.notes.trim()
+        notesEl.classList.remove('empty')
+      } else {
+        notesEl.textContent = 'Nenhuma observação registrada'
+        notesEl.classList.add('empty')
+      }
+    }
+
+    const svcEl = document.getElementById('cd-services-list')
+    if (svcEl) {
+      if (c.service_usage && c.service_usage.length > 0) {
+        svcEl.innerHTML = c.service_usage.map(s => `
+          <span class="cd-service-pill">${s.service} <span class="badge-count">${s.count}x</span></span>
+        `).join('')
+      } else {
+        svcEl.innerHTML = '<span class="empty-hint" style="font-size:12px;color:var(--text-faint);font-style:italic;">Nenhum serviço registrado</span>'
+      }
+    }
+
     const hist = document.getElementById('cd-history')
     if (c.appointments && c.appointments.length > 0) {
+      const statusLabels = {
+        done: 'Concluído',
+        confirmed: 'Agendado',
+        pending: 'Pendente',
+        cancelled: 'Cancelado'
+      }
+      const statusClasses = {
+        done: 'status-done',
+        confirmed: 'status-confirmed',
+        pending: 'status-pending',
+        cancelled: 'status-cancelled'
+      }
       hist.innerHTML = c.appointments.map(a => {
-        const dateParts = a.appointment_date.split('-')
-        const dateStr = dateParts.reverse().join('/')
+        const dateStr = a.appointment_date ? a.appointment_date.split('-').reverse().join('/') : '—'
+        const timeStr = a.appointment_time ? a.appointment_time.slice(0, 5) : ''
+        const stLabel = statusLabels[a.status] || a.status
+        const stClass = statusClasses[a.status] || 'status-pending'
+        const priceStr = 'R$ ' + Number(a.price || 0).toLocaleString('pt-BR', {minimumFractionDigits: 0})
         return `
           <div class="history-item">
-            <div class="history-date">${dateStr}</div>
+            <div class="history-top">
+              <span class="history-date">${dateStr}${timeStr ? ' às ' + timeStr : ''}</span>
+              <span class="appt-status ${stClass}">${stLabel}</span>
+            </div>
             <div class="history-svc">${a.service}</div>
-            <div class="history-price">R$ ${a.price.toFixed(0)}</div>
+            <div class="history-price">${priceStr}</div>
           </div>`
       }).join('')
     } else {
-      hist.innerHTML = '<div class="history-item" style="color:var(--text-secondary);">Nenhum atendimento registrado</div>'
+      hist.innerHTML = '<div class="history-item empty" style="color:var(--text-secondary);text-align:center;padding:14px;">Nenhum atendimento registrado</div>'
     }
   } catch (e) {
     console.error('Erro ao carregar detalhes do cliente:', e)
@@ -1162,8 +1287,11 @@ function clearClientDetail() {
   if (el('cd-total')) el('cd-total').textContent = 'R$ 0'
   if (el('cd-ticket')) el('cd-ticket').textContent = 'R$ 0'
   if (el('cd-last')) el('cd-last').textContent = '—'
+  if (el('cd-notes')) { el('cd-notes').textContent = 'Nenhuma observação registrada'; el('cd-notes').classList.add('empty') }
+  if (el('cd-services-list')) el('cd-services-list').innerHTML = ''
   if (el('cd-history')) el('cd-history').innerHTML = ''
   selectedClientId = null
+  window._selectedClientData = null
 }
 
 // ── CONTROLE GLOBAL DE MÊS E ANO (TODAS AS ABAS) ──
@@ -2686,7 +2814,7 @@ function refreshAgenda() {
 
 // ── MODAL AGENDAMENTO (criar/editar) ──────────────
 
-async function openAppointmentModal(date, time) {
+async function openAppointmentModal(date, time, clientId) {
   const overlay = document.getElementById('modal-overlay')
   const title = document.getElementById('modal-title')
   const saveBtn = document.getElementById('modal-save-btn')
@@ -2706,7 +2834,7 @@ async function openAppointmentModal(date, time) {
   await populateClientSelect()
   await populateServiceSelect()
 
-  document.getElementById('appt-client').value = ''
+  document.getElementById('appt-client').value = clientId ? String(clientId) : ''
   document.getElementById('appt-service').value = ''
 
   overlay.classList.add('open')
@@ -3102,15 +3230,28 @@ async function deleteService(svcId) {
 }
 
 function filterClients(filter) {
-  if (!clientsCache.length) return
-  const search = (document.getElementById('client-search')?.value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-  let filtered = filter === 'all' ? clientsCache : clientsCache.filter(c => c.status === filter)
+  const searchInput = document.getElementById('client-search')
+  const rawSearch = (searchInput?.value || '').trim()
+  const search = rawSearch.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+
+  if (!clientsCache || !clientsCache.length) {
+    renderClientList([])
+    return
+  }
+
+  let filtered = filter === 'all' ? [...clientsCache] : clientsCache.filter(c => c.status === filter)
+
   if (search) {
-    const phoneSearch = search.replace(/\D/g, '')
+    const phoneSearch = rawSearch.replace(/\D/g, '')
     filtered = filtered.filter(c => {
       const name = (c.name || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
       const phone = (c.phone || '').replace(/\D/g, '')
-      return name.includes(search) || (phoneSearch && phone.includes(phoneSearch))
+      const email = (c.email || '').toLowerCase()
+      const cpf = (c.cpf || '').replace(/\D/g, '')
+      return name.includes(search) ||
+        (phoneSearch && phone.includes(phoneSearch)) ||
+        email.includes(search) ||
+        (phoneSearch && cpf.includes(phoneSearch))
     })
   }
   renderClientList(filtered)
@@ -3415,8 +3556,9 @@ async function editClient() {
     const res = await fetch(API + '/clients/' + selectedClientId)
     const c = await res.json()
 
-    document.getElementById('client-name').value = c.name
-    document.getElementById('client-phone').value = c.phone
+    document.getElementById('client-name').value = c.name || ''
+    document.getElementById('client-phone').value = c.phone || ''
+    document.getElementById('client-cpf').value = c.cpf || ''
     document.getElementById('client-email').value = c.email || ''
     document.getElementById('client-status').value = c.status || 'regular'
     document.getElementById('client-notes').value = c.notes || ''
@@ -3437,6 +3579,7 @@ async function deleteClient() {
   try {
     const res = await fetch(API + '/clients/' + selectedClientId, { method: 'DELETE' })
     if (!res.ok) { showToast('Erro ao remover cliente.'); return }
+    showToast('Cliente removida com sucesso.')
     selectedClientId = null
     loadClients()
     loadDashboard()
@@ -3457,6 +3600,7 @@ async function toggleCaloteiro() {
       body: JSON.stringify({ status: newStatus })
     })
     if (!upd.ok) { showToast('Erro ao atualizar status.'); return }
+    showToast(newStatus === 'inadimplente' ? 'Cliente marcada como inadimplente.' : 'Status da cliente atualizado para regular.')
     loadClients()
   } catch (e) {
     showToast('Erro ao atualizar status.')
@@ -4234,6 +4378,7 @@ async function checkWahaStatus(showToastFeedback = false) {
     const res = await fetch(API + '/whatsapp/status')
     const data = await res.json()
     window._wahaStatus = data
+    updateWhatsappButtonsVisibility()
 
     // Update tile in integration modal
     if (optWhatsapp) {
@@ -4416,6 +4561,8 @@ async function checkWahaStatus(showToastFeedback = false) {
       showToast('Status do WhatsApp atualizado!', 'info')
     }
   } catch (e) {
+    window._wahaStatus = { installed: false, is_integrated: false }
+    updateWhatsappButtonsVisibility()
     if (badgeWrapper) {
       badgeWrapper.innerHTML = `
         <span style="background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3);padding:4px 12px;border-radius:20px;font-size:11.5px;font-weight:600;display:inline-flex;align-items:center;gap:5px;">
@@ -5447,14 +5594,14 @@ document.addEventListener('click', function(e) {
 // ── EVENT LISTENERS ────────────────────────────────
 
 document.getElementById('client-search')?.addEventListener('input', () => {
-  const activeTab = document.querySelector('.filter-tab.active')
+  const activeTab = document.querySelector('#page-clientes .filter-tab.active')
   const filter = activeTab?.getAttribute('data-filter') || 'all'
   filterClients(filter)
 })
 
-document.querySelectorAll('.filter-tab').forEach(t => {
+document.querySelectorAll('#page-clientes .filter-tab').forEach(t => {
   t.addEventListener('click', () => {
-    document.querySelectorAll('.filter-tab').forEach(x => x.classList.remove('active'))
+    document.querySelectorAll('#page-clientes .filter-tab').forEach(x => x.classList.remove('active'))
     t.classList.add('active')
     const filter = t.getAttribute('data-filter') || 'all'
     filterClients(filter)

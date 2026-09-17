@@ -453,17 +453,28 @@ def available_slots():
     for a in existing.data:
         try:
             t = a.get('appointment_time', '')
-            if isinstance(t, str) and ':' in t:
+            start = None
+            if hasattr(t, 'hour') and hasattr(t, 'minute'):
+                start = t.hour * 60 + t.minute
+            elif isinstance(t, str) and ':' in t:
                 parts = t.split(':')
                 start = int(parts[0]) * 60 + int(parts[1])
-                dur = int(a.get('duration', 60))
-                svc_buffer = svc_buffers.get(a.get('service', ''), 0)
+            if start is not None:
+                dur = int(a.get('duration', 60) or 60)
+                svc_name = (a.get('service') or '').strip()
+                svc_buffer = svc_buffers.get(svc_name, 0)
                 occupied.append({'start': start, 'end': start + dur + svc_buffer})
-        except (ValueError, IndexError):
+        except (ValueError, IndexError, TypeError):
             pass
 
-    # Gerar slots a cada 30 minutos
-    now_local = datetime.datetime.now()
+    # Gerar slots a cada 30 minutos com timezone de Brasília
+    try:
+        import zoneinfo
+        tz = zoneinfo.ZoneInfo('America/Sao_Paulo')
+        now_local = datetime.datetime.now(tz)
+    except Exception:
+        now_local = datetime.datetime.now()
+
     today_str = now_local.strftime('%Y-%m-%d')
     current_min = now_local.hour * 60 + now_local.minute
 

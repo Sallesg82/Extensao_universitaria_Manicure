@@ -259,6 +259,34 @@ def create_appointment():
         return jsonify({'error': f'Hor\u00e1rio fora do funcionamento: {hours_error}'}), 400
 
     supabase = get_db()
+
+    # Verificar se o horário já está ocupado por outro agendamento ativo
+    appt_t = data.get('appointment_time', '')
+    try:
+        parts = appt_t.split(':')
+        new_start = int(parts[0]) * 60 + int(parts[1])
+        new_dur = int(data.get('duration', 60))
+        new_end = new_start + new_dur + svc_buffer
+
+        existing_appts = supabase.table('appointments').select('appointment_time,duration,service').eq('appointment_date', data['appointment_date']).neq('status', 'cancelled').execute()
+        for ea in existing_appts.data:
+            ea_t = ea.get('appointment_time', '')
+            ea_start = None
+            if hasattr(ea_t, 'hour') and hasattr(ea_t, 'minute'):
+                ea_start = ea_t.hour * 60 + ea_t.minute
+            elif isinstance(ea_t, str) and ':' in ea_t:
+                p = ea_t.split(':')
+                ea_start = int(p[0]) * 60 + int(p[1])
+            if ea_start is not None:
+                ea_dur = int(ea.get('duration', 60) or 60)
+                ea_svc = _first('services', 'name', ea.get('service', ''))
+                ea_buf = int(ea_svc.get('buffer', 0) or 0) if ea_svc else 0
+                ea_end = ea_start + ea_dur + ea_buf
+                if new_start < ea_end and new_end > ea_start:
+                    return jsonify({'error': 'Este horário já está reservado por outro cliente. Por favor, escolha outro horário.'}), 409
+    except Exception:
+        pass
+
     result = supabase.table('appointments').insert({
         'client_id': data['client_id'],
         'service': data['service'],

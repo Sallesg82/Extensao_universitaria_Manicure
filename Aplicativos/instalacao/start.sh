@@ -90,6 +90,10 @@ echo " [OK] Plataforma BeautyFlow iniciada com sucesso!"
 echo "=================================================================="
 echo "  • CRM BeautyFlow (Gestao):   http://localhost:3001 (admin / admin)"
 echo "  • Portal de Agendamento:     http://localhost:5173"
+LOCAL_IP=$(ip route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' || hostname -I 2>/dev/null | awk '{print $1}' || echo "")
+if [ -n "$LOCAL_IP" ] && [ "$LOCAL_IP" != "127.0.0.1" ]; then
+    echo "  • Acesso Mobile (mesmo Wi-Fi): http://$LOCAL_IP:5173"
+fi
 echo "  • Banco de Dados PostgreSQL: localhost:5432"
 if docker ps --format '{{.Names}}' 2>/dev/null | grep -qE '^(beautyflow-waha|waha)$'; then
     echo "  • WhatsApp WAHA (Porta 3000): http://localhost:3000"

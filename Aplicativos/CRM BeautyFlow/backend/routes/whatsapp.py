@@ -55,9 +55,14 @@ def render_whatsapp_template(template_text, context):
 
 
 def _candidate_urls():
-    env_url = (os.environ.get('WAHA_API_URL') or '').strip().rstrip('/')
+    install_waha = os.environ.get('INSTALL_WAHA', '').strip().lower()
     s = get_settings()
     custom_url = (s.get('waha_api_url') or '').strip().rstrip('/')
+    env_url = (os.environ.get('WAHA_API_URL') or '').strip().rstrip('/')
+
+    if install_waha in ('false', '0', 'no') and not custom_url:
+        return []
+
     candidates = []
     if custom_url:
         candidates.append(custom_url)
