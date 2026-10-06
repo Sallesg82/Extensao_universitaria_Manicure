@@ -2,7 +2,7 @@
 CREATE TABLE integrations (
     id          SERIAL PRIMARY KEY,
     name        TEXT NOT NULL,
-    type        TEXT NOT NULL CHECK (type IN ('webhook', 'n8n', 'google_calendar')),
+    type        TEXT NOT NULL CHECK (type IN ('webhook', 'n8n')),
     config      JSONB DEFAULT '{}',
     enabled     BOOLEAN DEFAULT TRUE,
     created_at  TIMESTAMPTZ DEFAULT NOW(),

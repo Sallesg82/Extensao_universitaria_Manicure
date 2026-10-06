@@ -10,8 +10,6 @@ CREATE TABLE appointments (
     price             REAL NOT NULL DEFAULT 0,
     duration          INTEGER DEFAULT 60,
     notes             TEXT DEFAULT '',
-    google_event_id   TEXT DEFAULT '',
-    google_html_link  TEXT DEFAULT '',
     created_at        TIMESTAMPTZ DEFAULT NOW(),
     updated_at        TIMESTAMPTZ DEFAULT NOW()
 );

@@ -183,7 +183,7 @@
 <text x="14" y="80" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Status: Pendente, Confirmado, Concluído</text>
 <text x="14" y="98" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Controle: Pago vs Não Pago</text>
 <text x="14" y="116" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Duração e margens de buffer automáticas</text>
-<text x="14" y="134" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Sincronia Google Calendar / n8n / Socket</text></g>
+<text x="14" y="134" font-size="10.5" fill="#cbd5e1" font-weight="normal">• Notificações WhatsApp / n8n / Socket</text></g>
       <g transform="translate(836, 0)"><rect x="0" y="0" width="396" height="140" rx="10" fill="#111c35" stroke="#334155" stroke-width="1" filter="url(#subcard-shadow)" />
 <text x="14" y="22" font-size="12.5" font-weight="bold" fill="#93c5fd">👥 CRM &amp; Clientes</text>
 <rect x="321" y="10" width="65" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="0.8" />
@@ -270,22 +270,22 @@
     <rect x="0" y="0" width="1145" height="550" rx="16" fill="url(#card-integ-bg)" stroke="#f59e0b" stroke-width="1.5" filter="url(#shadow)" />
     <rect x="0" y="0" width="1145" height="48" rx="16" fill="#131d36" stroke="#f59e0b" stroke-width="0.8" />
     <text x="20" y="30" font-size="15" font-weight="bold" fill="#fbbf24">🔗 INTEGRAÇÕES EXTERNAS &amp; AUTOMAÇÃO</text>
-    <text x="1125" y="30" font-size="11.5" font-weight="bold" text-anchor="end" fill="#fde68a">Google Calendar API &amp; n8n Webhooks</text>
-    <text x="20" y="43" font-size="9.5" fill="#94a3b8">OAuth 2.0 • Sincronização Bidirecional • Disparo Assíncrono Threading • Webhooks JSON</text>
+    <text x="1125" y="30" font-size="11.5" font-weight="bold" text-anchor="end" fill="#fde68a">WhatsApp (WAHA) &amp; n8n Webhooks</text>
+    <text x="20" y="43" font-size="9.5" fill="#94a3b8">WhatsApp API • Notificações Automáticas • Disparo Assíncrono Threading • Webhooks JSON</text>
 
     <g transform="translate(18, 62)">
       <g transform="translate(0, 0)"><rect x="0" y="0" width="542" height="355" rx="10" fill="#111c35" stroke="#334155" stroke-width="1" filter="url(#subcard-shadow)" />
-<text x="14" y="22" font-size="12.5" font-weight="bold" fill="#fef3c7">📅 Google Calendar (Sincronia 2-Way)</text>
+<text x="14" y="22" font-size="12.5" font-weight="bold" fill="#fef3c7">💬 WhatsApp (WAHA Integration)</text>
 <rect x="467" y="10" width="65" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="0.8" />
-<text x="499.5" y="22.5" font-size="9" font-weight="600" fill="#94a3b8" text-anchor="middle">OAuth 2.0</text>
-<text x="14" y="44" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">OAuth 2.0 Oficial</tspan>: Conexão com Client ID &amp; Secret</text>
-<text x="14" y="62" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Criação Automática</tspan>: Insere agendamento na agenda Google</text>
-<text x="14" y="80" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Atualização &amp; Cancelamento</tspan>: Modificações no CRM refletem no Google</text>
-<text x="14" y="98" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Rastreamento</tspan>: Salva google_event_id e link de acesso direto</text>
-<text x="14" y="116" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Conteúdo</tspan>: Cliente, Telefone, Serviço, Preço e Status na descrição</text>
-<text x="14" y="134" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Renovação Automática</tspan>: Atualiza tokens expirados (Refresh Token)</text>
-<text x="14" y="152" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Ações Manuais &amp; Status</tspan>: Botão para sincronizar e status de conexão</text>
-<text x="14" y="170" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Timezone</tspan>: Horário oficial de Brasília (America/Sao_Paulo)</text></g>
+<text x="499.5" y="22.5" font-size="9" font-weight="600" fill="#94a3b8" text-anchor="middle">WAHA API</text>
+<text x="14" y="44" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Conexão Oficial</tspan>: API WAHA integrada via Docker</text>
+<text x="14" y="62" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Criação de Agendamento</tspan>: Envia confirmação automática para a cliente</text>
+<text x="14" y="80" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Cancelamento</tspan>: Notificação instantânea ao cancelar agendamento</text>
+<text x="14" y="98" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Mensagens Customizáveis</tspan>: Templates com tags dinâmicas</text>
+<text x="14" y="116" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Conteúdo</tspan>: Nome da cliente, serviço, data e horário</text>
+<text x="14" y="134" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">QR Code no Painel</tspan>: Conexão e pareamento direto pelo CRM</text>
+<text x="14" y="152" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Status em Tempo Real</tspan>: Monitoramento da sessão WhatsApp ativa</text>
+<text x="14" y="170" font-size="10.5" fill="#cbd5e1" font-weight="normal">• <tspan font-weight="bold" fill="#fbbf24">Operação Local</tspan>: Comunicação direta sem custos de APIs externas</text></g>
       <g transform="translate(567, 0)"><rect x="0" y="0" width="542" height="355" rx="10" fill="#111c35" stroke="#334155" stroke-width="1" filter="url(#subcard-shadow)" />
 <text x="14" y="22" font-size="12.5" font-weight="bold" fill="#fef3c7">⚡ n8n Webhooks &amp; Automações</text>
 <rect x="467" y="10" width="65" height="18" rx="9" fill="#1e293b" stroke="#475569" stroke-width="0.8" />

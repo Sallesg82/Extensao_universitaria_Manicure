@@ -11,7 +11,6 @@ from routes.clients import clients_bp
 from routes.appointments import appointments_bp
 from routes.services import services_bp
 from routes.users import users_bp
-from routes.google_calendar import google_bp
 from routes.notifications import notifications_bp
 from routes.integrations import integrations_bp
 from routes.transactions import transactions_bp
@@ -37,7 +36,6 @@ app.register_blueprint(clients_bp, url_prefix='/api/clients')
 app.register_blueprint(appointments_bp, url_prefix='/api/appointments')
 app.register_blueprint(services_bp, url_prefix='/api/services')
 app.register_blueprint(users_bp, url_prefix='/api/users')
-app.register_blueprint(google_bp, url_prefix='/api/google')
 app.register_blueprint(notifications_bp, url_prefix='/api/notifications')
 app.register_blueprint(integrations_bp, url_prefix='/api/integrations')
 app.register_blueprint(transactions_bp, url_prefix='/api/transactions')
@@ -228,7 +226,6 @@ def n8n_test():
         'status': 'test',
         'start_datetime': datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S-03:00'),
         'end_datetime': (datetime.datetime.now() + datetime.timedelta(hours=1)).strftime('%Y-%m-%dT%H:%M:%S-03:00'),
-        'google_event_id': '',
     }
     try:
         r = requests.post(url, json=payload, headers=_n8n_headers(), timeout=_n8n_timeout())
@@ -264,9 +261,6 @@ def n8n_sync_calendar():
 
     action = data.get('action', 'create')
 
-    if action == 'delete' and not data.get('google_event_id'):
-        return jsonify({'error': 'google_event_id é obrigatório para action=delete'}), 400
-
     try:
         appt_date = data['appointment_date']
         appt_time = data['appointment_time']
@@ -289,7 +283,6 @@ def n8n_sync_calendar():
         'status':           data.get('status', 'pending'),
         'start_datetime':   start_iso,
         'end_datetime':     end_iso,
-        'google_event_id':  data.get('google_event_id', ''),
     }
 
     if not _n8n_enabled():

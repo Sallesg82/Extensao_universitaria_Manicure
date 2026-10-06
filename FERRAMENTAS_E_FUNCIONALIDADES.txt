@@ -33,9 +33,6 @@ beleza e estética, composta por 3 pilares principais:
 • Psycopg 3 (psycopg[binary] 3.1.18 & psycopg-pool 3.2.1): Driver PostgreSQL
   moderno com pool de conexões ativo (ConnectionPool) para alta performance.
 • Werkzeug Security: Sistema de hash e validação segura de senhas (PBKDF2/SHA256).
-• Google API Client, google-auth-oauthlib, google-auth, requests-oauthlib:
-  Biblioteca oficial do Google para autenticação OAuth 2.0 e manipulação de
-  eventos no Google Calendar.
 • Requests (2.32.3): Cliente HTTP para envio de webhooks ao n8n e integrações.
 • Python-Dotenv (1.0.1): Carregador de variáveis de ambiente a partir de .env.
 • Gunicorn / Werkzeug Server: Servidores de aplicação WSGI para execução.
@@ -116,12 +113,11 @@ seguintes ferramentas e telas:
   - Status de pagamento (Pago / Não Pago).
 • Modal de Detalhes do Agendamento:
   - Exibição de todos os dados do agendamento e cliente.
-  - Botão para sincronizar manualmente com Google Calendar.
   - Botão de Alterar Status de Pagamento (Pago / Pendente).
   - Botão de Edição completa.
   - Botão de Cancelamento e Exclusão com confirmação.
 • Sincronização Automática: Eventos criados/editados/cancelados são
-  automaticamente replicados para o n8n e Google Calendar (se integrados).
+  automaticamente replicados para o n8n e WhatsApp (se integrados).
 
 3.4. GESTÃO DE CLIENTES
 --------------------------------------------------------------------------------
@@ -228,15 +224,8 @@ seguintes ferramentas e telas:
   - Configuração de cabeçalhos HTTP personalizados e timeout.
   - Botão "Testar Webhook" com verificação de resposta em tempo real.
   - Status de conectividade online/offline.
-• Integração Google Calendar:
-  - Fluxo completo de autorização OAuth 2.0 (Client ID & Client Secret).
-  - Sincronização bidirecional: envia novos agendamentos para a agenda do Google
-    com título, cliente, telefone, valor e horário.
-  - Atualização automática e remoção de eventos no Google Calendar quando o
-    agendamento for editado ou cancelado no CRM.
-  - Verificação de existência e integridade do ID do evento no Google.
 • Gerenciador de Webhooks Customizados:
-  - Cadastro de integrações genéricas (tipo webhook, n8n, google_calendar).
+  - Cadastro de integrações genéricas (tipo webhook, n8n, whatsapp, waha).
   - Chave de ativação/desativação individual de cada integração.
 
 3.12. CONFIGURAÇÕES & PERSONALIZAÇÃO COMPLETA DO SISTEMA
@@ -382,7 +371,7 @@ O diretório `Aplicativos/instalacao/` contém o ecossistema de implantação:
   - `service`, `appointment_date`, `appointment_time`,
   - `status` (pending, confirmed, done, cancelled),
   - `payment_status` (paid, unpaid),
-  - `price`, `duration`, `notes`, `google_event_id`, `google_html_link`,
+  - `price`, `duration`, `notes`,
   - `created_at`, `updated_at`.
 • `services`:
   - `id` (Serial PK), `name` (Texto UNIQUE), `duration` (Minutos),
@@ -397,7 +386,7 @@ O diretório `Aplicativos/instalacao/` contém o ecossistema de implantação:
   - `created_at`.
 • `settings`:
   - `key` (Texto PK), `value` (Texto).
-  - Armazena: `meta_mensal`, credenciais Google, parâmetros n8n, regras de
+  - Armazena: `meta_mensal`, configurações WhatsApp, parâmetros n8n, regras de
     notificação, configurações visuais, dados da empresa e categorias de despesa.
 • `business_hours`:
   - `id` (Serial PK), `day` (segunda a domingo UNIQUE), `open` (ex: '08:00'),
@@ -406,7 +395,7 @@ O diretório `Aplicativos/instalacao/` contém o ecossistema de implantação:
   - `id` (Serial PK), `type`, `title`, `message`, `related_id`, `related_type`,
   - `read` (Booleano), `created_at`.
 • `integrations`:
-  - `id` (Serial PK), `name`, `type` (webhook, n8n, google_calendar),
+  - `id` (Serial PK), `name`, `type` (webhook, n8n, whatsapp, waha),
   - `config` (JSONB), `enabled` (Booleano), `created_at`, `updated_at`.
 • `users`:
   - `id` (Serial PK), `name`, `email` (UNIQUE), `phone`, `password_hash`,
@@ -436,7 +425,7 @@ O diretório `Aplicativos/instalacao/` contém o ecossistema de implantação:
 [ AGENDAMENTOS — /api/appointments ]
 • GET    /api/appointments/     -> Listar agendamentos (?date=, ?date_from=, ?date_to=, ?status=)
 • GET    /api/appointments/<id> -> Obter agendamento por ID
-• POST   /api/appointments/     -> Criar agendamento (valida horário, dispara n8n/Google/Socket)
+• POST   /api/appointments/     -> Criar agendamento (valida horário, dispara n8n/WhatsApp/Socket)
 • PUT    /api/appointments/<id> -> Atualizar agendamento (sincroniza receita financeira)
 • DELETE /api/appointments/<id> -> Cancelar/Excluir agendamento
 
@@ -492,14 +481,6 @@ O diretório `Aplicativos/instalacao/` contém o ecossistema de implantação:
 • POST   /api/n8n/test          -> Disparar payload de teste para o webhook do n8n
 • GET    /api/n8n/status        -> Testar conectividade HTTP com o n8n
 • POST   /api/n8n/sync-calendar -> Sincronização direta de agendamento via n8n
-• GET    /api/google/config     -> Consultar credenciais Google OAuth
-• PUT    /api/google/config     -> Salvar Client ID e Client Secret
-• GET    /api/google/auth       -> Gerar URL de autorização OAuth 2.0
-• GET    /api/google/callback   -> Receber token de autorização do Google
-• GET    /api/google/status     -> Status da conexão ativa com o Google Calendar
-• POST   /api/google/disconnect -> Desconectar conta do Google Calendar
-• POST   /api/google/verify-event -> Checar se evento existe no Google Calendar
-• POST   /api/google/sync       -> Sincronizar evento manual com Google Calendar
 
 [ UTILITÁRIOS ]
 • GET    /api/migrate/sql       -> Retorna o script SQL completo do banco

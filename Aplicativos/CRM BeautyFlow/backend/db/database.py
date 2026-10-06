@@ -394,8 +394,6 @@ CREATE TABLE IF NOT EXISTS appointments (
     price             REAL NOT NULL DEFAULT 0,
     duration          INTEGER DEFAULT 60,
     notes             TEXT DEFAULT '',
-    google_event_id   TEXT DEFAULT '',
-    google_html_link  TEXT DEFAULT '',
     created_at        TIMESTAMPTZ DEFAULT NOW(),
     updated_at        TIMESTAMPTZ DEFAULT NOW()
 );
@@ -476,7 +474,7 @@ CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications (created_a
 CREATE TABLE IF NOT EXISTS integrations (
     id          SERIAL PRIMARY KEY,
     name        TEXT NOT NULL,
-    type        TEXT NOT NULL CHECK(type IN ('webhook', 'n8n', 'google_calendar', 'whatsapp', 'waha')),
+    type        TEXT NOT NULL CHECK(type IN ('webhook', 'n8n', 'whatsapp', 'waha')),
     config      JSONB DEFAULT '{}',
     enabled     BOOLEAN DEFAULT TRUE,
     created_at  TIMESTAMPTZ DEFAULT NOW(),
@@ -591,9 +589,13 @@ def init_schema():
             WHERE constraint_name = 'integrations_type_check' AND table_name = 'integrations'
           ) THEN
             ALTER TABLE integrations DROP CONSTRAINT integrations_type_check;
-            ALTER TABLE integrations ADD CONSTRAINT integrations_type_check CHECK(type IN ('webhook', 'n8n', 'google_calendar', 'whatsapp', 'waha'));
+            ALTER TABLE integrations ADD CONSTRAINT integrations_type_check CHECK(type IN ('webhook', 'n8n', 'whatsapp', 'waha'));
           END IF;
         END $$;
+        DELETE FROM integrations WHERE type = 'google_calendar';
+        ALTER TABLE appointments DROP COLUMN IF EXISTS google_event_id;
+        ALTER TABLE appointments DROP COLUMN IF EXISTS google_html_link;
+        DELETE FROM settings WHERE key IN ('google_credentials', 'google_client_id', 'google_client_secret');
         """)
     except Exception as e:
         print(f'[DB] Aviso ao atualizar restrição de integrações: {e}')

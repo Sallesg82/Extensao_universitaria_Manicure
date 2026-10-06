@@ -50,8 +50,6 @@ def format_appt(a):
         'notes': a.get('notes', ''),
         'created_at': a.get('created_at'),
         'updated_at': a.get('updated_at'),
-        'google_event_id': a.get('google_event_id', ''),
-        'google_html_link': a.get('google_html_link', ''),
     }
 
 
@@ -78,32 +76,7 @@ def _n8n_payload(a, action='create'):
         'status': a['status'],
         'start_datetime': start_iso,
         'end_datetime': end_iso,
-        'google_event_id': a.get('google_event_id', ''),
     }
-
-
-def _sync_google(a, action='create'):
-    try:
-        from routes.google_calendar import sync_appointment_to_google
-        result = sync_appointment_to_google(action, {
-            'appointment_id': a['id'],
-            'client_name': a.get('client_name', ''),
-            'client_phone': a.get('client_phone', ''),
-            'service': a['service'],
-            'price': a['price'],
-            'status': a['status'],
-            'appointment_date': a['appointment_date'],
-            'appointment_time': a.get('appointment_time', '12:00'),
-            'duration': a.get('duration', 60),
-            'google_event_id': a.get('google_event_id', ''),
-        })
-        if result.get('status') == 'ok' and result.get('google_event_id'):
-            get_db().table('appointments').update({
-                'google_event_id': result['google_event_id'],
-                'google_html_link': result.get('html_link', ''),
-            }).eq('id', a['id']).execute()
-    except Exception:
-        pass
 
 
 _N8N_FALLBACK = 'https://mirianfiorini.app.n8n.cloud/webhook/calendar-webhook'
@@ -301,10 +274,7 @@ def create_appointment():
     a = result.data[0]
     a['client_name'] = client.get('name', '')
     a['client_phone'] = client.get('phone', '')
-    a['google_event_id'] = ''
-    a['google_html_link'] = ''
     _fire_n8n(a)
-    _sync_google(a, 'create')
     _send_whatsapp_notif(a, 'create')
     if _notif_enabled('notify_confirmacao_de_agendamento'):
         create_notification(
@@ -330,7 +300,7 @@ def update_appointment(appt_id):
         return jsonify({'error': 'Status de pagamento inv\u00e1lido'}), 400
 
     update_data = {}
-    for field in ['client_id', 'service', 'appointment_date', 'appointment_time', 'status', 'payment_status', 'duration', 'notes', 'google_event_id', 'google_html_link']:
+    for field in ['client_id', 'service', 'appointment_date', 'appointment_time', 'status', 'payment_status', 'duration', 'notes']:
         if field in data and data[field] is not None:
             update_data[field] = data[field]
     if 'price' in data and data['price'] is not None:
@@ -359,8 +329,6 @@ def update_appointment(appt_id):
         sync_appointment_income(appt_id)
         a = _get_appt(appt_id)
     if update_data.get('status') == 'cancelled':
-        if a.get('google_event_id'):
-            _sync_google(a, 'delete')
         _fire_n8n(a, 'delete')
         _send_whatsapp_notif(a, 'cancelled')
         if _notif_enabled('notify_confirmacao_de_agendamento'):
@@ -372,7 +340,6 @@ def update_appointment(appt_id):
                 related_type='appointment'
             )
     else:
-        _sync_google(a, 'update')
         _fire_n8n(a, 'update')
     socketio.emit('appointment:updated', format_appt(a))
     socketio.emit('data:changed', {'type': 'appointment', 'action': 'updated'})
@@ -384,7 +351,6 @@ def delete_appointment(appt_id):
     existing = _get_appt(appt_id)
     if not existing:
         return jsonify({'error': 'Agendamento n\u00e3o encontrado'}), 404
-    _sync_google(existing, 'delete')
     _fire_n8n(existing, 'delete')
     if _notif_enabled('notify_confirmacao_de_agendamento'):
         create_notification(

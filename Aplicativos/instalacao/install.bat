@@ -719,7 +719,10 @@ goto MENU_LOOP
 :RUN_MIGRATIONS
 echo [*] Sincronizando tabelas e restricoes no PostgreSQL...
 (
-  echo DO $$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'integrations_type_check' AND table_name = 'integrations'^) THEN ALTER TABLE integrations DROP CONSTRAINT integrations_type_check; ALTER TABLE integrations ADD CONSTRAINT integrations_type_check CHECK(type IN ('webhook', 'n8n', 'google_calendar', 'whatsapp', 'waha'^)^); END IF; END $$;
+  echo DO $$ BEGIN IF EXISTS (SELECT 1 FROM information_schema.table_constraints WHERE constraint_name = 'integrations_type_check' AND table_name = 'integrations'^) THEN ALTER TABLE integrations DROP CONSTRAINT integrations_type_check; ALTER TABLE integrations ADD CONSTRAINT integrations_type_check CHECK(type IN ('webhook', 'n8n', 'whatsapp', 'waha'^)^); END IF; END $$;
+  echo DELETE FROM integrations WHERE type = 'google_calendar';
+  echo ALTER TABLE appointments DROP COLUMN IF EXISTS google_event_id;
+  echo ALTER TABLE appointments DROP COLUMN IF EXISTS google_html_link;
   echo CREATE TABLE IF NOT EXISTS public.metas (id SERIAL PRIMARY KEY, mes VARCHAR(7^) NOT NULL, meta NUMERIC(12, 2^) NOT NULL DEFAULT 7000.00, created_at TIMESTAMP WITH TIME ZONE DEFAULT now(^), updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(^), CONSTRAINT metas_mes_unique UNIQUE (mes^)^);
   echo CREATE TABLE IF NOT EXISTS public.products (id SERIAL PRIMARY KEY, name TEXT NOT NULL, category TEXT DEFAULT 'pink', qty INTEGER DEFAULT 0, price REAL DEFAULT 0, min_qty INTEGER DEFAULT 5, missing BOOLEAN DEFAULT false, created_at TIMESTAMP WITH TIME ZONE DEFAULT now(^), updated_at TIMESTAMP WITH TIME ZONE DEFAULT now(^)^);
 ) | docker exec -i beautyflow-postgres psql -U postgres -d beautyflow >nul 2>&1

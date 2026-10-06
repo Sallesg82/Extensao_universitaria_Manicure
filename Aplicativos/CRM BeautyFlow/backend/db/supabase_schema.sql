@@ -58,8 +58,6 @@ CREATE TABLE IF NOT EXISTS appointments (
     price             REAL NOT NULL DEFAULT 0,
     duration          INTEGER DEFAULT 60,
     notes             TEXT DEFAULT '',
-    google_event_id   TEXT DEFAULT '',
-    google_html_link  TEXT DEFAULT '',
     created_at        TIMESTAMPTZ DEFAULT NOW(),
     updated_at        TIMESTAMPTZ DEFAULT NOW()
 );
@@ -162,13 +160,13 @@ CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications (read);
 CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications (created_at DESC);
 
 -- ═══════════════════════════════════════════════════════════════
---  TABELA: integrations (webhooks, n8n, google calendar)
+--  TABELA: integrations (webhooks, n8n)
 -- ═══════════════════════════════════════════════════════════════
 
 CREATE TABLE IF NOT EXISTS integrations (
     id          SERIAL PRIMARY KEY,
     name        TEXT NOT NULL,
-    type        TEXT NOT NULL CHECK(type IN ('webhook', 'n8n', 'google_calendar')),
+    type        TEXT NOT NULL CHECK(type IN ('webhook', 'n8n')),
     config      JSONB DEFAULT '{}',
     enabled     BOOLEAN DEFAULT TRUE,
     created_at  TIMESTAMPTZ DEFAULT NOW(),

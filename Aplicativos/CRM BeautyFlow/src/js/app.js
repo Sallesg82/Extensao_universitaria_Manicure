@@ -882,183 +882,6 @@ async function testN8n() {
   }
 }
 
-// ── GOOGLE CALENDAR INTEGRAÇÃO ────────────────────
-
-async function loadGoogleConfig() {
-  const cid = document.getElementById('google-client-id')
-  const sec = document.getElementById('google-client-secret')
-  const status = document.getElementById('google-status')
-  const connectRow = document.getElementById('google-connect-row')
-  const connectBtn = document.getElementById('google-connect-btn')
-  const disconnectBtn = document.getElementById('google-disconnect-btn')
-  if (!cid) return
-  try {
-    const r = await fetch(API + '/google/config')
-    const data = await r.json()
-    cid.value = data.client_id || ''
-    const sr = await fetch(API + '/google/status')
-    const gs = await sr.json()
-    if (gs.connected) {
-      connectRow.style.display = ''
-      connectBtn.style.display = 'none'
-      disconnectBtn.style.display = ''
-      if (status) { status.textContent = '✓ Conectado ao Google Calendar'; status.className = 'integ-status ok' }
-    } else {
-      const hasCreds = data.client_id && data.client_secret !== ''
-      if (hasCreds) {
-        connectRow.style.display = ''
-        connectBtn.style.display = ''
-        disconnectBtn.style.display = 'none'
-        if (status) { status.textContent = 'Clique em "Conectar com Google" para autorizar.'; status.className = 'integ-status' }
-      } else {
-        connectRow.style.display = 'none'
-        if (status) { status.textContent = 'Preencha Client ID e Client Secret acima.'; status.className = 'integ-status' }
-      }
-    }
-  } catch (e) {
-    if (status) { status.textContent = 'Erro ao carregar config.'; status.className = 'integ-status err' }
-  }
-}
-
-async function saveGoogleConfig() {
-  const cid = document.getElementById('google-client-id')
-  const sec = document.getElementById('google-client-secret')
-  const status = document.getElementById('google-status')
-  if (!status) return
-  status.textContent = 'Salvando...'
-  status.className = 'integ-status wait'
-  try {
-    const r = await fetch(API + '/google/config', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ client_id: (cid.value || '').trim(), client_secret: (sec.value || '').trim() })
-    })
-    if (r.ok) {
-      status.textContent = 'Credenciais salvas! Conecte com o Google abaixo.'
-      status.className = 'integ-status ok'
-      loadGoogleConfig()
-    } else {
-      status.textContent = 'Erro ao salvar.'
-      status.className = 'integ-status err'
-    }
-  } catch (e) {
-    status.textContent = 'Erro de conexão.'
-    status.className = 'integ-status err'
-  }
-}
-
-async function connectGoogle() {
-  const status = document.getElementById('google-status')
-  if (!status) return
-  status.textContent = 'Redirecionando para o Google...'
-  status.className = 'integ-status wait'
-  try {
-    const r = await fetch(API + '/google/auth')
-    const data = await r.json()
-    if (data.auth_url) {
-      window.location.href = data.auth_url
-    } else {
-      status.textContent = data.error || 'Erro ao obter URL de autorização.'
-      status.className = 'integ-status err'
-    }
-  } catch (e) {
-    status.textContent = 'Erro de conexão.'
-    status.className = 'integ-status err'
-  }
-}
-
-async function disconnectGoogle() {
-  if (!confirm('Desconectar Google Calendar? Os agendamentos não serão mais sincronizados.')) return
-  const status = document.getElementById('google-status')
-  try {
-    await fetch(API + '/google/disconnect', { method: 'POST' })
-    if (status) { status.textContent = 'Desconectado.'; status.className = 'integ-status' }
-    loadGoogleConfig()
-  } catch (e) {
-    if (status) { status.textContent = 'Erro ao desconectar.'; status.className = 'integ-status err' }
-  }
-}
-
-async function checkGoogleStatus() {
-  const status = document.getElementById('google-status')
-  if (!status) return
-  status.textContent = 'Verificando...'
-  status.className = 'integ-status wait'
-  try {
-    const r = await fetch(API + '/google/status')
-    const data = await r.json()
-    if (data.connected) {
-      status.textContent = '✓ Conectado ao Google Calendar'
-      status.className = 'integ-status ok'
-    } else {
-      status.textContent = '✗ Não conectado.'
-      status.className = 'integ-status err'
-    }
-    const connectBtn = document.getElementById('google-connect-btn')
-    const disconnectBtn = document.getElementById('google-disconnect-btn')
-    const connectRow = document.getElementById('google-connect-row')
-    if (connectBtn && disconnectBtn && connectRow) {
-      if (data.connected) {
-        connectBtn.style.display = 'none'
-        disconnectBtn.style.display = ''
-      } else {
-        connectBtn.style.display = ''
-        disconnectBtn.style.display = 'none'
-      }
-    }
-  } catch (e) {
-    status.textContent = 'Erro de conexão.'
-    status.className = 'integ-status err'
-  }
-}
-
-async function syncDetailToGoogle() {
-  const id = document.getElementById('detail-id').value
-  const btn = document.getElementById('detail-google-btn')
-  const gs = document.getElementById('detail-google-status')
-  if (!id || !gs) return
-  gs.textContent = 'Sincronizando...'
-  if (btn) btn.disabled = true
-  try {
-    const r = await fetch(API + '/appointments/' + id)
-    const a = await r.json()
-    const body = {
-      action: a.google_event_id ? 'update' : 'create',
-      appointment_id: a.id,
-      client_name: a.client_name,
-      client_phone: a.client_phone,
-      service: a.service,
-      price: a.price,
-      status: a.status,
-      appointment_date: a.appointment_date,
-      appointment_time: a.appointment_time,
-      duration: a.duration || 60,
-      google_event_id: a.google_event_id || '',
-    }
-    const sr = await fetch(API + '/google/sync', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    })
-    const sd = await sr.json()
-    if (sd.status === 'ok') {
-      gs.textContent = '✓ Sincronizado!'
-      gs.className = 'integ-status ok'
-      if (sd.html_link) {
-        gs.innerHTML = '✓ <a href="' + sd.html_link + '" target="_blank" style="color:var(--primary-600)">Ver no Google Calendar</a>'
-      }
-      openAppointmentDetail(id)
-    } else {
-      gs.textContent = '✗ ' + (sd.error || 'Falha ao sincronizar.')
-      gs.className = 'integ-status err'
-    }
-  } catch (e) {
-    gs.textContent = '✗ Erro de conexão.'
-    gs.className = 'integ-status err'
-  }
-  if (btn) btn.disabled = false
-}
-
 // ── CLIENTES ──────────────────────────────────────
 
 let clientsCache = []
@@ -2997,45 +2820,6 @@ async function openAppointmentDetail(apptId) {
     cancelBtn.style.display = (a.status === 'cancelled' || a.status === 'done') ? 'none' : ''
     deleteBtn.style.display = ''
 
-    const googleBtn = document.getElementById('detail-google-btn')
-    const googleStatus = document.getElementById('detail-google-status')
-    if (googleBtn && googleStatus) {
-      if (a.google_event_id) {
-        googleStatus.textContent = 'Verificando...'
-        googleStatus.className = 'integ-status wait'
-        try {
-          const vr = await fetch(API + '/google/verify-event', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ event_id: a.google_event_id })
-          })
-          const vd = await vr.json()
-          if (!vd.exists) {
-            a.google_event_id = ''
-            a.google_html_link = ''
-            await fetch(API + '/appointments/' + a.id, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ google_event_id: '', google_html_link: '' })
-            })
-          }
-        } catch (e) {}
-      }
-      if (a.google_event_id) {
-        googleBtn.textContent = a.google_html_link ? 'Ver no Google Calendar' : 'Atualizar no Google'
-        googleBtn.onclick = a.google_html_link ? (() => window.open(a.google_html_link, '_blank')) : (() => syncDetailToGoogle())
-        googleBtn.style.display = ''
-        googleStatus.textContent = '✓ Sincronizado'
-        googleStatus.className = 'integ-status ok'
-      } else {
-        googleBtn.textContent = 'Sincronizar com Google'
-        googleBtn.onclick = syncDetailToGoogle
-        googleBtn.style.display = ''
-        googleStatus.textContent = 'Não sincronizado (evento removido do Google)'
-        googleStatus.className = 'integ-status err'
-      }
-    }
-
     overlay.classList.add('open')
   } catch (e) {
     console.error('Erro ao carregar detalhes:', e)
@@ -3817,11 +3601,10 @@ async function loadIntegrations() {
       list.innerHTML = '<div class="integ-empty">Nenhuma outra integração criada. Clique em "+ Nova Integração" para começar.</div>'
       return
     }
-    const typeLabels = { webhook: 'Webhook', n8n: 'n8n', google_calendar: 'Google Calendar' }
+    const typeLabels = { webhook: 'Webhook', n8n: 'n8n' }
     const typeIcons = {
       webhook: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><path d="M4 10a6 6 0 1 1 12 0" stroke="currentColor" stroke-width="1.5" fill="none"/><path d="M8 10l2-2 2 2-2 2z" fill="currentColor"/></svg>',
-      n8n: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><circle cx="5" cy="10" r="3" stroke="currentColor" stroke-width="1.5"/><circle cx="15" cy="5" r="3" stroke="currentColor" stroke-width="1.5"/><circle cx="15" cy="15" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M8 10h3l1.5-3M8 10h3l1.5 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>',
-      google_calendar: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><rect x="2" y="3" width="16" height="15" rx="2" stroke="currentColor" stroke-width="1.3"/><path d="M2 7h16M7 2v3M13 2v3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><text x="10" y="16" text-anchor="middle" font-size="7" fill="currentColor" font-weight="700">GC</text></svg>'
+      n8n: '<svg width="16" height="16" viewBox="0 0 20 20" fill="none"><circle cx="5" cy="10" r="3" stroke="currentColor" stroke-width="1.5"/><circle cx="15" cy="5" r="3" stroke="currentColor" stroke-width="1.5"/><circle cx="15" cy="15" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M8 10h3l1.5-3M8 10h3l1.5 3" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>'
     }
     list.innerHTML = otherData.map(integ => {
       const canTest = integ.type === 'webhook' || integ.type === 'n8n'
@@ -4099,44 +3882,6 @@ function renderIntegConfigFields(type) {
           </div>
         </div>
       </div>`
-  } else if (type === 'google_calendar') {
-    container.innerHTML = `
-      <hr class="integ-divider" style="margin:16px 0;">
-      <div class="integ-section-title">Credenciais do Google</div>
-      <div class="integ-helper" style="margin-bottom:12px;">Crie um projeto no <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console</a> e gere um Client ID e Client Secret.</div>
-      <div class="form-row">
-        <div class="form-field">
-          <label class="form-label">Client ID</label>
-          <input class="form-input" id="integ-cfg-google-client-id" placeholder="xxxx.apps.googleusercontent.com" value="${getVal('client_id', '')}">
-        </div>
-        <div class="form-field">
-          <label class="form-label">Client Secret</label>
-          <input class="form-input" id="integ-cfg-google-client-secret" type="password" placeholder="GOCSPX-..." value="${getVal('client_secret', '')}">
-        </div>
-      </div>
-      <hr class="integ-divider" style="margin:16px 0;">
-      <div class="integ-section-title">Autenticação</div>
-      <div class="integ-helper" style="margin-bottom:12px;">Após salvar as credenciais, clique em "Conectar com Google" para autorizar o acesso à sua agenda.</div>
-      <div id="integ-google-status" class="integ-status" style="margin-bottom:12px;">${getVal('_google_connected', false) ? '✓ Conectado ao Google Calendar' : 'Aguardando conexão...'}</div>
-      <div style="display:flex;gap:8px;">
-        <button class="btn-primary" onclick="integConnectGoogle()" id="integ-google-connect-btn">Conectar com Google</button>
-        <button class="btn-outline" onclick="integDisconnectGoogle()" id="integ-google-disconnect-btn" style="${getVal('_google_connected', false) ? '' : 'display:none;'}">Desconectar</button>
-      </div>`
-    // check real google status
-    fetch(API + '/google/status').then(r => r.json()).then(gs => {
-      const st = document.getElementById('integ-google-status')
-      const dc = document.getElementById('integ-google-disconnect-btn')
-      if (gs.connected) {
-        if (st) { st.textContent = '✓ Conectado ao Google Calendar'; st.className = 'integ-status ok' }
-        if (dc) dc.style.display = ''
-      } else {
-        const hasCreds = getVal('client_id', '') && getVal('client_secret', '')
-        if (st) {
-          st.textContent = hasCreds ? 'Clique em "Conectar com Google" para autorizar.' : 'Preencha Client ID e Client Secret e salve, depois conecte.'
-          st.className = 'integ-status'
-        }
-      }
-    }).catch(() => {})
   } else if (type === 'whatsapp') {
     const isInst = window._wahaStatus && window._wahaStatus.installed
     const status = window._wahaStatus || {}
@@ -4236,11 +3981,6 @@ async function saveInteg() {
       timeout: document.getElementById('integ-cfg-timeout')?.value || '8',
       header_name: (document.getElementById('integ-cfg-header-name')?.value || '').trim(),
       header_value: (document.getElementById('integ-cfg-header-value')?.value || '').trim(),
-    }
-  } else if (_selectedIntegType === 'google_calendar') {
-    config = {
-      client_id: (document.getElementById('integ-cfg-google-client-id')?.value || '').trim(),
-      client_secret: (document.getElementById('integ-cfg-google-client-secret')?.value || '').trim(),
     }
   } else if (_selectedIntegType === 'whatsapp') {
     if (!window._wahaStatus || !window._wahaStatus.installed) {
@@ -4364,55 +4104,6 @@ async function testIntegUrl() {
     }
   } catch {
     showToast('Erro ao testar.')
-  }
-}
-
-async function integConnectGoogle() {
-  const cid = document.getElementById('integ-cfg-google-client-id')?.value?.trim()
-  const sec = document.getElementById('integ-cfg-google-client-secret')?.value?.trim()
-  if (!cid || !sec) { showToast('Preencha Client ID e Client Secret primeiro.'); return }
-
-  // save credentials to settings first (needed by google auth endpoint)
-  await fetch(API + '/google/config', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ client_id: cid, client_secret: sec })
-  })
-
-  // also save the integration config
-  const id = document.getElementById('integ-id')?.value
-  if (id) {
-    await fetch(API + '/integrations/' + id, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ config: { client_id: cid, client_secret: sec } })
-    })
-  }
-
-  try {
-    const r = await fetch(API + '/google/auth')
-    const data = await r.json()
-    if (data.auth_url) {
-      window.location.href = data.auth_url
-    } else {
-      showToast(data.error || 'Erro ao conectar.')
-    }
-  } catch {
-    showToast('Erro de conexão.')
-  }
-}
-
-async function integDisconnectGoogle() {
-  if (!confirm('Desconectar Google Calendar?')) return
-  try {
-    await fetch(API + '/google/disconnect', { method: 'POST' })
-    showToast('Google Calendar desconectado.', 'info')
-    const st = document.getElementById('integ-google-status')
-    if (st) { st.textContent = 'Desconectado.'; st.className = 'integ-status' }
-    const dc = document.getElementById('integ-google-disconnect-btn')
-    if (dc) dc.style.display = 'none'
-  } catch {
-    showToast('Erro ao desconectar.')
   }
 }
 

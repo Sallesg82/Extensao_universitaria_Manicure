@@ -24,8 +24,7 @@ backend/                      # API Flask + WebSocket
 │   ├── services.py           #   CRUD serviços (72 linhas)
 │   ├── users.py              #   CRUD usuários + login (108 linhas)
 │   ├── notifications.py      #   Notificações (26 linhas)
-│   ├── integrations.py       #   Integrações webhook/n8n/Google Calendar (64 linhas)
-│   └── google_calendar.py    #   OAuth + sync Google Calendar (232 linhas)
+│   └── integrations.py       #   Integrações webhook/n8n/WhatsApp
 └── middleware/validation.py  # Decorators de validação
 ```
 
@@ -44,7 +43,7 @@ backend/                      # API Flask + WebSocket
 | `settings` | Chave-valor (meta_mensal, notificações, empresa, configurações) |
 | `business_hours` | Horários de funcionamento por dia da semana (Seg-Dom) |
 | `notifications` | Notificações do sistema (meta atingida, agendamentos, etc.) |
-| `integrations` | Integrações configuradas (webhook, n8n, Google Calendar) em JSONB |
+| `integrations` | Integrações configuradas (webhook, n8n, WhatsApp) em JSONB |
 | `users` | Usuários com autenticação segura (scrypt / Werkzeug) |
 | `v_clients` | View: clientes com visitas, total_spent (payment_status='paid'), last_visit |
 | `v_month_stats` | View: receita/despesas/agendamentos do mês |
@@ -90,7 +89,6 @@ GET /api/stats?period=7|30|90|365  →  JSON com ~25 campos
 | users_bp | `/api/users/` | GET list, GET/exists, GET/:id, POST, PUT/:id, DELETE/:id, PUT/:id/password, POST/login |
 | notifications_bp | `/api/notifications/` | GET list, GET/unread-count, POST/read/:id, POST/read-all |
 | integrations_bp | `/api/integrations/` | GET list, GET/:id, POST, PUT/:id, DELETE/:id |
-| google_bp | `/api/google/` | GET/PUT config, GET auth, GET callback, GET status, POST disconnect, POST verify-event, POST sync |
 
 ### Rotas diretas em server.py
 
@@ -174,7 +172,7 @@ GET /api/stats?period=7|30|90|365  →  JSON com ~25 campos
 - **Soft-delete** de agendamentos via tabela `settings` (chave `trash_appt_{id}`) com restauração
 - **Horários de pico** calculados agregando `appointment_time` (08:00–17:00, Seg–Sáb), grid 6×10
 - **Notificação de meta** criada automaticamente quando `month_revenue >= meta_mensal`
-- **Integrações**: Google Calendar (OAuth, sync bidirecional), n8n (webhooks para eventos), Socket.IO (tempo real)
+- **Integrações**: WhatsApp (WAHA), n8n (webhooks para eventos), Socket.IO (tempo real)
 
 ---
 

@@ -46,7 +46,6 @@ Ambos se comunicam em **tempo real** — quando um cliente agenda pelo portal, o
 | Flask-CORS | 4.0.1 | Habilitação de requisições cross-origin |
 | Psycopg 3 | 3.1.18 | Driver nativo PostgreSQL com connection pooling |
 | Werkzeug | — | Hash de senhas (PBKDF2/SHA-256) |
-| Google API Client | 2.133.0 | Integração OAuth 2.0 + Google Calendar API v3 |
 | Requests | 2.32.3 | Webhooks HTTP (n8n e integrações externas) |
 | Python-Dotenv | 1.0.1 | Gerenciamento de variáveis de ambiente |
 
@@ -115,7 +114,6 @@ Painel completo de gestão para o profissional. O backend Flask serve tanto a AP
 - Validação automática de horários de funcionamento e conflitos
 - Status de pagamento (Pago / Não Pago) direto na agenda
 - Bloqueio visual de dias de folga
-- Sincronização bidirecional com Google Calendar
 - Atualizações em tempo real via WebSocket
 
 #### 👥 Gestão de Clientes
@@ -171,7 +169,7 @@ Painel completo de gestão para o profissional. O backend Flask serve tanto a AP
 
 #### 🔗 Central de Integrações
 - **n8n**: URL de webhook, eventos (create/update/delete), headers customizados, botão de teste
-- **Google Calendar**: OAuth 2.0, sincronização bidirecional automática
+- **WhatsApp (WAHA)**: Notificações automáticas via WhatsApp (criação, cancelamento)
 - **Webhooks genéricos**: Cadastro com toggle ativo/inativo
 
 #### ⚙️ Configurações e Customização
@@ -203,7 +201,7 @@ Painel completo de gestão para o profissional. O backend Flask serve tanto a AP
 |---|---|---|
 | `GET` | `/api/appointments/` | Listar (`?date=&date_from=&date_to=&client_id=&status=`) |
 | `GET` | `/api/appointments/:id` | Detalhes |
-| `POST` | `/api/appointments/` | Criar (valida horário, notifica n8n/Google/WebSocket) |
+| `POST` | `/api/appointments/` | Criar (valida horário, notifica n8n/WhatsApp/WebSocket) |
 | `PUT` | `/api/appointments/:id` | Atualizar (sync financeiro ao concluir) |
 | `DELETE` | `/api/appointments/:id` | Excluir |
 
@@ -268,17 +266,6 @@ Painel completo de gestão para o profissional. O backend Flask serve tanto a AP
 | `POST` | `/api/n8n/sync-calendar` | Sincronizar agendamentos |
 | `GET` | `/api/n8n/status` | Status de conectividade |
 
-#### Google Calendar
-| Método | Rota | Descrição |
-|---|---|---|
-| `GET` | `/api/google/config` | Configuração OAuth |
-| `PUT` | `/api/google/config` | Salvar Client ID/Secret |
-| `GET` | `/api/google/auth` | URL de consentimento OAuth 2.0 |
-| `GET` | `/api/google/callback` | Callback OAuth |
-| `GET` | `/api/google/status` | Status da conexão |
-| `POST` | `/api/google/disconnect` | Desconectar |
-| `POST` | `/api/google/sync` | Sincronizar evento |
-
 #### Configurações e Categorias Financeiras
 | Método | Rota | Descrição |
 |---|---|---|
@@ -324,8 +311,7 @@ CRM BeautyFlow/
 │   │   ├── transactions.py
 │   │   ├── users.py
 │   │   ├── notifications.py
-│   │   ├── integrations.py
-│   │   └── google_calendar.py
+│   │   └── integrations.py
 │   └── middleware/
 │       └── validation.py       # Validação de horários
 ├── src/
@@ -422,13 +408,13 @@ PostgreSQL 16 com 9 tabelas, 3 views e triggers automáticos.
 | Tabela | Finalidade |
 |---|---|
 | `clients` | Clientes (nome, telefone, email, CPF, status, notas) |
-| `appointments` | Agendamentos (data, hora, status, pagamento, duração, Google Event ID) |
+| `appointments` | Agendamentos (data, hora, status, pagamento, duração) |
 | `services` | Serviços (nome, duração, buffer, preço, cor) |
 | `transactions` | Lançamentos financeiros (receita/despesa, método, categoria, snapshot) |
 | `business_hours` | Horários de funcionamento por dia da semana |
-| `settings` | Configurações chave/valor (meta, empresa, credenciais, automações) |
+| `settings` | Configurações chave/valor (meta, empresa, automações) |
 | `notifications` | Notificações do sistema (tipo, título, mensagem, lida) |
-| `integrations` | Integrações cadastradas (webhook, n8n, Google) com config JSONB |
+| `integrations` | Integrações cadastradas (webhook, n8n, WhatsApp) com config JSONB |
 | `users` | Usuários do sistema (email, senha hash, role) |
 
 ### Views
@@ -556,8 +542,8 @@ npm run dev
            └──────────────────────────────┘
                 │               │
            ┌────▼────┐    ┌────▼──────────┐
-           │  n8n    │    │ Google        │
-           │Webhooks │    │ Calendar API  │
+           │  n8n    │    │ WhatsApp      │
+           │Webhooks │    │ (WAHA API)    │
            └─────────┘    └───────────────┘
 ```
 

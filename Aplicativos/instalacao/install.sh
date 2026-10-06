@@ -356,9 +356,13 @@ BEGIN
     WHERE constraint_name = 'integrations_type_check' AND table_name = 'integrations'
   ) THEN
     ALTER TABLE integrations DROP CONSTRAINT integrations_type_check;
-    ALTER TABLE integrations ADD CONSTRAINT integrations_type_check CHECK(type IN ('webhook', 'n8n', 'google_calendar', 'whatsapp', 'waha'));
+    ALTER TABLE integrations ADD CONSTRAINT integrations_type_check CHECK(type IN ('webhook', 'n8n', 'whatsapp', 'waha'));
   END IF;
 END $$;
+
+DELETE FROM integrations WHERE type = 'google_calendar';
+ALTER TABLE appointments DROP COLUMN IF EXISTS google_event_id;
+ALTER TABLE appointments DROP COLUMN IF EXISTS google_html_link;
 
 CREATE TABLE IF NOT EXISTS public.metas (
     id SERIAL PRIMARY KEY,

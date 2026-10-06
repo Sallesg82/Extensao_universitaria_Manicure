@@ -154,7 +154,7 @@
     <g transform="translate(48, 76)">
       <!-- Item 1 -->
       <circle cx="12" cy="50" r="7" fill="#f59e0b" />
-      <text x="38" y="61" font-size="34" font-weight="600" fill="#ffffff">Sincronização automática com a agenda do Google</text>
+      <text x="38" y="61" font-size="34" font-weight="600" fill="#ffffff">Notificações automáticas via WhatsApp (WAHA)</text>
 
       <!-- Item 2 -->
       <circle cx="12" cy="112" r="7" fill="#f59e0b" />

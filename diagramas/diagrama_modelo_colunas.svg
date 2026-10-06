@@ -87,7 +87,7 @@
     <!-- Header Card -->
     <rect x="0" y="0" width="450" height="250" rx="20" fill="#06b6d4" filter="url(#box-shadow)" />
     
-    <!-- Icon: Team / Salon CRM -->
+    <!-- Icon: Team / Salon Management -->
     <g transform="translate(225, 75)" stroke="#ffffff" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round">
       <circle cx="-14" cy="-16" r="10" />
       <circle cx="14" cy="-16" r="10" />
@@ -97,7 +97,7 @@
     </g>
 
     <text x="225" y="165" font-size="28" font-weight="800" fill="#ffffff" text-anchor="middle" letter-spacing="0.5">PAINEL DE GESTÃO</text>
-    <text x="225" y="198" font-size="19" font-weight="500" fill="rgba(255,255,255,0.92)" text-anchor="middle">CRM e controle do salão</text>
+    <text x="225" y="198" font-size="19" font-weight="500" fill="rgba(255,255,255,0.92)" text-anchor="middle">Administração e controle do salão</text>
 
     <!-- Pill 1 -->
     <g transform="translate(0, 275)" filter="url(#pill-shadow)">
@@ -113,7 +113,7 @@
       <rect x="0" y="0" width="450" height="96" rx="20" fill="#06b6d4" />
       <circle cx="45" cy="48" r="22" fill="#ffffff" />
       <circle cx="45" cy="48" r="8" fill="#06b6d4" />
-      <text x="86" y="42" font-size="20" font-weight="700" fill="#ffffff">Gestão de clientes, estoque</text>
+      <text x="86" y="42" font-size="20" font-weight="700" fill="#ffffff">Cadastro de clientes, estoque</text>
       <text x="86" y="68" font-size="20" font-weight="700" fill="#ffffff">e produtos em falta</text>
     </g>
 
@@ -227,7 +227,7 @@
     <!-- Header Card -->
     <rect x="0" y="0" width="450" height="250" rx="20" fill="#f59e0b" filter="url(#box-shadow)" />
     
-    <!-- Icon: Google Calendar / Sync -->
+    <!-- Icon: Integrações / Alertas -->
     <g transform="translate(225, 75)" stroke="#ffffff" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round">
       <rect x="-20" y="-18" width="40" height="40" rx="8" />
       <line x1="-20" y1="-4" x2="20" y2="-4" />
@@ -239,15 +239,15 @@
     </g>
 
     <text x="225" y="165" font-size="26" font-weight="800" fill="#ffffff" text-anchor="middle" letter-spacing="0.3">INTEGRAÇÕES &amp; ALERTAS</text>
-    <text x="225" y="198" font-size="19" font-weight="500" fill="rgba(255,255,255,0.92)" text-anchor="middle">Google Agenda e avisos no CRM</text>
+    <text x="225" y="198" font-size="19" font-weight="500" fill="rgba(255,255,255,0.92)" text-anchor="middle">WhatsApp, n8n e avisos no painel</text>
 
     <!-- Pill 1 -->
     <g transform="translate(0, 275)" filter="url(#pill-shadow)">
       <rect x="0" y="0" width="450" height="96" rx="20" fill="#f59e0b" />
       <circle cx="45" cy="48" r="22" fill="#ffffff" />
       <circle cx="45" cy="48" r="8" fill="#f59e0b" />
-      <text x="86" y="42" font-size="20" font-weight="700" fill="#ffffff">Sincronização automática</text>
-      <text x="86" y="68" font-size="20" font-weight="700" fill="#ffffff">com a agenda do Google</text>
+      <text x="86" y="42" font-size="20" font-weight="700" fill="#ffffff">Notificações automáticas</text>
+      <text x="86" y="68" font-size="20" font-weight="700" fill="#ffffff">via WhatsApp (WAHA)</text>
     </g>
 
     <!-- Pill 2 -->
@@ -274,7 +274,7 @@
   <g transform="translate(75, 875)">
     <line x1="0" y1="0" x2="2410" y2="0" stroke="#cbd5e1" stroke-width="2" />
     
-    <text x="0" y="38" font-size="22" font-weight="700" fill="#475569">Footer (Fluxo Operacional Integrado do Sistema)</text>
+    <text x="0" y="38" font-size="22" font-weight="700" fill="#475569">Footer (Fluxo Operacional de Atendimento do Salão)</text>
 
     <!-- 5 Footer Columns -->
     <g transform="translate(0, 56)" font-size="16.5" font-weight="500" fill="#64748b">
@@ -290,7 +290,7 @@
 
       <!-- Col 2 -->
       <g transform="translate(490, 0)">
-        <text x="0" y="24">• 2. Atualiza o CRM do Salão</text>
+        <text x="0" y="24">• 2. Atualiza a agenda do salão</text>
         <text x="0" y="50">• Alerta sonoro e visual ao vivo</text>
         <text x="0" y="76">• Bloqueio automático de horário</text>
       </g>
@@ -321,7 +321,7 @@
       <!-- Col 5 -->
       <g transform="translate(1960, 0)">
         <text x="0" y="24">• 4. Sincronia &amp; Notificações</text>
-        <text x="0" y="50">• Conexão Google Calendar (OAuth)</text>
+        <text x="0" y="50">• Conexão WhatsApp (WAHA)</text>
         <text x="0" y="76">• Alertas e webhooks em tempo real</text>
       </g>
     </g>

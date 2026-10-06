@@ -18,7 +18,7 @@ def create():
     integ_type = (data.get('type') or '').strip()
     if not name:
         return jsonify({'error': 'Nome é obrigatório'}), 400
-    if integ_type not in ('webhook', 'n8n', 'google_calendar', 'whatsapp', 'waha'):
+    if integ_type not in ('webhook', 'n8n', 'whatsapp', 'waha'):
         return jsonify({'error': 'Tipo inválido'}), 400
     config = data.get('config', {})
     enabled = data.get('enabled', True)

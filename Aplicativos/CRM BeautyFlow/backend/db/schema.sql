@@ -47,8 +47,6 @@ CREATE TABLE public.appointments (
     price real DEFAULT 0 NOT NULL,
     duration integer DEFAULT 60,
     notes text DEFAULT ''::text,
-    google_event_id text DEFAULT ''::text,
-    google_html_link text DEFAULT ''::text,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     CONSTRAINT appointments_payment_status_check CHECK ((payment_status = ANY (ARRAY['paid'::text, 'unpaid'::text])))
@@ -162,7 +160,7 @@ CREATE TABLE public.integrations (
     enabled boolean DEFAULT true,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
-    CONSTRAINT integrations_type_check CHECK ((type = ANY (ARRAY['webhook'::text, 'n8n'::text, 'google_calendar'::text, 'whatsapp'::text, 'waha'::text])))
+    CONSTRAINT integrations_type_check CHECK ((type = ANY (ARRAY['webhook'::text, 'n8n'::text, 'whatsapp'::text, 'waha'::text])))
 );
 
 
