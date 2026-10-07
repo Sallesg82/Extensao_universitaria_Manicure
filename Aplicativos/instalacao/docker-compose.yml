@@ -43,7 +43,7 @@ services:
       postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3001/')"]
+      test: ["CMD", "/app/beautyflow-crm", "--healthcheck"]
       interval: 5s
       timeout: 5s
       retries: 6

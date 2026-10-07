@@ -1,19 +1,41 @@
-FROM python:3.11-slim
+# Multi-stage build for BeautyFlow CRM Rust Backend
+FROM rust:1.85-slim-bookworm AS builder
 
 WORKDIR /app
 
-# Install backend dependencies
-COPY backend/requirements.txt /app/backend/requirements.txt
-RUN pip install --no-cache-dir -r /app/backend/requirements.txt
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    pkg-config \
+    libssl-dev \
+    cmake \
+    clang \
+    && rm -rf /var/lib/apt/lists/*
 
-# Copy backend and frontend static source files
-COPY backend /app/backend
+COPY backend/Cargo.toml backend/Cargo.lock /app/backend/
+COPY backend/src /app/backend/src
+
+WORKDIR /app/backend
+RUN cargo build --release
+
+# Runner stage
+FROM debian:bookworm-slim AS runner
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    libssl3 \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /app/backend/target/release/beautyflow-crm /app/beautyflow-crm
 COPY src /app/src
+COPY backend/db /app/backend/db
+
+RUN mkdir -p /app/backend/db && chmod +x /app/beautyflow-crm
 
 EXPOSE 3001
 
 ENV PORT=3001
-ENV PYTHONUNBUFFERED=1
-ENV PYTHONPATH=/app/backend:/app
+ENV RUST_LOG=info
 
-CMD ["python", "backend/run.py"]
+CMD ["/app/beautyflow-crm"]

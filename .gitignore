@@ -9,4 +9,7 @@ dist/
 .vite/
 Aplicativos/instalacao/backups/*.sql
 *.log
-
+target/
+**/target/
+*.db-shm
+*.db-wal

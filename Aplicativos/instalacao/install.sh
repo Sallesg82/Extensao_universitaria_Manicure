@@ -836,13 +836,17 @@ action_reset_password() {
     read -rp "Digite a nova senha para o usuario 'admin' [padrao: admin]: " NEW_PASS
     NEW_PASS=${NEW_PASS:-admin}
 
-    docker exec -i beautyflow-crm python -c "
+    if docker exec -i beautyflow-crm test -f /app/beautyflow-crm 2>/dev/null; then
+        docker exec -i beautyflow-crm /app/beautyflow-crm --reset-admin "$NEW_PASS"
+    else
+        docker exec -i beautyflow-crm python -c "
 from werkzeug.security import generate_password_hash
 from db.database import _run
 pw_hash = generate_password_hash('$NEW_PASS')
 _run('UPDATE users SET password_hash = %s WHERE email = %s', (pw_hash, 'admin'))
 print('[OK] Senha do usuario admin atualizada.')
 "
+    fi
     echo -e "${C_B_GREEN}[OK] Senha alterada com sucesso! Agora voce pode logar com a nova senha.${C_RESET}"
 }
 

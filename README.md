@@ -36,18 +36,20 @@ Ambos se comunicam em **tempo real** — quando um cliente agenda pelo portal, o
 
 ## 🛠 Tecnologias Utilizadas
 
-### Backend
+### Backend (Rust Nativo — Alta Performance & Baixo Consumo)
+
+> O backend foi completamente migrado de Python/Flask para **Rust nativo**, reduzindo o consumo de memória em **~92%** (de ~200MB para ~16MB) e a latência de resposta para **sub-milissegundo** (0.4ms – 1.8ms), sem GIL e com concorrência real assíncrona.
 
 | Tecnologia | Versão | Finalidade |
 |---|---|---|
-| Python | 3.11+ | Linguagem principal do servidor |
-| Flask | 3.0.3 | Framework web (API REST + serve o frontend SPA) |
-| Flask-SocketIO | 5.3.6 | WebSockets para sincronização em tempo real |
-| Flask-CORS | 4.0.1 | Habilitação de requisições cross-origin |
-| Psycopg 3 | 3.1.18 | Driver nativo PostgreSQL com connection pooling |
-| Werkzeug | — | Hash de senhas (PBKDF2/SHA-256) |
-| Requests | 2.32.3 | Webhooks HTTP (n8n e integrações externas) |
-| Python-Dotenv | 1.0.1 | Gerenciamento de variáveis de ambiente |
+| **Rust** | 1.80+ | Linguagem principal do servidor nativo |
+| **Axum** | 0.8 | Framework web assíncrono de alto desempenho baseado em Hyper e Tower |
+| **Socketioxide** | 0.18 | WebSockets nativos (Socket.IO v4) com suporte a polling e broadcasting |
+| **SQLx** | 0.9 | Driver de banco de dados assíncrono com pools para PostgreSQL e SQLite |
+| **Tokio** | 1.x | Runtime assíncrono multi-threaded com work-stealing |
+| **Tower-HTTP** | 0.6 | Middlewares de CORS, compressão, trace e serviço de arquivos estáticos |
+| **Reqwest** | 0.13 | Cliente HTTP assíncrono para webhooks do n8n e API do WAHA |
+| **Scrypt / PBKDF2** | — | Criptografia segura e 100% compatível com credenciais do Werkzeug |
 
 ### Frontend — CRM
 
@@ -530,11 +532,11 @@ npm run dev
            ┌────▼─────┐        ┌─────▼───────┐
            │   CRM    │        │ Agendamento │
            │  :3001   │        │  :80/5173   │
-           │ (Flask)  │        │(React/Nginx)│
+           │  (Rust)  │        │(React/Nginx)│
            └────┬─────┘        └─────▲───────┘
                 │                     │
                 │   ┌─── WebSocket ───┘
-                │   │   (Socket.IO)
+                │   │ (Socketioxide)
                 │   │
            ┌────▼───▼─────────────────────┐
            │   PostgreSQL 16 / 18         │
@@ -580,6 +582,10 @@ VITE_API_URL=http://<IP_OU_HOST>:3001/api
 
 | Arquivo | Descrição |
 |---|---|
+| [`documentacoes/MIGRACAO_BACKEND_RUST.md`](documentacoes/MIGRACAO_BACKEND_RUST.md) | **Relatório da migração para Rust**: comparativo de métricas, benchmarks, redução de ~92% de RAM e eliminação do GIL |
+| [`documentacoes/ARQUITETURA_DO_SISTEMA_RUST.md`](documentacoes/ARQUITETURA_DO_SISTEMA_RUST.md) | **Arquitetura interna do backend em Rust**: estrutura dos módulos, realtime com `pgevents` e WebSocket, chat SQLite |
+| [`documentacoes/GUIA_DE_DESENVOLVIMENTO_E_DEPLOY.md`](documentacoes/GUIA_DE_DESENVOLVIMENTO_E_DEPLOY.md) | **Guia de operação e DevOps**: comandos locais (`./dev.sh`, `cargo run`), CLI (`--healthcheck`, `--reset-admin`) e Docker multi-stage |
+| [`documentacoes/REFERENCIA_DE_APIS_E_ROTAS.md`](documentacoes/REFERENCIA_DE_APIS_E_ROTAS.md) | **Referência de APIs e WebSockets**: especificação técnica detalhada dos 30 endpoints REST e eventos em tempo real |
 | `FERRAMENTAS_E_FUNCIONALIDADES.txt` | Documento mestre com mapeamento exaustivo de todo o ecossistema |
 | `docs/resumo_tecnico.md` | Arquitetura técnica detalhada, endpoints, fórmulas financeiras, gráficos SVG |
 | `docs/ux(Mirian Original).html` | Protótipo HTML/CSS original da interface de referência |
