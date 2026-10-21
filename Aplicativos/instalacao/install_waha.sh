@@ -67,7 +67,16 @@ echo -e "      ${C_B_GREEN}[OK] Docker operando normalmente.${C_RESET}"
 echo ""
 echo -e "${C_B_CYAN}[2/6] Verificando disponibilidade da porta 3000...${C_RESET}"
 if ss -tlpn 2>/dev/null | grep -qE ":3000[[:space:]]"; then
-    if ! docker ps --format '{{.Ports}}' 2>/dev/null | grep -qE ":3000->"; then
+    holder=$(docker ps --format '{{.Names}}\t{{.Ports}}' 2>/dev/null | grep -E ":3000->" | head -n1 | awk '{print $1}' || true)
+    if [ -n "$holder" ] && ! [[ "$holder" =~ ^beautyflow- ]]; then
+        echo -e "      ${C_YELLOW}[AVISO] A porta 3000 ja esta em uso pelo conteiner Docker '$holder'.${C_RESET}"
+        read -rp "      Deseja pausar o conteiner '$holder' para liberar a porta? (S/n): " STOP_C
+        STOP_C=${STOP_C:-S}
+        if [[ "$STOP_C" =~ ^[Ss]$ ]]; then
+            docker stop "$holder" 2>/dev/null || true
+            sleep 1
+        fi
+    elif [ -z "$holder" ]; then
         echo -e "      ${C_YELLOW}[AVISO] A porta 3000 esta em uso por um servico local fora do Docker.${C_RESET}"
         read -rp "      Deseja tentar encerrar o processo local na porta 3000? (S/n): " STOP_P
         STOP_P=${STOP_P:-S}
@@ -80,7 +89,7 @@ if ss -tlpn 2>/dev/null | grep -qE ":3000[[:space:]]"; then
             sleep 1
         fi
     else
-        echo -e "      ${C_GRAY}A porta 3000 ja esta atribuida a um conteiner Docker.${C_RESET}"
+        echo -e "      ${C_B_GREEN}[OK] Porta 3000 ja pertence ao conteiner BeautyFlow.${C_RESET}"
     fi
 else
     echo -e "      ${C_B_GREEN}[OK] Porta 3000 livre.${C_RESET}"

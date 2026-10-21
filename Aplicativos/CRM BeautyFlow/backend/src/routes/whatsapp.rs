@@ -374,7 +374,7 @@ async fn refresh_whatsapp_qr(
     let api_key = get_api_key(&state, &settings);
     let session = get_session_name(&state, &waha_url, &settings).await;
 
-    // Check if already WORKING
+    // 1. Check if already WORKING
     let r_sess = state
         .http_client
         .get(format!("{}/api/sessions/{}", waha_url, session))
@@ -383,30 +383,39 @@ async fn refresh_whatsapp_qr(
         .send()
         .await;
 
+    let mut is_stopped = false;
+    let mut is_missing = false;
+
     if let Ok(r) = r_sess {
         if r.status().is_success() {
             if let Ok(sess_data) = r.json::<Value>().await {
-                if sess_data.get("status").and_then(|v| v.as_str()) == Some("WORKING") {
+                let st = sess_data.get("status").and_then(|v| v.as_str()).unwrap_or("");
+                if st == "WORKING" {
                     return Ok(Json(json!({
                         "status": "WORKING",
                         "message": "WhatsApp já está conectado.",
+                        "me": sess_data.get("me"),
                         "session": session
                     })));
+                } else if st == "STOPPED" {
+                    is_stopped = true;
                 }
             }
+        } else if r.status().as_u16() == 404 || r.status().as_u16() == 422 {
+            is_missing = true;
         }
     }
 
-    // Restart or start session
-    let restart_res = state
-        .http_client
-        .post(format!("{}/api/sessions/{}/restart", waha_url, session))
-        .header("X-Api-Key", &api_key)
-        .timeout(Duration::from_secs(6))
-        .send()
-        .await;
-
-    if restart_res.is_err() || !restart_res.unwrap().status().is_success() {
+    if is_missing {
+        let _ = state
+            .http_client
+            .post(format!("{}/api/sessions", waha_url))
+            .header("X-Api-Key", &api_key)
+            .json(&json!({ "name": session, "start": true }))
+            .timeout(Duration::from_secs(4))
+            .send()
+            .await;
+    } else if is_stopped {
         let _ = state
             .http_client
             .post(format!("{}/api/sessions/{}/start", waha_url, session))
@@ -416,14 +425,75 @@ async fn refresh_whatsapp_qr(
             .await;
     }
 
+    // 2. Try to fetch existing QR code directly first (fast path, takes ~50ms)
     let qr_url = format!("{}/api/{}/auth/qr", waha_url, session);
-    for _ in 0..4 {
-        tokio::time::sleep(Duration::from_millis(1200)).await;
+    let direct_qr = state
+        .http_client
+        .get(&qr_url)
+        .header("X-Api-Key", &api_key)
+        .timeout(Duration::from_secs(3))
+        .send()
+        .await;
+
+    if let Ok(r) = direct_qr {
+        if r.status().is_success() {
+            let bytes = r.bytes().await.unwrap_or_default();
+            if bytes.len() > 100 {
+                use base64::Engine;
+                let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+                let data_url = format!("data:image/png;base64,{}", b64);
+                return Ok(Json(json!({
+                    "status": "SCAN_QR_CODE",
+                    "qr": data_url,
+                    "qr_image": data_url,
+                    "session": session,
+                    "expires_in": 35
+                })));
+            }
+        }
+    }
+
+    // 3. If no QR yet and not stopped/missing, request restart
+    if !is_stopped && !is_missing {
+        let _ = state
+            .http_client
+            .post(format!("{}/api/sessions/{}/restart", waha_url, session))
+            .header("X-Api-Key", &api_key)
+            .timeout(Duration::from_secs(4))
+            .send()
+            .await;
+    }
+
+    // Poll for QR code ready (up to 5 times, 1s sleep)
+    for _ in 0..5 {
+        tokio::time::sleep(Duration::from_millis(1000)).await;
+
+        // Check if connected during poll
+        if let Ok(chk) = state
+            .http_client
+            .get(format!("{}/api/sessions/{}", waha_url, session))
+            .header("X-Api-Key", &api_key)
+            .timeout(Duration::from_secs(2))
+            .send()
+            .await
+        {
+            if let Ok(data) = chk.json::<Value>().await {
+                if data.get("status").and_then(|v| v.as_str()) == Some("WORKING") {
+                    return Ok(Json(json!({
+                        "status": "WORKING",
+                        "message": "WhatsApp já está conectado.",
+                        "me": data.get("me"),
+                        "session": session
+                    })));
+                }
+            }
+        }
+
         let r_qr = state
             .http_client
             .get(&qr_url)
             .header("X-Api-Key", &api_key)
-            .timeout(Duration::from_secs(5))
+            .timeout(Duration::from_secs(3))
             .send()
             .await;
 
@@ -454,6 +524,7 @@ async fn refresh_whatsapp_qr(
         "session": session
     })))
 }
+
 
 async fn get_whatsapp_screenshot(
     State(state): State<Arc<AppState>>,

@@ -5,7 +5,7 @@ use axum::{
     routing::get,
     Json, Router,
 };
-use chrono::{Datelike, Local, NaiveDate};
+use chrono::{Datelike, Local, NaiveDate, NaiveTime, Timelike};
 use serde::Deserialize;
 use sqlx::Row;
 use std::collections::{BTreeMap, HashMap, HashSet};
@@ -154,8 +154,8 @@ async fn get_stats(
         if status == "pending" {
             today_pending += 1;
         }
-        let time_str: String = r.get::<Option<String>, _>("appointment_time").unwrap_or_default();
-        let short_time = if time_str.len() >= 5 { &time_str[..5] } else { &time_str };
+        let appt_time: Option<NaiveTime> = r.try_get("appointment_time").ok();
+        let short_time = appt_time.map(|t| format!("{:02}:{:02}", t.hour(), t.minute())).unwrap_or_default();
 
         today_full.push(serde_json::json!({
             "id": r.get::<i32, _>("id"),
@@ -197,8 +197,8 @@ async fn get_stats(
         let status: String = a.get("status");
         let svc: String = a.get("service");
         let a_date: NaiveDate = a.get("appointment_date");
-        let a_time: Option<String> = a.get("appointment_time");
-        let short_time = a_time.as_deref().map(|t| if t.len() >= 5 { &t[..5] } else { t }).unwrap_or_default();
+        let a_time: Option<NaiveTime> = a.try_get("appointment_time").ok();
+        let short_time = a_time.map(|t| format!("{:02}:{:02}", t.hour(), t.minute())).unwrap_or_default();
 
         if status == "confirmed" || status == "done" {
             *svc_counts.entry(if svc.is_empty() { "Outros".to_string() } else { svc.clone() }).or_insert(0) += 1;

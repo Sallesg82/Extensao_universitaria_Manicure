@@ -4412,14 +4412,25 @@ async function loadWahaQr(forceRefresh = false) {
   const errMsg = document.getElementById('waha-qr-error-msg')
   const expiredOverlay = document.getElementById('waha-qr-expired-overlay')
   const secEl = document.getElementById('waha-qr-seconds')
+  const refreshBtn = document.getElementById('waha-btn-refresh-qr')
 
   if (_wahaQrExpiryTimer) {
     clearInterval(_wahaQrExpiryTimer)
     _wahaQrExpiryTimer = null
   }
 
-  if (loading) loading.style.display = 'block'
-  if (content) content.style.display = 'none'
+  // If content is already visible, keep it visible and just give visual feedback on the button
+  const hasContentAlready = content && content.style.display !== 'none'
+  if (hasContentAlready && forceRefresh) {
+    if (refreshBtn) {
+      refreshBtn.disabled = true
+      refreshBtn.style.opacity = '0.6'
+    }
+  } else {
+    if (loading) loading.style.display = 'block'
+    if (content) content.style.display = 'none'
+  }
+
   if (errBox) errBox.style.display = 'none'
   if (succBox) succBox.style.display = 'none'
   if (expiredOverlay) expiredOverlay.style.display = 'none'
@@ -4436,6 +4447,7 @@ async function loadWahaQr(forceRefresh = false) {
 
     if (data.status === 'WORKING') {
       if (succBox) succBox.style.display = 'block'
+      if (content) content.style.display = 'none'
       checkWahaStatus()
       return
     }
@@ -4458,16 +4470,29 @@ async function loadWahaQr(forceRefresh = false) {
           if (qrImg) qrImg.style.filter = 'blur(3px) grayscale(60%)'
         }
       }, 1000)
+    } else if (data.status === 'STARTING') {
+      // WAHA is currently generating or restarting the session. Auto-retry after 1.5s
+      if (content) content.style.display = 'block'
+      if (secEl) secEl.textContent = 'Gerando...'
+      setTimeout(() => loadWahaQr(false), 1500)
     } else {
       if (errMsg) errMsg.textContent = data.error || 'QR code indisponível no momento. Tente novamente em instantes.'
       if (errBox) errBox.style.display = 'block'
+      if (content) content.style.display = 'none'
     }
   } catch (err) {
     if (loading) loading.style.display = 'none'
     if (errMsg) errMsg.textContent = 'Erro ao conectar ao serviço de WhatsApp. Tente novamente em instantes.'
     if (errBox) errBox.style.display = 'block'
+    if (content) content.style.display = 'none'
+  } finally {
+    if (refreshBtn) {
+      refreshBtn.disabled = false
+      refreshBtn.style.opacity = ''
+    }
   }
 }
+
 
 async function disconnectWaha() {
   if (!confirm('Tem certeza de que deseja desconectar o WhatsApp? As notificações deixarão de ser enviadas.')) return

@@ -1,600 +1,276 @@
-# 💅 BeautyFlow — Sistema de Gestão para Salões de Beleza
+# 💅 BeautyFlow — Plataforma Inteligente de Gestão & Agendamento para Estúdios de Beleza
 
-> Projeto de Extensão Universitária — SENAI
-
-Sistema completo de gestão para salões de beleza composto por dois aplicativos integrados: um **CRM de gestão** para o profissional e um **portal de agendamento online** para os clientes, conectados em **tempo real** via WebSockets.
-
----
-
-## 📋 Índice
-
-- [Visão Geral](#-visão-geral)
-- [Tecnologias Utilizadas](#-tecnologias-utilizadas)
-- [CRM BeautyFlow](#-1-crm-beautyflow)
-- [Portal de Agendamento](#-2-portal-de-agendamento-online)
-- [Banco de Dados](#-banco-de-dados)
-- [Instalação](#-instalação)
-- [Arquitetura](#-arquitetura-de-produção)
-- [Variáveis de Ambiente](#-variáveis-de-ambiente)
-- [Documentação](#-documentação)
-- [Licença](#-licença)
+> **Projeto de Extensão Universitária — SENAI**  
+> Uma solução completa, visual e acolhedora feita para simplificar a rotina de manicures, nail designers, salões e profissionais de estética.
 
 ---
 
-## 🔭 Visão Geral
+## 🌸 O que é o BeautyFlow?
 
-O **BeautyFlow** é um ecossistema de software desenvolvido como projeto de extensão do SENAI, pensado para resolver as necessidades reais de salões de beleza e profissionais autônomos da área de estética. O sistema é dividido em:
+O **BeautyFlow** foi criado para resolver as dores reais do dia a dia de quem trabalha com beleza: mensagens acumuladas no WhatsApp, horários anotados em papéis ou cadernos, esquecimento de clientes, falta de controle financeiro e materiais acabando sem aviso prévio.
 
-| Aplicativo | Descrição | Porta |
-|---|---|---|
-| **CRM BeautyFlow** | Painel completo de gestão (agenda, clientes, financeiro, relatórios, integrações) | `3001` |
-| **Portal de Agendamento** | Interface conversacional para o cliente final agendar serviços online | `5173` |
+A plataforma une dois ambientes em perfeita harmonia:
+1. 🌸 **Portal de Agendamento Online da Cliente:** Um link fácil e elegante para sua cliente escolher o serviço e o melhor horário direto pelo celular ou computador.
+2. 📊 **Painel de Gestão (CRM) da Profissional:** Uma central completa para acompanhar a agenda do dia, cadastros das clientes, estoque, receitas, despesas e metas mensais.
+3. 🤖 **Secretária Virtual no WhatsApp:** Envio automático de confirmações, lembretes de horário na véspera do atendimento e avisos para retorno de manutenção.
 
-Ambos se comunicam em **tempo real** — quando um cliente agenda pelo portal, o profissional recebe a notificação instantaneamente no CRM.
-
----
-
-## 🛠 Tecnologias Utilizadas
-
-### Backend (Rust Nativo — Alta Performance & Baixo Consumo)
-
-> O backend foi completamente migrado de Python/Flask para **Rust nativo**, reduzindo o consumo de memória em **~92%** (de ~200MB para ~16MB) e a latência de resposta para **sub-milissegundo** (0.4ms – 1.8ms), sem GIL e com concorrência real assíncrona.
-
-| Tecnologia | Versão | Finalidade |
-|---|---|---|
-| **Rust** | 1.80+ | Linguagem principal do servidor nativo |
-| **Axum** | 0.8 | Framework web assíncrono de alto desempenho baseado em Hyper e Tower |
-| **Socketioxide** | 0.18 | WebSockets nativos (Socket.IO v4) com suporte a polling e broadcasting |
-| **SQLx** | 0.9 | Driver de banco de dados assíncrono com pools para PostgreSQL e SQLite |
-| **Tokio** | 1.x | Runtime assíncrono multi-threaded com work-stealing |
-| **Tower-HTTP** | 0.6 | Middlewares de CORS, compressão, trace e serviço de arquivos estáticos |
-| **Reqwest** | 0.13 | Cliente HTTP assíncrono para webhooks do n8n e API do WAHA |
-| **Scrypt / PBKDF2** | — | Criptografia segura e 100% compatível com credenciais do Werkzeug |
-
-### Frontend — CRM
-
-| Tecnologia | Finalidade |
-|---|---|
-| HTML5 Semântico | Estrutura da SPA |
-| CSS3 (5.400+ linhas) | Design system completo com variáveis, temas e modo escuro |
-| JavaScript ES6+ (~4.000 linhas) | Lógica reativa sem frameworks |
-| Socket.IO Client 4.7.5 | Atualizações em tempo real |
-| SVG Nativo | 11 tipos de gráficos renderizados sem bibliotecas externas |
-| Google Fonts | DM Serif Display + DM Sans / Inter |
-
-### Frontend — Portal de Agendamento
-
-| Tecnologia | Versão | Finalidade |
-|---|---|---|
-| React | 19.2 | Biblioteca de UI |
-| Vite | 8.0 | Build tool e dev server |
-| Tailwind CSS | 4.2 | Framework de estilização utilitária |
-| Socket.IO Client | 4.8.3 | Comunicação em tempo real com o CRM |
-| ESLint | 10.2 | Linting e qualidade de código |
-
-### Banco de Dados
-
-| Tecnologia | Versão | Finalidade |
-|---|---|---|
-| PostgreSQL | 16 | Banco relacional (via Docker ou cloud) |
-
-### DevOps & Infraestrutura
-
-| Tecnologia | Finalidade |
-|---|---|
-| Docker | Conteinerização dos serviços |
-| Docker Compose | Orquestração (PostgreSQL + CRM + Agendamento + WAHA) |
-| Nginx | Reverse proxy e servidor estático (produção) |
-| WhatsApp WAHA | Microserviço HTTP para notificações automatizadas no WhatsApp (Porta 3000) |
-| n8n | Automação de workflows via webhooks |
+Tudo acontece em **tempo real**: assim que a cliente confirma o horário no portal, o painel do estúdio atualiza sozinho e avisa a profissional!
 
 ---
 
-## 🏢 1. CRM BeautyFlow
+## 📋 Sumário Rápido
 
-> `Aplicativos/CRM BeautyFlow/` — **Porta 3001**
+* [✨ Principais Benefícios](#-principais-benefícios)
+* [📱 1. O Portal de Agendamento (Visão da Cliente)](#-1-o-portal-de-agendamento-visão-da-cliente)
+* [📊 2. Painel Geral (Dashboard)](#-2-painel-geral-dashboard)
+* [📅 3. Agenda Semanal & Horários](#-3-agenda-semanal--horários)
+* [👥 4. Gestão & Ficha das Clientes](#-4-gestão--ficha-das-clientes)
+* [💅 5. Catálogo de Procedimentos & Preços](#-5-catálogo-de-procedimentos--preços)
+* [📦 6. Controle de Estoque & Materiais](#-6-controle-de-estoque--materiais)
+* [💰 7. Gestão Financeira & Metas](#-7-gestão-financeira--metas)
+* [📈 8. Relatórios de Desempenho & Emissão em PDF](#-8-relatórios-de-desempenho--emissão-em-pdf)
+* [💬 9. WhatsApp Automático & Robô de Mensagens](#-9-whatsapp-automático--robô-de-mensagens)
+* [⚙️ 10. Configurações, Equipe & Personalização](#-10-configurações-equipe--personalização)
+* [🚀 Como Executar o Sistema](#-como-executar-o-sistema)
+* [🛠️ Tecnologias Utilizadas](#️-tecnologias-utilizadas)
+* [📄 Licença](#-licença)
 
-Painel completo de gestão para o profissional. O backend Flask serve tanto a API REST quanto o frontend SPA em HTML/CSS/JS puro — sem necessidade de build.
+---
 
-### Módulos e Funcionalidades
+## ✨ Principais Benefícios
 
-#### 📊 Dashboard
-- Cards de métricas: Receita Hoje, Atendimentos, Clientes Ativos, Ticket Médio
-- Gráfico de barras semanal de faturamento
-- Ranking Top 5 serviços realizados
-- Barra de progresso da meta mensal
-- Mapa de Calor (Heatmap) 6 dias × 10 horários — visualiza horários de pico
-- Lista de agendamentos do dia em tempo real
-- Pagamentos recentes
-- Alertas de clientes inativos com potencial de receita
-- Seletor de período (7, 30, 90, 365 dias)
-
-#### 📅 Agenda Interativa
-- 4 modos de visualização: **Dia** (slots 30min), **Semana** (3/5/7 dias), **Mês**, **Ano**
-- Navegação temporal (anterior/próximo/hoje)
-- Clique direto em horário livre para agendar
-- Validação automática de horários de funcionamento e conflitos
-- Status de pagamento (Pago / Não Pago) direto na agenda
-- Bloqueio visual de dias de folga
-- Atualizações em tempo real via WebSocket
-
-#### 👥 Gestão de Clientes
-- Busca em tempo real por nome ou telefone (com normalização de acentos)
-- Filtros: Todos, Frequentes, Novos, Inativos (30+ dias), Regulares, Inadimplentes
-- Ficha detalhada: avatar, total de visitas, total gasto, ticket médio, última visita
-- Histórico cronológico completo de agendamentos
-- Serviços mais consumidos por cliente
-- Ações: cadastrar, editar, excluir, marcar como inadimplente
-
-#### 💇 Gestão de Serviços
-- CRUD completo: nome, duração (min), buffer/intervalo, preço (R$), cor hexadecimal
-- Cor do serviço refletida nos cards da agenda
-
-#### 📦 Estoque
-- Catálogo completo de insumos e produtos
-- Métricas e filtros: Todos, Estoque Baixo e Em Falta
-- Painéis laterais de reposição e alertas de nível mínimo
-- Cadastro, edição e exclusão de itens de estoque
-
-#### 💰 Módulo Financeiro
-- KPIs: Receita Mensal, Despesas, Lucro Líquido, Margem %
-- Gráfico comparativo de Receitas × Despesas (visão semanal e diária)
-- Gráfico Donut/Barras de receitas por serviço
-- Painel de **Saídas por Categoria** com cadastro dinâmico de novas categorias
-- Acompanhamento da **Meta do Mês**: barra de progresso em tempo real, cálculo percentual e modal para ajuste rápido da meta mensal
-- Lançamentos manuais de entradas e saídas com método de pagamento (Pix, Dinheiro, Cartão Crédito/Débito)
-- **Snapshot imutável de receita** — ao marcar agendamento como pago, grava transação com nome persistente do cliente (não se perde se o cliente for excluído)
-- Extrato completo de lançamentos do mês
-
-#### 📈 Relatórios e Exportação PDF
-- Gráfico de tendência de receita SVG com gradiente e comparativo com período anterior
-- Ranking Top 5 clientes
-- Serviços mais rentáveis
-- Mapa de calor completo de horários
-- **Exportação em PDF** profissional com cabeçalho oficial (Razão Social, CNPJ, Telefone, Endereço)
-- Seletor de período (7, 30, 90 dias, Ano)
-
-#### 👤 Gestão de Usuários
-- CRUD de operadores/administradores
-- Login por e-mail/senha com hash PBKDF2/SHA-256
-- Auto-criação de admin padrão se o banco estiver vazio
-- Troca de senha
-
-#### 🔔 Central de Notificações e Automações
-- Sino com badge de não lidas no topbar
-- Notificações de: novos agendamentos online, cancelamentos, meta atingida
-- Automações configuráveis:
-  - Confirmação automática de agendamento
-  - Lembrete 24h e 1h antes
-  - Confirmação de Pix
-  - Felicitações de aniversário
-
-#### 🔗 Central de Integrações
-- **n8n**: URL de webhook, eventos (create/update/delete), headers customizados, botão de teste
-- **WhatsApp (WAHA)**: Notificações automáticas via WhatsApp (criação, cancelamento)
-- **Webhooks genéricos**: Cadastro com toggle ativo/inativo
-
-#### ⚙️ Configurações e Customização
-- **Perfil**: dados e troca de senha
-- **Horários de funcionamento**: Seg–Dom com abertura/fechamento ou fechado
-- **Aparência**:
-  - 5 Temas: Azul (padrão), Esmeralda, Rosa, Púrpura, Luz do Sol
-  - Modo Claro / Escuro
-  - Tamanho de fonte: Pequeno, Médio, Grande
-  - Layout: Sidebar vertical ou Topbar horizontal
-- **Dados da empresa**: Razão Social, CNPJ, endereço (usado nos PDFs)
-
-### Rotas da API (~50 endpoints)
-
-<details>
-<summary>Clique para ver todas as rotas</summary>
-
-#### Clientes
-| Método | Rota | Descrição |
+| Para a Cliente | Para a Profissional | Para o Negócio |
 |---|---|---|
-| `GET` | `/api/clients/` | Listar clientes (`?search=&status=`) |
-| `GET` | `/api/clients/:id` | Detalhes do cliente com histórico |
-| `POST` | `/api/clients/` | Criar cliente |
-| `PUT` | `/api/clients/:id` | Atualizar cliente |
-| `DELETE` | `/api/clients/:id` | Excluir cliente |
+| Autoatendimento 24 horas por dia | Fim dos conflitos de horário e furos na agenda | Aumento de até 35% no comparecimento com lembretes automáticos |
+| Sem necessidade de baixar aplicativos | Controle total de quanto faturou e quanto gastou | Fidelização de clientes com mensagens de retorno |
+| Escolha visual de serviços e preços | Alerta automático quando materiais estão acabando | Relatórios profissionais prontos para tomada de decisão |
 
-#### Agendamentos
-| Método | Rota | Descrição |
-|---|---|---|
-| `GET` | `/api/appointments/` | Listar (`?date=&date_from=&date_to=&client_id=&status=`) |
-| `GET` | `/api/appointments/:id` | Detalhes |
-| `POST` | `/api/appointments/` | Criar (valida horário, notifica n8n/WhatsApp/WebSocket) |
-| `PUT` | `/api/appointments/:id` | Atualizar (sync financeiro ao concluir) |
-| `DELETE` | `/api/appointments/:id` | Excluir |
+---
 
-#### Serviços
-| Método | Rota | Descrição |
-|---|---|---|
-| `GET` | `/api/services/` | Listar serviços |
-| `POST` | `/api/services/` | Criar serviço |
-| `PUT` | `/api/services/:id` | Atualizar |
-| `DELETE` | `/api/services/:id` | Excluir |
+## 📱 1. O Portal de Agendamento (Visão da Cliente)
 
-#### Transações Financeiras
-| Método | Rota | Descrição |
-|---|---|---|
-| `GET` | `/api/transactions/` | Listar (`?date_from=&date_to=&type=`) |
-| `GET` | `/api/transactions/:id` | Detalhes |
-| `POST` | `/api/transactions/` | Criar lançamento |
-| `PUT` | `/api/transactions/:id` | Atualizar |
-| `DELETE` | `/api/transactions/:id` | Excluir |
+A cliente acessa o link do seu estúdio e é recebida por uma assistente virtual humanizada. Ela digita apenas o nome e o WhatsApp para começar:
 
-#### Usuários e Autenticação
-| Método | Rota | Descrição |
-|---|---|---|
-| `GET` | `/api/users/` | Listar usuários |
-| `GET` | `/api/users/exists` | Verifica se há usuários cadastrados |
-| `POST` | `/api/users/` | Criar usuário |
-| `POST` | `/api/users/login` | Login (email + senha) |
-| `PUT` | `/api/users/:id` | Atualizar |
-| `PUT` | `/api/users/:id/password` | Trocar senha |
-| `DELETE` | `/api/users/:id` | Excluir |
+![Portal de Agendamento - Boas-Vindas](docs/prints/01-portal-boas-vindas.png)
 
-#### Estatísticas e Horários
-| Método | Rota | Descrição |
-|---|---|---|
-| `GET` | `/api/stats` | Dashboard completo (`?period=N`) |
-| `GET` | `/api/available-slots` | Horários livres (`?date=&duration=&buffer=`) |
-| `GET` | `/api/business-hours` | Horários de funcionamento |
-| `PUT` | `/api/business-hours` | Atualizar horários |
+Em seguida, o catálogo de procedimentos é exibido de forma visual com valores, duração de cada procedimento e o tempo de intervalo. A cliente escolhe a data e os horários livres são calculados automaticamente para evitar qualquer choque de horário:
 
-#### Notificações
-| Método | Rota | Descrição |
-|---|---|---|
-| `GET` | `/api/notifications/` | Listar |
-| `GET` | `/api/notifications/unread-count` | Contagem de não lidas |
-| `POST` | `/api/notifications/read/:id` | Marcar como lida |
-| `POST` | `/api/notifications/read-all` | Marcar todas |
+![Portal de Agendamento - Escolha de Serviços e Horários](docs/prints/02-portal-agendamento-servicos.png)
 
-#### Integrações
-| Método | Rota | Descrição |
-|---|---|---|
-| `GET` | `/api/integrations/` | Listar integrações |
-| `POST` | `/api/integrations/` | Criar integração |
-| `PUT` | `/api/integrations/:id` | Atualizar |
-| `DELETE` | `/api/integrations/:id` | Excluir |
+> **💡 Vantagem:** Sem estresse de mensagens demoradas para achar um horário vago. A cliente agenda em menos de 1 minuto!
 
-#### n8n
-| Método | Rota | Descrição |
-|---|---|---|
-| `GET` | `/api/n8n/config` | Configuração do webhook |
-| `PUT` | `/api/n8n/config` | Atualizar configuração |
-| `POST` | `/api/n8n/test` | Disparo de teste |
-| `POST` | `/api/n8n/sync-calendar` | Sincronizar agendamentos |
-| `GET` | `/api/n8n/status` | Status de conectividade |
+---
 
-#### Configurações e Categorias Financeiras
-| Método | Rota | Descrição |
-|---|---|---|
-| `GET` | `/api/settings/` | Configurações globais |
-| `PUT` | `/api/settings/` | Atualizar configurações |
-| `GET` | `/api/expense-categories` | Categorias de despesa |
-| `POST` | `/api/expense-categories` | Criar categoria |
+## 📊 2. Painel Geral (Dashboard)
 
-</details>
+Ao abrir o CRM, a dona do estúdio tem um raio-X completo do seu dia e do seu mês:
+* **Entradas do Dia:** Quanto entrou no caixa hoje.
+* **Atendimentos:** Quantidade de clientes agendadas para hoje e total do mês.
+* **Clientes Ativos:** Quantidade de clientes cadastradas que frequentam o espaço.
+* **Ticket Médio:** Valor médio que cada cliente gasta por visita.
+* **Agendamentos de Hoje:** Lista com nome, procedimento, valor e status de pagamento.
+* **Fluxo de Caixa & Metas:** Acompanhamento em barra de progresso da meta financeira mensal.
 
-### Eventos WebSocket (Socket.IO)
+![Painel Geral do CRM](docs/prints/03-crm-dashboard-painel-geral.png)
 
-O backend emite eventos em tempo real para todas as operações críticas:
+---
 
-```
-appointment:created | appointment:updated | appointment:deleted
-client:created      | client:updated      | client:deleted
-service:changed
-transaction:created | transaction:updated | transaction:deleted
-data:changed        (evento genérico com tipo e ação)
-```
+## 📅 3. Agenda Semanal & Horários
 
-### Estrutura de Diretórios
+A agenda semanal permite visualizar os atendimentos em blocos coloridos e organizados por status:
+* 🟢 **Concluído:** Atendimento realizado com sucesso.
+* 🔵 **Confirmado:** Horário garantido com a cliente.
+* 🟡 **Pendente:** Aguardando confirmação ou pagamento prévio.
+* 🔴 **Cancelado / Vago:** Horário liberado para novas reservas.
 
-```
-CRM BeautyFlow/
-├── backend/
-│   ├── run.py                  # Inicialização dev (porta 3001)
-│   ├── server.py               # App Flask + todas as rotas
-│   ├── wsgi.py                 # Entrada para Gunicorn
-│   ├── ws.py                   # Instância Socket.IO
-│   ├── requirements.txt        # Dependências Python
-│   ├── .env                    # Variáveis de ambiente
-│   ├── db/
-│   │   ├── database.py         # Queries, pool e operações de banco
-│   │   ├── schema.sql          # Schema principal
-│   │   ├── supabase_schema.sql # Schema alternativo (Supabase)
-│   │   └── migrations/         # Migrations ordenadas
-│   ├── routes/
-│   │   ├── clients.py
-│   │   ├── appointments.py
-│   │   ├── services.py
-│   │   ├── transactions.py
-│   │   ├── users.py
-│   │   ├── notifications.py
-│   │   └── integrations.py
-│   └── middleware/
-│       └── validation.py       # Validação de horários
-├── src/
-│   ├── index.html              # SPA completa
-│   ├── js/app.js               # Lógica frontend (~4.000 linhas)
-│   └── css/style.css           # Design system (~5.400 linhas)
-└── docs/
-    └── ux(Mirian Original).html
-```
+Também é possível identificar na hora se o procedimento já foi pago ou se está pendente de recebimento:
 
-### Como Iniciar (Desenvolvimento)
+![Agenda Semanal](docs/prints/04-crm-agenda-semanal.png)
 
+---
+
+## 👥 4. Gestão & Ficha das Clientes
+
+Uma lista inteligente onde cada cliente possui sua própria ficha personalizada:
+* Histórico completo de visitas e quanto já investiu no estúdio.
+* Classificação automática: `Frequente`, `Regular`, `Novo`, `Inativo` ou `Inadimplente`.
+* Anotações exclusivas de cada cliente (ex: formato de unha preferido, alergias a produtos convencionais, preferências de cores e café).
+* Botão para abrir o WhatsApp da cliente com apenas 1 clique.
+
+![Gestão de Clientes](docs/prints/05-crm-gestao-clientes.png)
+
+---
+
+## 💅 5. Catálogo de Procedimentos & Preços
+
+Cadastre e edite facilmente todos os serviços oferecidos no estúdio com:
+* Nome do procedimento (ex: *Alongamento em Gel, Blindagem Diamante, Spa dos Pés, Esmaltação em Gel*).
+* Duração estimada de atendimento.
+* Intervalo entre atendimentos (tempo para higienização e esterilização de materiais).
+* Valor cobrado e cor identificadora para a agenda.
+
+![Catálogo de Serviços](docs/prints/06-crm-catalogo-servicos.png)
+
+---
+
+## 📦 6. Controle de Estoque & Materiais
+
+Nunca mais fique sem esmaltes, algodão, luvas ou brocas no meio de um atendimento!
+* **Patrimônio em Mercadorias:** Valor total em reais investido em produtos no estúdio.
+* **Alerta de Estoque Baixo:** Aviso automático quando o item atinge a quantidade mínima de segurança.
+* **Lista de Reposição Rápida:** Botão `+ Repor` para atualizar a quantidade recebida com rapidez.
+
+![Controle de Estoque](docs/prints/07-crm-controle-estoque.png)
+
+---
+
+## 💰 7. Gestão Financeira & Metas
+
+Tenha clareza absoluta da saúde financeira do seu espaço:
+* **Entradas vs. Saídas:** Gráficos semanais comparando receitas e custos operacionais.
+* **Faturamento por Serviço:** Descubra quais procedimentos trazem maior retorno para o seu negócio.
+* **Despesas por Categoria:** Aluguel, contas de luz/internet, compra de esmaltes e materiais descartáveis.
+* **Acompanhamento de Metas:** Defina o objetivo financeiro do mês e acompanhe o percentual atingido dia a dia.
+
+![Controle Financeiro](docs/prints/08-crm-controle-financeiro.png)
+
+---
+
+## 📈 8. Relatórios de Desempenho & Emissão em PDF
+
+Informações estratégicas transformadas em gráficos simples de entender:
+* **Top Clientes:** Quem são suas clientes mais fiéis e lucrativas.
+* **Serviços Mais Populares:** Os procedimentos mais pedidos no mês.
+* **Mapa de Calor (Horários de Pico):** Descubra quais dias e horários têm maior procura para planejar promoções ou folgas da equipe.
+
+![Relatórios e Métricas](docs/prints/09-crm-relatorios-metricas.png)
+
+### 📄 Relatório Gerencial em PDF
+Com um clique no botão **Exportar PDF**, o sistema gera um documento limpo e profissional contendo os dados cadastrais da empresa (Razão Social, CNPJ, Inscrição Municipal e Endereço) pronto para contabilidade ou prestação de contas:
+
+![Relatório em PDF](docs/prints/10-crm-relatorio-pdf-exportado.png)
+
+---
+
+## 💬 9. WhatsApp Automático & Robô de Mensagens
+
+O BeautyFlow conta com integração nativa com o WhatsApp via microserviço WAHA, permitindo que o estúdio opere com mensagens automáticas sem precisar digitar a mesma coisa o dia todo:
+
+### 🟢 Status de Conexão em Tempo Real
+Conexão estável e monitorada por QR Code, com gatilhos rápidos de notificação ativados:
+
+![WhatsApp Conectado](docs/prints/19-crm-whatsapp-status-conectado.png)
+
+### 🤖 Modelos de Mensagens (Templates) & Integração com n8n
+Configure as mensagens automáticas com tags dinâmicas como `{nome}`, `{servico}`, `{data}` e `{horario}`:
+1. **Confirmação Imediata:** Enviada logo após a cliente agendar pelo portal.
+2. **Lembrete de Horário (24h antes):** Reduz esquecimentos e faltas.
+3. **Aviso de Cancelamento:** Notificação amigável e acolhedora.
+4. **Retorno e Manutenção:** Convite automático para manutenção após 20 a 25 dias.
+5. **Agradecimento Pós-Atendimento:** Fidelização e pedido de avaliação.
+6. **Integração n8n:** Webhooks prontos para disparar fluxos avançados ou sincronizar com o Google Calendar.
+
+![Modelos de Mensagens do WhatsApp](docs/prints/20-crm-whatsapp-automacao-templates-n8n.png)
+
+---
+
+## ⚙️ 10. Configurações, Equipe & Personalização
+
+### 👥 Equipe e Colaboradoras
+Controle de acessos com níveis de permissão diferentes para administradoras e nail designers/atendentes:
+
+![Gestão de Equipe](docs/prints/11-crm-gestao-usuarios-equipe.png)
+
+---
+
+### ⏰ Horários de Funcionamento
+Defina os dias de abertura e fechamento, turnos matutinos e vespertinos, e dias de folga:
+
+![Horários de Atendimento](docs/prints/13-crm-config-horarios-funcionamento.png)
+
+---
+
+### 🔔 Notificações e Automações
+Ative ou desative os lembretes automáticos, confirmações de pagamento via Pix e alertas de metas através de interruptores simples:
+
+![Regras de Automação](docs/prints/14-crm-config-notificacoes-automacoes.png)
+
+Central de alertas instantâneos no ícone de sino:
+
+![Sino de Alertas](docs/prints/15-crm-notificacoes-sino-alertas.png)
+
+---
+
+### 🔌 Conexão de Integrações & Webhooks
+Adicione integrações externas para enviar dados para ferramentas de automação (n8n, Make ou Webhooks próprios):
+
+![Central de Integrações](docs/prints/16-crm-config-integracoes-webhooks.png)
+
+---
+
+### 🎨 Personalização de Aparência & Temas
+Escolha a identidade visual que mais combina com o seu estúdio:
+* **5 Paletas de Cores:** *Azul Padrão, Esmeralda, Rosa Beauty, Púrpura e Luz do Sol*.
+* **Ajuste de Tipografia:** Tamanho de fontes Pequeno, Médio ou Grande.
+* **Modo de Exibição:** Modo Claro ou Modo Escuro relaxante para os olhos.
+
+![Aparência e Temas](docs/prints/17-crm-config-aparencia-temas.png)
+
+---
+
+### 🏢 Informações Oficiais da Empresa
+Preencha a Razão Social, CNPJ, Inscrição Municipal e Endereço para saírem automaticamente em orçamentos e relatórios em PDF:
+
+![Dados da Empresa](docs/prints/18-crm-config-dados-empresa.png)
+
+---
+
+## 🚀 Como Executar o Sistema
+
+Você pode rodar todo o ecossistema com **apenas 1 comando** no Linux ou macOS:
+
+### 1. Clonar o Repositório
 ```bash
-cd "Aplicativos/CRM BeautyFlow/backend"
-pip install -r requirements.txt
-python run.py
-# → http://localhost:3001
+git clone https://github.com/SEU_USUARIO/Extensao_universitaria_Manicure.git
+cd Extensao_universitaria_Manicure
 ```
 
----
-
-## 📱 2. Portal de Agendamento Online
-
-> `Aplicativos/Beatriz Gomes Studio/` — **Porta 5173**
-
-Interface de agendamento para o cliente final com fluxo conversacional tipo assistente virtual. O cliente escolhe o serviço, data e horário — tudo é refletido em tempo real no CRM do profissional.
-
-### Fluxo em 3 Etapas
-
-1. **Identificação** — Nome completo e telefone/WhatsApp
-2. **Preferências** — Opt-in para lembretes e notificações (24h antes, ofertas)
-3. **Agendamento** — Seleção de serviço (carrossel), data (calendário) e horário (slots disponíveis calculados pela API)
-
-### Funcionalidades
-
-- Catálogo de serviços dinâmico (vindo da API do CRM)
-- Calendário com bloqueio de datas passadas
-- Consulta inteligente de horários vagos respeitando duração + buffer + colisões
-- Card de resumo com serviço, valor, data por extenso, horário e duração
-- Modal de confirmação de sucesso
-- Cadastro/vinculação automática de cliente na base do CRM
-- Disparo de WebSocket para o CRM em tempo real
-- Design responsivo com paleta elegante (tons de rosa, borgonha, dourado)
-- Animações de entrada nos balões de chat
-
-### Estrutura de Diretórios
-
-```
-Beatriz Gomes Studio/
-├── index.html              # HTML5 de entrada
-├── vite.config.js          # Config Vite (host: 0.0.0.0, porta 5173)
-├── package.json            # Dependências npm
-├── eslint.config.js        # ESLint Flat Config
-├── .env                    # VITE_API_URL
-├── src/
-│   ├── main.jsx            # Entrada React 19 (StrictMode)
-│   ├── App.jsx             # Componente principal + subcomponentes
-│   ├── App.css             # Estilos auxiliares
-│   ├── index.css           # Design system completo + animações
-│   └── assets/
-│       └── hero.png
-└── public/
-    ├── favicon.svg
-    └── icons.svg
-```
-
-### Componentes
-
-| Componente | Descrição |
-|---|---|
-| `StudioHeader` | Cabeçalho com logotipo e indicador de progresso (3 etapas) |
-| `AssistantBubble` | Balão de mensagem da assistente virtual com avatar 🌸 |
-| `UserBubble` | Balão de resposta do usuário |
-| `ServiceCard` | Card de seleção de serviço com selo Premium |
-| `SuccessModal` | Modal de confirmação com gradiente e resumo |
-
-### Como Iniciar (Desenvolvimento)
-
+### 2. Iniciar o Ambiente de Desenvolvimento
 ```bash
-cd "Aplicativos/Beatriz Gomes Studio"
-npm install
-npm run dev
-# → http://localhost:5173
+./dev.sh
 ```
+
+O script cuidará de tudo automaticamente:
+* Inicia o banco de dados **PostgreSQL** no Docker.
+* Conecta a integração do **WhatsApp WAHA**.
+* Inicia o **CRM BeautyFlow** (Backend em Rust na porta `3001`).
+* Inicia o **Portal de Agendamento da Cliente** (Vite na porta `5173`).
+
+### 🌐 Endereços de Acesso:
+* 📊 **Painel CRM da Profissional:** [http://localhost:3001](http://localhost:3001)  
+  * **Usuário:** `admin` | **Senha:** `admin`
+* 🌸 **Portal de Agendamento Online:** [http://localhost:5173](http://localhost:5173)
+* 📱 **WhatsApp WAHA (QR Code):** [http://localhost:3000/dashboard](http://localhost:3000/dashboard)
+
+> **💡 Dica:** Para rodar sem o serviço de WhatsApp, execute: `./dev.sh --no-waha`
 
 ---
 
-## 🗄 Banco de Dados
+## 🛠️ Tecnologias Utilizadas
 
-PostgreSQL 16 com 9 tabelas, 3 views e triggers automáticos.
+Para garantir que o sistema seja **ultrarrápido**, seguro e consuma o mínimo possível de memória da máquina, utilizamos tecnologias modernas de ponta:
 
-### Tabelas
-
-| Tabela | Finalidade |
-|---|---|
-| `clients` | Clientes (nome, telefone, email, CPF, status, notas) |
-| `appointments` | Agendamentos (data, hora, status, pagamento, duração) |
-| `services` | Serviços (nome, duração, buffer, preço, cor) |
-| `transactions` | Lançamentos financeiros (receita/despesa, método, categoria, snapshot) |
-| `business_hours` | Horários de funcionamento por dia da semana |
-| `settings` | Configurações chave/valor (meta, empresa, automações) |
-| `notifications` | Notificações do sistema (tipo, título, mensagem, lida) |
-| `integrations` | Integrações cadastradas (webhook, n8n, WhatsApp) com config JSONB |
-| `users` | Usuários do sistema (email, senha hash, role) |
-
-### Views
-
-| View | Finalidade |
-|---|---|
-| `v_clients` | Total de visitas, gasto acumulado e última visita por cliente |
-| `v_month_stats` | Faturamento mensal, despesas, agendamentos e clientes únicos |
-| `v_daily_stats` | Agrupamento diário de métricas |
-
-### Triggers
-
-- `trigger_set_updated_at` — Atualiza automaticamente o campo `updated_at` antes de qualquer UPDATE nas tabelas principais.
-
----
-
-## 🚀 Instalação e Hub de Gestão
-
-> `Aplicativos/instalacao/`
-
-A plataforma conta com um **Hub Interativo em Terminal (TUI)** multiplataforma para gerenciar instalação, inicialização, backups, restaurações, redefinição de senhas e atualizações.
-
-### Opção 1 — Linux / macOS (Hub Interativo)
-
-```bash
-# Executável diretamente na raiz ou em Aplicativos/instalacao:
-./install.sh
-```
-
-O script `install.sh`:
-- Detecta a distribuição do sistema operacional (Ubuntu, Debian, Arch, Fedora, openSUSE, macOS)
-- Verifica e instala automaticamente o Docker e Docker Compose caso necessário
-- Checa preventivamente conflitos de portas (`5432`, `3001`, `5173`, `3000`)
-- Detecta o IP local na rede Wi-Fi/Ethernet para acesso remoto e via smartphones
-- Oferece suporte completo à ativação do **WhatsApp WAHA (Porta 3000)**
-- Inicializa os contêineres com healthchecks HTTP e sementes completas de dados no PostgreSQL
-- Inclui menu de diagnóstico de conexões e saúde de todos os serviços
-- Disponibiliza submenu de backup (`pg_dump`), restauração (`psql`) e otimização (`VACUUM ANALYZE`)
-
-### Opção 2 — Windows (Hub Interativo)
-
-Dê dois cliques no arquivo `install.bat` na raiz do projeto ou abra o CMD/PowerShell:
-```cmd
-install.bat
-```
-
-### Scripts Rápidos de 1 Clique (Dia a Dia)
-
-Para quem deseja apenas ligar ou desligar a plataforma sem abrir o menu interativo:
-
-* **Iniciar:** `./start.sh` (Linux/macOS) ou clique duplo em `start.bat` (Windows)
-* **Parar:** `./stop.sh` (Linux/macOS) ou clique duplo em `stop.bat` (Windows)
-
-#### Contêineres Docker Compose
-
-| Serviço | Contêiner | Imagem Base | Porta |
-|---|---|---|---|
-| PostgreSQL | `beautyflow-postgres` | `postgres:16-alpine` | `5432` |
-| CRM BeautyFlow | `beautyflow-crm` | `python:3.11-slim` | `3001` |
-| Portal Agendamento | `beautyflow-agendamento` | `node:20-alpine` → `nginx:alpine` | `5173:80` |
-| WhatsApp WAHA | `beautyflow-waha` | `devlikeapro/waha:latest` | `3000` |
-
-### Opção 3 — Manual (Desenvolvimento)
-
-**Pré-requisitos:**
-- Python 3.11+
-- Node.js 20+
-- npm
-- PostgreSQL 16/18 (local ou Docker)
-
-```bash
-# 1. Banco de dados
-psql -U postgres -c "CREATE DATABASE beautyflow;"
-psql -U postgres -d beautyflow -f "Aplicativos/CRM BeautyFlow/backend/db/schema.sql"
-
-# 2. Backend CRM
-cd "Aplicativos/CRM BeautyFlow/backend"
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-python run.py
-
-# 3. Portal de Agendamento (novo terminal)
-cd "Aplicativos/Beatriz Gomes Studio"
-npm install
-npm run dev
-```
-
-### Scripts Disponíveis
-
-| Script | Plataforma | Finalidade |
-|---|---|---|
-| `install.sh` | Linux / macOS | Hub TUI completo de instalação, backup, restore e gestão |
-| `install.bat` | Windows | Hub TUI completo de instalação, backup, restore e gestão |
-| `start.sh` / `start.bat` | Linux / Windows | Inicializador rápido de 1 clique |
-| `stop.sh` / `stop.bat` | Linux / Windows | Parada rápida de 1 clique sem perda de dados |
-| `docker-compose.yml` | Todos | Orquestração dos 3 serviços com healthchecks ativos |
-
----
-
-## 🏗 Arquitetura de Produção
-
-```
-                        Internet
-                           │
-                      ┌────▼────┐
-                      │  Nginx  │  porta 80/443 (SSL)
-                      │  Proxy  │
-                      └────┬────┘
-                           │
-                ┌──────────┴──────────┐
-                │                     │
-           ┌────▼─────┐        ┌─────▼───────┐
-           │   CRM    │        │ Agendamento │
-           │  :3001   │        │  :80/5173   │
-           │  (Rust)  │        │(React/Nginx)│
-           └────┬─────┘        └─────▲───────┘
-                │                     │
-                │   ┌─── WebSocket ───┘
-                │   │ (Socketioxide)
-                │   │
-           ┌────▼───▼─────────────────────┐
-           │   PostgreSQL 16 / 18         │
-           │   Docker ou Cloud            │
-           └──────────────────────────────┘
-                │               │
-           ┌────▼────┐    ┌────▼──────────┐
-           │  n8n    │    │ WhatsApp      │
-           │Webhooks │    │ (WAHA API)    │
-           └─────────┘    └───────────────┘
-```
-
----
-
-## 🔐 Variáveis de Ambiente
-
-### CRM Backend (`Aplicativos/CRM BeautyFlow/backend/.env`)
-
-```env
-DATABASE_URL=postgresql://postgres:beautyflow_pass@postgres:5432/beautyflow
-N8N_WEBHOOK_URL=https://mirianfiorini.app.n8n.cloud/webhook/calendar-webhook
-```
-
-### Portal de Agendamento (`Aplicativos/Beatriz Gomes Studio/.env`)
-
-```env
-VITE_API_URL=http://localhost:3001/api
-```
-
-### Docker Compose (`Aplicativos/instalacao/.env`)
-
-```env
-VITE_API_URL=http://<IP_OU_HOST>:3001/api
-```
-
-### Credenciais Padrão do Sistema
-* **Usuário:** `admin`
-* **Senha:** `admin`
-
----
-
-## 📚 Documentação
-
-| Arquivo | Descrição |
-|---|---|
-| [`documentacoes/MIGRACAO_BACKEND_RUST.md`](documentacoes/MIGRACAO_BACKEND_RUST.md) | **Relatório da migração para Rust**: comparativo de métricas, benchmarks, redução de ~92% de RAM e eliminação do GIL |
-| [`documentacoes/ARQUITETURA_DO_SISTEMA_RUST.md`](documentacoes/ARQUITETURA_DO_SISTEMA_RUST.md) | **Arquitetura interna do backend em Rust**: estrutura dos módulos, realtime com `pgevents` e WebSocket, chat SQLite |
-| [`documentacoes/GUIA_DE_DESENVOLVIMENTO_E_DEPLOY.md`](documentacoes/GUIA_DE_DESENVOLVIMENTO_E_DEPLOY.md) | **Guia de operação e DevOps**: comandos locais (`./dev.sh`, `cargo run`), CLI (`--healthcheck`, `--reset-admin`) e Docker multi-stage |
-| [`documentacoes/REFERENCIA_DE_APIS_E_ROTAS.md`](documentacoes/REFERENCIA_DE_APIS_E_ROTAS.md) | **Referência de APIs e WebSockets**: especificação técnica detalhada dos 30 endpoints REST e eventos em tempo real |
-| `FERRAMENTAS_E_FUNCIONALIDADES.txt` | Documento mestre com mapeamento exaustivo de todo o ecossistema |
-| `docs/resumo_tecnico.md` | Arquitetura técnica detalhada, endpoints, fórmulas financeiras, gráficos SVG |
-| `docs/ux(Mirian Original).html` | Protótipo HTML/CSS original da interface de referência |
-| `Aplicativos/instalacao/tutorial.md` | Guia completo de deploy em servidor Ubuntu (Nginx, SSL, systemd, firewall, backup) |
-| `diagrama_beautyflow.svg` | Diagrama vetorial da arquitetura geral |
-| [Miro Board](https://miro.com/app/board/uXjVG6aAwHw=/) | Board de planejamento e prototipação no Miro (Senha: `senhasegura`) |
+* **Backend Principal (Rust Nativo):** Desenvolvido em **Rust 1.80+** com **Axum 0.8** e **Tokio**, entregando respostas em menos de 1 milissegundo e consumindo apenas ~16MB de memória RAM.
+* **Comunicação em Tempo Real:** **WebSockets (Socket.IO v4)** para atualização imediata da agenda quando a cliente reserva um horário.
+* **Frontend da Profissional (CRM):** Construído em **HTML5**, **CSS3 moderno** e **JavaScript modular** sem frameworks pesados, garantindo carregamento instantâneo.
+* **Frontend da Cliente (Portal):** Desenvolvido em **React 19**, **Vite** e **Tailwind CSS 4**, totalmente responsivo e pensado para celular.
+* **Banco de Dados:** **PostgreSQL 16** para segurança dos dados cadastrais e financeiros, e **SQLite 3** dedicado para o histórico de conversas do WhatsApp.
+* **Infraestrutura:** **Docker & Docker Compose** para instalação e execução simplificadas.
 
 ---
 
 ## 📄 Licença
 
-Projeto de extensão universitária — SENAI. Uso educacional.
+Este projeto foi desenvolvido como parte das atividades de Extensão Universitária do **SENAI**, voltado ao apoio comunitário e capacitação tecnológica para empreendedores do setor de beleza.
+
+Distribuído sob a licença **MIT**. Sinta-se livre para usar, estudar e evoluir a plataforma! 💖

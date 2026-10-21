@@ -264,7 +264,17 @@ check_port() {
     fi
 
     if [ "$in_use" -eq 1 ]; then
-        if ! docker ps --format '{{.Ports}}' 2>/dev/null | grep -qE ":$port->"; then
+        local holder
+        holder=$(docker ps --format '{{.Names}}\t{{.Ports}}' 2>/dev/null | grep -E ":$port->" | head -n1 | awk '{print $1}' || true)
+        if [ -n "$holder" ] && ! [[ "$holder" =~ ^beautyflow- ]]; then
+            echo -e "${C_YELLOW}[AVISO] A porta $port ($desc) ja esta em uso pelo conteiner Docker '$holder'.${C_RESET}"
+            read -rp "        Deseja pausar o conteiner '$holder' para liberar a porta? (S/n): " STOP_C
+            STOP_C=${STOP_C:-S}
+            if [[ "$STOP_C" =~ ^[Ss]$ ]]; then
+                docker stop "$holder" 2>/dev/null || true
+                sleep 1
+            fi
+        elif [ -z "$holder" ]; then
             echo -e "${C_YELLOW}[AVISO] A porta $port ($desc) ja esta em uso por outro servico local.${C_RESET}"
             if [ "$port" -eq 5432 ]; then
                 read -rp "        Deseja tentar pausar o PostgreSQL local agora? (S/n): " STOP_PG

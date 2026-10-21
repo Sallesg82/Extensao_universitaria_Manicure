@@ -108,7 +108,7 @@ EOF
 O deploy do CRM é totalmente containerizado utilizando uma imagem multi-stage super leve:
 
 ### 5.1. Como Funciona o `Dockerfile.crm`
-1. **Stage 1 (`builder`):** Utiliza imagem oficial `rust:1.85-slim-bookworm` para compilar o código em modo `--release`.
+1. **Stage 1 (`builder`):** Utiliza imagem oficial `rust:slim-bookworm` para compilar o código em modo `--release`.
 2. **Stage 2 (`runner`):** Copia somente o binário executável final para uma imagem `debian:bookworm-slim` limpa (apenas bibliotecas dinâmicas básicas e certificados CA). O resultado é uma imagem final de aproximadamente **85 MB**, contra os mais de 850 MB da imagem anterior com Python.
 
 ### 5.2. Comandos para Construir e Subir os Contêineres

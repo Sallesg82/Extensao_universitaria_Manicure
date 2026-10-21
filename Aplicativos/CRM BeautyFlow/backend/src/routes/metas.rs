@@ -44,7 +44,7 @@ pub fn router() -> Router<Arc<AppState>> {
 }
 
 pub async fn get_meta_value(pool: &sqlx::PgPool, mes: &str) -> f32 {
-    if let Ok(Some(row)) = sqlx::query("SELECT meta FROM public.metas WHERE mes = $1 LIMIT 1")
+    if let Ok(Some(row)) = sqlx::query("SELECT meta::float4 AS meta FROM public.metas WHERE mes = $1 LIMIT 1")
         .bind(mes)
         .fetch_optional(pool)
         .await
@@ -52,7 +52,7 @@ pub async fn get_meta_value(pool: &sqlx::PgPool, mes: &str) -> f32 {
         return row.get::<f32, _>("meta");
     }
 
-    if let Ok(Some(prev)) = sqlx::query("SELECT meta FROM public.metas WHERE mes < $1 ORDER BY mes DESC LIMIT 1")
+    if let Ok(Some(prev)) = sqlx::query("SELECT meta::float4 AS meta FROM public.metas WHERE mes < $1 ORDER BY mes DESC LIMIT 1")
         .bind(mes)
         .fetch_optional(pool)
         .await
@@ -125,7 +125,7 @@ async fn list_or_get_meta(
     }
 
     let rows = sqlx::query_as::<_, MetaDto>(
-        "SELECT id, mes, meta, created_at, updated_at FROM public.metas ORDER BY mes DESC"
+        "SELECT id, mes, meta::float4 AS meta, created_at, updated_at FROM public.metas ORDER BY mes DESC"
     )
     .fetch_all(&state.pg_pool)
     .await

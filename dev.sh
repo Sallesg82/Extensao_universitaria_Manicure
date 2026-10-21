@@ -2,6 +2,7 @@
 set -e
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export PATH="$HOME/.local/bin:$PATH"
 CRM_BACKEND="$PROJECT_ROOT/Aplicativos/CRM BeautyFlow/backend"
 AGENDAMENTO="$PROJECT_ROOT/Aplicativos/Beatriz Gomes Studio"
 INSTALACAO_DIR="$PROJECT_ROOT/Aplicativos/instalacao"
@@ -56,8 +57,17 @@ echo "=================================================="
 echo "🚀 Iniciando BeautyFlow em Modo de Desenvolvimento"
 echo "=================================================="
 
-# 1. Garantir que o PostgreSQL local está rodando
-if command -v pg_ctl >/dev/null 2>&1; then
+COMPOSE_CMD=""
+if docker compose version >/dev/null 2>&1; then
+    COMPOSE_CMD="docker compose"
+elif command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE_CMD="docker-compose"
+fi
+
+PG_STARTED_BY_DEV=0
+
+# 1. Garantir que o PostgreSQL está rodando
+if command -v pg_ctl >/dev/null 2>&1 && [ -d "$HOME/.pg_local/data" ]; then
     if ! pg_ctl -D "$HOME/.pg_local/data" status >/dev/null 2>&1; then
         echo "🗄️  Iniciando PostgreSQL local..."
         if ! pg_ctl -D "$HOME/.pg_local/data" -l "$HOME/.pg_local/logfile" start; then
@@ -75,19 +85,30 @@ if command -v pg_ctl >/dev/null 2>&1; then
             exit 1
         fi
     else
-        echo "🗄️  PostgreSQL já está em execução."
+        echo "🗄️  PostgreSQL local já está em execução."
     fi
+elif ! ss -tlpn 2>/dev/null | grep -qE ":5432[[:space:]]"; then
+    if command -v docker >/dev/null 2>&1 && [ -n "$COMPOSE_CMD" ] && [ -f "$COMPOSE_FILE" ]; then
+        echo "🗄️  Iniciando contêiner PostgreSQL (porta 5432)..."
+        $COMPOSE_CMD -f "$COMPOSE_FILE" up -d postgres
+        echo "⏳ Aguardando serviço PostgreSQL responder na porta 5432..."
+        for i in $(seq 1 30); do
+            if docker exec beautyflow-postgres pg_isready -U postgres -d beautyflow >/dev/null 2>&1; then
+                echo "✅ Banco de dados PostgreSQL online!"
+                break
+            fi
+            sleep 1
+        done
+        PG_STARTED_BY_DEV=1
+    else
+        echo "⚠️  Nenhum PostgreSQL detectado na porta 5432."
+    fi
+else
+    echo "🗄️  PostgreSQL já está em execução na porta 5432."
 fi
 
 # 2. Configurar WhatsApp WAHA (instalação e integração)
 export DATABASE_URL="${DATABASE_URL:-postgresql://postgres:beautyflow_pass@localhost:5432/beautyflow}"
-
-COMPOSE_CMD=""
-if docker compose version >/dev/null 2>&1; then
-    COMPOSE_CMD="docker compose"
-elif command -v docker-compose >/dev/null 2>&1; then
-    COMPOSE_CMD="docker-compose"
-fi
 
 DEFAULT_WAHA_KEY="218c0effefb845238a1ae3651c8ced5b"
 DEFAULT_WAHA_SESS="Beautyflow"
@@ -261,6 +282,13 @@ try:
     _run(\"UPDATE integrations SET enabled = true WHERE type IN ('whatsapp', 'waha');\")
 except Exception as e:
     print(f'Aviso na sincronização do DB: {e}', file=sys.stderr)
+finally:
+    try:
+        from db.database import _pool
+        if _pool:
+            _pool.close()
+    except Exception:
+        pass
 " 2>/dev/null || true
 
     export INSTALL_WAHA="true"
@@ -284,12 +312,35 @@ cleanup() {
             docker stop beautyflow-waha >/dev/null 2>&1 || true
         fi
     fi
+    if [ "${PG_STARTED_BY_DEV:-0}" -eq 1 ]; then
+        echo "🗄️  Parando contêiner PostgreSQL..."
+        if [ -n "$COMPOSE_CMD" ] && [ -f "$COMPOSE_FILE" ]; then
+            $COMPOSE_CMD -f "$COMPOSE_FILE" stop postgres >/dev/null 2>&1 || docker stop beautyflow-postgres >/dev/null 2>&1 || true
+        else
+            docker stop beautyflow-postgres >/dev/null 2>&1 || true
+        fi
+    fi
     exit 0
 }
 trap cleanup SIGINT SIGTERM EXIT
 
 # 4. Iniciar Backend CRM BeautyFlow (porta 3001)
 echo "💅 Iniciando CRM BeautyFlow Backend (porta 3001)..."
+PYTHON_BIN="$CRM_BACKEND/.venv/bin/python"
+if [ ! -x "$PYTHON_BIN" ]; then
+    echo "⚠️  Ambiente virtual Python (.venv) não encontrado ou incompleto."
+    if command -v python3 >/dev/null 2>&1; then
+        echo "📦 Criando ambiente virtual Python (.venv)..."
+        python3 -m venv "$CRM_BACKEND/.venv"
+        "$CRM_BACKEND/.venv/bin/pip" install --upgrade pip
+        "$CRM_BACKEND/.venv/bin/pip" install -r "$CRM_BACKEND/requirements.txt"
+        PYTHON_BIN="$CRM_BACKEND/.venv/bin/python"
+    else
+        echo "❌ python3 não encontrado no sistema!"
+        exit 1
+    fi
+fi
+
 if ss -tlpn 2>/dev/null | grep -qE ":3001[[:space:]]"; then
     if ! docker ps --format '{{.Ports}}' 2>/dev/null | grep -qE ":3001->"; then
         echo "   Liberando porta 3001 ocupada por instância anterior..."
@@ -298,10 +349,18 @@ if ss -tlpn 2>/dev/null | grep -qE ":3001[[:space:]]"; then
     fi
 fi
 cd "$CRM_BACKEND"
-"$CRM_BACKEND/.venv/bin/python" run.py &
+"$PYTHON_BIN" run.py &
 
 # 5. Iniciar Portal de Agendamento Vite (porta 5173)
 echo "🌸 Iniciando Portal de Agendamento Vite (porta 5173)..."
+cd "$AGENDAMENTO"
+export PATH="$HOME/.local/bin:$AGENDAMENTO/node_modules/.bin:$PATH"
+if ! command -v node >/dev/null 2>&1; then
+    echo "❌ Node.js não foi encontrado no PATH. Instale o Node.js para rodar o Portal de Agendamento."
+    exit 1
+fi
+NODE_BIN="$(command -v node)"
+
 if ss -tlpn 2>/dev/null | grep -qE ":5173[[:space:]]"; then
     if ! docker ps --format '{{.Ports}}' 2>/dev/null | grep -qE ":5173->"; then
         echo "   Liberando porta 5173 ocupada por instância anterior..."
@@ -309,9 +368,7 @@ if ss -tlpn 2>/dev/null | grep -qE ":5173[[:space:]]"; then
         sleep 1
     fi
 fi
-cd "$AGENDAMENTO"
-export PATH="$AGENDAMENTO/node_modules/.bin:$PATH"
-NODE_BIN="$(command -v node || echo "node")"
+
 if [ -f "$AGENDAMENTO/node_modules/vite/bin/vite.js" ]; then
     "$NODE_BIN" "$AGENDAMENTO/node_modules/vite/bin/vite.js" --host 0.0.0.0 --port 5173 &
 elif command -v npx >/dev/null 2>&1; then
