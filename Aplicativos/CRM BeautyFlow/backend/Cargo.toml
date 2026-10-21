@@ -1,0 +1,28 @@
+[package]
+name = "beautyflow-crm"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = "0.8"
+base64 = "0.22"
+chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = "0.10"
+dotenvy = "0.15"
+hex = "0.4"
+hmac = "0.12"
+pbkdf2 = "0.12"
+rand = "0.9"
+regex = "1.11"
+reqwest = { version = "0.13", features = ["json", "rustls"] }
+scrypt = "0.12"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+sha2 = "0.10"
+socketioxide = "0.18"
+sqlx = { version = "0.9", features = ["runtime-tokio", "tls-rustls", "postgres", "sqlite", "chrono", "json"] }
+tokio = { version = "1", features = ["full"] }
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["cors", "fs", "trace", "normalize-path"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }

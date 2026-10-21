@@ -264,7 +264,17 @@ check_port() {
     fi
 
     if [ "$in_use" -eq 1 ]; then
-        if ! docker ps --format '{{.Ports}}' 2>/dev/null | grep -qE ":$port->"; then
+        local holder
+        holder=$(docker ps --format '{{.Names}}\t{{.Ports}}' 2>/dev/null | grep -E ":$port->" | head -n1 | awk '{print $1}' || true)
+        if [ -n "$holder" ] && ! [[ "$holder" =~ ^beautyflow- ]]; then
+            echo -e "${C_YELLOW}[AVISO] A porta $port ($desc) ja esta em uso pelo conteiner Docker '$holder'.${C_RESET}"
+            read -rp "        Deseja pausar o conteiner '$holder' para liberar a porta? (S/n): " STOP_C
+            STOP_C=${STOP_C:-S}
+            if [[ "$STOP_C" =~ ^[Ss]$ ]]; then
+                docker stop "$holder" 2>/dev/null || true
+                sleep 1
+            fi
+        elif [ -z "$holder" ]; then
             echo -e "${C_YELLOW}[AVISO] A porta $port ($desc) ja esta em uso por outro servico local.${C_RESET}"
             if [ "$port" -eq 5432 ]; then
                 read -rp "        Deseja tentar pausar o PostgreSQL local agora? (S/n): " STOP_PG
@@ -836,13 +846,17 @@ action_reset_password() {
     read -rp "Digite a nova senha para o usuario 'admin' [padrao: admin]: " NEW_PASS
     NEW_PASS=${NEW_PASS:-admin}
 
-    docker exec -i beautyflow-crm python -c "
+    if docker exec -i beautyflow-crm test -f /app/beautyflow-crm 2>/dev/null; then
+        docker exec -i beautyflow-crm /app/beautyflow-crm --reset-admin "$NEW_PASS"
+    else
+        docker exec -i beautyflow-crm python -c "
 from werkzeug.security import generate_password_hash
 from db.database import _run
 pw_hash = generate_password_hash('$NEW_PASS')
 _run('UPDATE users SET password_hash = %s WHERE email = %s', (pw_hash, 'admin'))
 print('[OK] Senha do usuario admin atualizada.')
 "
+    fi
     echo -e "${C_B_GREEN}[OK] Senha alterada com sucesso! Agora voce pode logar com a nova senha.${C_RESET}"
 }
 
